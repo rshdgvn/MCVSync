@@ -5,15 +5,16 @@ namespace App\Policies\Concerns;
 use App\Models\User;
 
 /**
- * Section 1's access split is fixed system architecture, not something
- * Admin can reconfigure through the dynamic role_permission screen — so
- * this checks role membership directly rather than a permission name.
- * Shared by every inventory policy so the split is defined exactly once.
+ * This access split is fixed system architecture, not something Admin can
+ * reconfigure through the dynamic role_permission screen — so this checks
+ * role membership directly rather than a permission name. Shared by every
+ * inventory-adjacent policy (Items, Suppliers, ...) that uses this same
+ * split, so it's defined exactly once.
  *
  * Purchasing, Admin, and Super Admin get identical full read/write access;
  * Sales, Accounting, and Logistics are blocked entirely. Every ability
- * delegates to the same check since there is no longer a read/write split
- * within the allowed roles.
+ * delegates to the same check since there is no read/write split within
+ * the allowed roles.
  */
 trait AuthorizesInventoryAccess
 {
