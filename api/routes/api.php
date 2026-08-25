@@ -16,6 +16,7 @@ use App\Http\Controllers\Staff\Inventory\UnitController;
 use App\Http\Controllers\Staff\PasswordResetController as StaffPasswordResetController;
 use App\Http\Controllers\Staff\PermissionController;
 use App\Http\Controllers\Staff\RoleController;
+use App\Http\Controllers\Staff\SupplierController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('staff/auth')->group(function () {
@@ -71,6 +72,16 @@ Route::prefix('staff/inventory')
 
         Route::get('/alerts/expiring', [AlertController::class, 'expiring']);
         Route::get('/alerts/low-stock', [AlertController::class, 'lowStock']);
+    });
+
+Route::prefix('staff/suppliers')
+    ->middleware(['auth:staff', 'ensure-active-account'])
+    ->group(function () {
+        Route::get('/', [SupplierController::class, 'index']);
+        Route::post('/', [SupplierController::class, 'store']);
+        Route::patch('/{supplier}', [SupplierController::class, 'update']);
+        Route::post('/{supplier}/deactivate', [SupplierController::class, 'deactivate']);
+        Route::post('/{supplier}/activate', [SupplierController::class, 'activate']);
     });
 
 Route::prefix('portal/auth')->group(function () {
