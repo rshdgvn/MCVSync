@@ -15,6 +15,7 @@ import { Pagination } from "@/components/Pagination";
 import { RouteErrorFallback } from "@/components/RouteErrorFallback";
 import { TableSkeleton } from "@/components/TableSkeleton";
 import { useLowStockAlertsQuery } from "@/hooks/useInventory";
+import { useInventoryChannels, usePurchasingOwnBranchIds } from "@/hooks/useInventoryChannels";
 import { getErrorMessage } from "@/lib/errors";
 import { requireRole } from "@/lib/rbac";
 
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/_authenticated/inventory/low-stock")({
 function LowStockItemsPage() {
   const [page, setPage] = useState(1);
   const alertsQuery = useLowStockAlertsQuery({ page });
+  useInventoryChannels(usePurchasingOwnBranchIds());
 
   return (
     <div className="flex flex-col gap-4">

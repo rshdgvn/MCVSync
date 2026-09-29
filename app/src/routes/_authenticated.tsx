@@ -2,6 +2,7 @@ import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { EmptyState } from "@/components/EmptyState";
 import { RouteErrorFallback } from "@/components/RouteErrorFallback";
+import { EchoProvider } from "@/providers/EchoProvider";
 import { meQueryOptions, useMeQuery } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -37,8 +38,10 @@ function AuthenticatedLayout() {
   }
 
   return (
-    <AppShell role={user.role}>
-      <Outlet />
-    </AppShell>
+    <EchoProvider user={user}>
+      <AppShell role={user.role}>
+        <Outlet />
+      </AppShell>
+    </EchoProvider>
   );
 }

@@ -9,15 +9,20 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['item_id', 'branch_id', 'batch_number', 'quantity', 'expiry_date', 'received_date', 'status'])]
+#[Fillable(['item_id', 'branch_id', 'batch_number', 'mfg_date', 'quantity', 'expiry_date', 'received_date', 'status'])]
 #[ScopedBy([BranchScope::class])]
 class Batch extends Model
 {
     use HasFactory;
 
+    protected $attributes = [
+        'status' => 'active',
+    ];
+
     protected function casts(): array
     {
         return [
+            'mfg_date' => 'date',
             'expiry_date' => 'date',
             'received_date' => 'date',
         ];

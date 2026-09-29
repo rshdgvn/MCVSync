@@ -6,6 +6,7 @@ use App\Http\Controllers\Portal\ItemController as PortalItemController;
 use App\Http\Controllers\Portal\PasswordResetController as PortalPasswordResetController;
 use App\Http\Controllers\Staff\AuthController as StaffAuthController;
 use App\Http\Controllers\Staff\BranchController;
+use App\Http\Controllers\Staff\DiscrepancyController;
 use App\Http\Controllers\Staff\EmployeeController;
 use App\Http\Controllers\Staff\Inventory\AlertController;
 use App\Http\Controllers\Staff\Inventory\BatchController;
@@ -15,7 +16,11 @@ use App\Http\Controllers\Staff\Inventory\StockController;
 use App\Http\Controllers\Staff\Inventory\UnitController;
 use App\Http\Controllers\Staff\PasswordResetController as StaffPasswordResetController;
 use App\Http\Controllers\Staff\PermissionController;
+use App\Http\Controllers\Staff\PurchaseOrderController;
+use App\Http\Controllers\Staff\PurchaseOrderItemController;
+use App\Http\Controllers\Staff\ReceivingController;
 use App\Http\Controllers\Staff\RoleController;
+use App\Http\Controllers\Staff\SupplierController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('staff/auth')->group(function () {
@@ -71,6 +76,44 @@ Route::prefix('staff/inventory')
 
         Route::get('/alerts/expiring', [AlertController::class, 'expiring']);
         Route::get('/alerts/low-stock', [AlertController::class, 'lowStock']);
+    });
+
+Route::prefix('staff/suppliers')
+    ->middleware(['auth:staff', 'ensure-active-account'])
+    ->group(function () {
+        Route::get('/', [SupplierController::class, 'index']);
+        Route::post('/', [SupplierController::class, 'store']);
+        Route::patch('/{supplier}', [SupplierController::class, 'update']);
+        Route::post('/{supplier}/deactivate', [SupplierController::class, 'deactivate']);
+        Route::post('/{supplier}/activate', [SupplierController::class, 'activate']);
+    });
+
+Route::prefix('staff/purchase-orders')
+    ->middleware(['auth:staff', 'ensure-active-account', 'scope-to-branch'])
+    ->group(function () {
+        Route::get('/', [PurchaseOrderController::class, 'index']);
+        Route::post('/', [PurchaseOrderController::class, 'store']);
+        Route::get('/{purchaseOrder}', [PurchaseOrderController::class, 'show']);
+        Route::patch('/{purchaseOrder}', [PurchaseOrderController::class, 'update']);
+        Route::post('/{purchaseOrder}/items', [PurchaseOrderItemController::class, 'store']);
+        Route::patch('/{purchaseOrder}/items/{item}', [PurchaseOrderItemController::class, 'update']);
+        Route::delete('/{purchaseOrder}/items/{item}', [PurchaseOrderItemController::class, 'destroy']);
+        Route::post('/{purchaseOrder}/mark-ready', [PurchaseOrderController::class, 'markReady']);
+        Route::post('/{purchaseOrder}/cancel', [PurchaseOrderController::class, 'cancel']);
+
+        Route::get('/{purchaseOrder}/receive', [ReceivingController::class, 'show']);
+        Route::post('/{purchaseOrder}/receive/match', [ReceivingController::class, 'match']);
+        Route::post('/{purchaseOrder}/receive/confirm', [ReceivingController::class, 'confirm']);
+        Route::post('/{purchaseOrder}/receive/discrepancy', [ReceivingController::class, 'discrepancy']);
+        Route::post('/{purchaseOrder}/receive/complete', [ReceivingController::class, 'complete']);
+
+        Route::get('/{purchaseOrder}/discrepancies', [DiscrepancyController::class, 'index']);
+    });
+
+Route::prefix('staff/discrepancies')
+    ->middleware(['auth:staff', 'ensure-active-account', 'scope-to-branch'])
+    ->group(function () {
+        Route::post('/{discrepancy}/resolve', [DiscrepancyController::class, 'resolve']);
     });
 
 Route::prefix('portal/auth')->group(function () {

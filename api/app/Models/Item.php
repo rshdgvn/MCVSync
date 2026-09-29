@@ -25,6 +25,18 @@ class Item extends Model
 {
     use HasFactory;
 
+    /**
+     * Eloquent's create() does not re-read DB-level column defaults back
+     * into the in-memory model after insert — without these, a create
+     * request that omits has_expiry/is_active would correctly persist
+     * `true` to the database but return `null` for both in that same
+     * response, even though the column default is true.
+     */
+    protected $attributes = [
+        'has_expiry' => true,
+        'is_active' => true,
+    ];
+
     protected function casts(): array
     {
         return [
