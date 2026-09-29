@@ -15,7 +15,9 @@ use App\Http\Controllers\Staff\Inventory\ItemController;
 use App\Http\Controllers\Staff\Inventory\StockController;
 use App\Http\Controllers\Staff\Inventory\UnitController;
 use App\Http\Controllers\Staff\PasswordResetController as StaffPasswordResetController;
+use App\Http\Controllers\Staff\PaymentController;
 use App\Http\Controllers\Staff\PermissionController;
+use App\Http\Controllers\Staff\PricingController;
 use App\Http\Controllers\Staff\PurchaseOrderController;
 use App\Http\Controllers\Staff\PurchaseOrderItemController;
 use App\Http\Controllers\Staff\ReceivingController;
@@ -114,6 +116,24 @@ Route::prefix('staff/discrepancies')
     ->middleware(['auth:staff', 'ensure-active-account', 'scope-to-branch'])
     ->group(function () {
         Route::post('/{discrepancy}/resolve', [DiscrepancyController::class, 'resolve']);
+    });
+
+Route::prefix('staff/pricing')
+    ->middleware(['auth:staff', 'ensure-active-account'])
+    ->group(function () {
+        Route::get('/items', [PricingController::class, 'items']);
+        Route::get('/client-item-prices', [PricingController::class, 'index']);
+        Route::get('/client-item-prices/history', [PricingController::class, 'history']);
+        Route::get('/client-item-prices/zone-average', [PricingController::class, 'zoneAverage']);
+        Route::post('/client-item-prices', [PricingController::class, 'store']);
+    });
+
+Route::prefix('staff/payments')
+    ->middleware(['auth:staff', 'ensure-active-account'])
+    ->group(function () {
+        Route::get('/pending', [PaymentController::class, 'pending']);
+        Route::post('/{payment}/approve', [PaymentController::class, 'approve']);
+        Route::get('/history', [PaymentController::class, 'history']);
     });
 
 Route::prefix('portal/auth')->group(function () {
