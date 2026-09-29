@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Staff\Inventory\StoreItemRequest;
 use App\Http\Requests\Staff\Inventory\UpdateItemRequest;
 use App\Http\Resources\ItemResource;
+use App\Http\Resources\ItemWithCogsResource;
 use App\Models\Item;
 use App\Models\Scopes\BranchScope;
 use App\Services\InventoryService;
+use App\Services\PricingService;
 use Illuminate\Http\Request;
 
 class ItemController extends Controller
@@ -41,11 +43,14 @@ class ItemController extends Controller
         return ItemResource::collection($items);
     }
 
-    public function show(Item $item)
+    public function show(Item $item, PricingService $pricing)
     {
         $this->authorize('view', $item);
 
-        return new ItemResource($item->load(['category', 'unit']));
+        $item->load(['category', 'unit']);
+        $item->setAttribute('cogs', $pricing->cogsFor($item->id));
+
+        return new ItemWithCogsResource($item);
     }
 
     public function store(StoreItemRequest $request, InventoryService $inventory)
