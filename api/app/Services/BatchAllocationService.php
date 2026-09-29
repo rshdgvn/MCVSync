@@ -31,4 +31,20 @@ class BatchAllocationService
             ->orderBy('received_date')
             ->first();
     }
+
+    /**
+     * Locked because this exists specifically for the Receiving Stock
+     * write path's batch upsert — the only real caller — which needs the
+     * row held for the rest of its transaction, not just a plain read.
+     */
+    public function findExistingBatch(int $itemId, int $branchId, string $batchNumber): ?Batch
+    {
+        return Batch::query()
+            ->withoutGlobalScope(BranchScope::class)
+            ->where('item_id', $itemId)
+            ->where('branch_id', $branchId)
+            ->where('batch_number', $batchNumber)
+            ->lockForUpdate()
+            ->first();
+    }
 }
