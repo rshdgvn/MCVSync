@@ -27,6 +27,7 @@ import { TableSkeleton } from "@/components/TableSkeleton";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useCategoriesQuery, useItemsQuery } from "@/hooks/useInventory";
 import { useItemAlertFlags } from "@/hooks/useItemAlertFlags";
+import { useInventoryChannels, usePurchasingOwnBranchIds } from "@/hooks/useInventoryChannels";
 import { getErrorMessage } from "@/lib/errors";
 import { requireRole } from "@/lib/rbac";
 
@@ -53,6 +54,7 @@ function ItemsListPage() {
     is_active: status === "all" ? undefined : status === "active",
   });
   const { statusFor } = useItemAlertFlags();
+  useInventoryChannels(usePurchasingOwnBranchIds());
 
   return (
     <div className="flex flex-col gap-4">

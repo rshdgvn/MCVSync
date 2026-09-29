@@ -22,6 +22,7 @@ import {
   useItemStockQuery,
   useItemTransactionsQuery,
 } from "@/hooks/useInventory";
+import { useInventoryChannels } from "@/hooks/useInventoryChannels";
 import { getErrorMessage } from "@/lib/errors";
 import { requireRole } from "@/lib/rbac";
 import type { BatchStatus } from "@/types/inventory";
@@ -148,6 +149,7 @@ function BatchesTab({ itemId }: { itemId: number }) {
 
 function StockTab({ itemId }: { itemId: number }) {
   const stockQuery = useItemStockQuery(itemId);
+  useInventoryChannels(stockQuery.data?.map((row) => row.branch_id) ?? []);
 
   if (stockQuery.isPending) {
     return <TableSkeleton rows={2} columns={5} />;
