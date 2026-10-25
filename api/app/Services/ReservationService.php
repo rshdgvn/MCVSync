@@ -49,7 +49,8 @@ class ReservationService
                 ->where('branch_id', $branchId)
                 ->where('status', 'active')
                 ->lockForUpdate()
-                ->sum('quantity');
+                ->pluck('quantity')
+                ->sum();
 
             $reservedStock = $this->availability->reservedStock($itemId, $branchId);
             $availableBefore = $currentStock - $reservedStock;
