@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -79,13 +80,15 @@ export function Topbar() {
             <ChevronDown />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Enter a role's working view</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {SWITCHABLE_ROLES.map((role) => (
-              <DropdownMenuItem key={role} onClick={() => handleSwitchRole(role)}>
-                {ROLE_LABELS[role]}
-              </DropdownMenuItem>
-            ))}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Enter a role's working view</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {SWITCHABLE_ROLES.map((role) => (
+                <DropdownMenuItem key={role} onClick={() => handleSwitchRole(role)}>
+                  {ROLE_LABELS[role]}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
       )}
