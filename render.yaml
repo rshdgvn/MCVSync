@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: mcvsync-api
+    runtime: docker
+    region: singapore
+    plan: starter
+    dockerfilePath: ./api/Dockerfile
+    dockerContext: ./api
+    healthCheckPath: /up
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - api/**

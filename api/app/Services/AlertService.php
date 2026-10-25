@@ -17,8 +17,8 @@ class AlertService
     /**
      * Every active batch whose expiry falls within its item's own
      * threshold (or the config-backed default when the item doesn't set
-     * one). Days-until-expiry is computed with SQLite's julianday(), since
-     * that's this project's only supported database driver.
+     * one). SQLite runs the test suite and Postgres runs production, and
+     * they have no shared date-difference function.
      */
     public function expiringBatches(?int $branchId, int $perPage = 15): LengthAwarePaginator
     {
@@ -30,7 +30,7 @@ class AlertService
             ->where('batches.status', 'active')
             ->whereNotNull('batches.expiry_date')
             ->whereRaw(
-                'CAST(julianday(batches.expiry_date) - julianday(?) AS INTEGER) <= COALESCE(items.expiry_alert_threshold_days, ?)',
+                $this->daysUntilExpirySql().' <= COALESCE(items.expiry_alert_threshold_days, ?)',
                 [now()->toDateString(), $defaultThreshold],
             )
             ->when($branchId !== null, fn ($query) => $query->where('batches.branch_id', $branchId))
@@ -38,6 +38,14 @@ class AlertService
             ->select('batches.*')
             ->with(['item.category', 'item.unit', 'branch'])
             ->paginate($perPage);
+    }
+
+    private function daysUntilExpirySql(): string
+    {
+        return match (DB::connection()->getDriverName()) {
+            'pgsql' => '(batches.expiry_date - CAST(? AS date))',
+            default => 'CAST(julianday(batches.expiry_date) - julianday(?) AS INTEGER)',
+        };
     }
 
     /**

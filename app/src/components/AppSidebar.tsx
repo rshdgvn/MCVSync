@@ -24,6 +24,9 @@ import { useMotionTransition } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/types/user";
 
+const COLLAPSIBLE_FADE =
+  "transition-[opacity,visibility] duration-300 ease-out group-data-[collapsible=icon]:invisible group-data-[collapsible=icon]:opacity-0";
+
 interface AppSidebarProps {
   role: Role;
   badges?: Record<string, number>;
@@ -45,18 +48,19 @@ export function AppSidebar({ role, badges = {} }: AppSidebarProps) {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <div className="flex items-center justify-between gap-2 px-2 py-1.5">
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="flex size-7 shrink-0 items-center justify-center bg-primary text-sm font-semibold text-primary-foreground">
-              M
-            </div>
-            <span className="truncate text-sm font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden">
-              MCVSync
-            </span>
+        <div className="flex items-center gap-2 overflow-hidden py-1">
+          <div className="flex size-8 shrink-0 items-center justify-center bg-primary text-sm font-semibold text-primary-foreground">
+            M
           </div>
-          <div className="hidden shrink-0 md:block">
-            <SidebarTrigger className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:hidden" />
-          </div>
+          <span className={cn("min-w-0 flex-1 truncate text-sm font-semibold text-sidebar-foreground", COLLAPSIBLE_FADE)}>
+            MCVSync
+          </span>
+          <SidebarTrigger
+            className={cn(
+              "hidden shrink-0 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:inline-flex",
+              COLLAPSIBLE_FADE,
+            )}
+          />
         </div>
       </SidebarHeader>
 
@@ -82,8 +86,8 @@ export function AppSidebar({ role, badges = {} }: AppSidebarProps) {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter>
-        <span className="px-2 text-xs text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">
+      <SidebarFooter className="overflow-hidden">
+        <span className={cn("px-2 text-xs whitespace-nowrap text-sidebar-foreground/60", COLLAPSIBLE_FADE)}>
           v1.0 · MCVSync
         </span>
       </SidebarFooter>
@@ -114,7 +118,7 @@ function NavEntry({ item, pathname, badges, expanded, onToggle, transition }: Na
           render={<Link to={item.to ?? "/"} />}
         >
           <item.icon className="size-4 shrink-0" />
-          <span className="min-w-0 truncate">{item.label}</span>
+          <span className={cn("min-w-0 truncate", COLLAPSIBLE_FADE)}>{item.label}</span>
         </SidebarMenuButton>
         {!!badgeCount && <SidebarMenuBadge>{badgeCount}</SidebarMenuBadge>}
       </SidebarMenuItem>
@@ -125,10 +129,10 @@ function NavEntry({ item, pathname, badges, expanded, onToggle, transition }: Na
     <SidebarMenuItem>
       <SidebarMenuButton onClick={onToggle} tooltip={item.label}>
         <item.icon className="size-4 shrink-0" />
-        <span className="min-w-0 truncate">{item.label}</span>
+        <span className={cn("min-w-0 truncate", COLLAPSIBLE_FADE)}>{item.label}</span>
         <ChevronRight
           className={cn(
-            "ml-auto size-4 shrink-0 transition-transform duration-200",
+            "ml-auto size-4 shrink-0 transition-[transform,opacity,visibility] duration-300 ease-out group-data-[collapsible=icon]:invisible group-data-[collapsible=icon]:opacity-0",
             expanded && "rotate-90",
           )}
         />
