@@ -19,7 +19,7 @@ class PricingController extends Controller
 
         $items = Item::query()
             ->with(['category', 'unit'])
-            ->when($request->filled('search'), fn ($query) => $query->where('name', 'like', '%'.$request->string('search').'%'))
+            ->when($request->filled('search'), fn ($query) => $query->whereLike('name', '%'.$request->string('search').'%'))
             ->orderBy('name')
             ->paginate($this->perPage($request));
 

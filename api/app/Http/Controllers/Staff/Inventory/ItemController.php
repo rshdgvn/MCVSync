@@ -23,7 +23,7 @@ class ItemController extends Controller
             ->with(['category', 'unit'])
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = '%'.$request->string('search').'%';
-                $query->where(fn ($inner) => $inner->where('name', 'like', $search)->orWhere('sku', 'like', $search));
+                $query->where(fn ($inner) => $inner->whereLike('name', $search)->orWhereLike('sku', $search));
             })
             ->when($request->filled('category_id'), fn ($query) => $query->where('category_id', $request->integer('category_id')))
             ->when($request->has('is_active'), fn ($query) => $query->where('is_active', $request->boolean('is_active')))

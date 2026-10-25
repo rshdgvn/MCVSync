@@ -15,7 +15,7 @@ class SupplierController extends Controller
         $this->authorize('viewAny', Supplier::class);
 
         $suppliers = Supplier::query()
-            ->when($request->filled('search'), fn ($query) => $query->where('name', 'like', '%'.$request->string('search').'%'))
+            ->when($request->filled('search'), fn ($query) => $query->whereLike('name', '%'.$request->string('search').'%'))
             ->orderBy('name')
             ->paginate($this->perPage($request));
 
