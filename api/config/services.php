@@ -43,4 +43,6 @@ return [
 
     'seed_user_password' => env('SEED_USER_PASSWORD'),
 
+    'seed_demo_accounts' => (bool) env('SEED_DEMO_ACCOUNTS', false),
+
 ];
