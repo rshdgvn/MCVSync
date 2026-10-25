@@ -52,6 +52,7 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api\//, /^\/sanctum\//],
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff,woff2}'],
         runtimeCaching: [
           {
@@ -63,33 +64,6 @@ export default defineConfig({
               expiration: {
                 maxEntries: 100,
                 maxAgeSeconds: 60 * 60 * 24 * 30,
-              },
-            },
-          },
-          {
-            urlPattern: ({ request, url }) =>
-              request.method === 'GET' &&
-              /\/(catalog|items|clients|reference)(\/|$)/i.test(url.pathname),
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'reference-data',
-              expiration: {
-                maxEntries: 200,
-                maxAgeSeconds: 60 * 60 * 24,
-              },
-            },
-          },
-          {
-            urlPattern: ({ request, url }) =>
-              request.method === 'GET' &&
-              /\/(inventory|stock|orders?|dispatch)(\/|$)/i.test(url.pathname),
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'live-data',
-              networkTimeoutSeconds: 5,
-              expiration: {
-                maxEntries: 200,
-                maxAgeSeconds: 60 * 60,
               },
             },
           },
