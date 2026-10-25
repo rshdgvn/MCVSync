@@ -11,7 +11,7 @@ import type {
 } from "@/types/inventory";
 
 export async function listCategories(): Promise<Category[]> {
-  const response = await api.get<Category[]>("/inventory/categories");
+  const response = await api.get<Category[]>("/staff/inventory/categories");
   return response.data;
 }
 
@@ -20,21 +20,21 @@ export interface CategoryPayload {
 }
 
 export async function createCategory(payload: CategoryPayload): Promise<Category> {
-  const response = await api.post<Category>("/inventory/categories", payload);
+  const response = await api.post<Category>("/staff/inventory/categories", payload);
   return response.data;
 }
 
 export async function updateCategory(id: number, payload: CategoryPayload): Promise<Category> {
-  const response = await api.patch<Category>(`/inventory/categories/${id}`, payload);
+  const response = await api.patch<Category>(`/staff/inventory/categories/${id}`, payload);
   return response.data;
 }
 
 export async function deleteCategory(id: number): Promise<void> {
-  await api.delete(`/inventory/categories/${id}`);
+  await api.delete(`/staff/inventory/categories/${id}`);
 }
 
 export async function listUnits(): Promise<Unit[]> {
-  const response = await api.get<Unit[]>("/inventory/units");
+  const response = await api.get<Unit[]>("/staff/inventory/units");
   return response.data;
 }
 
@@ -44,17 +44,17 @@ export interface UnitPayload {
 }
 
 export async function createUnit(payload: UnitPayload): Promise<Unit> {
-  const response = await api.post<Unit>("/inventory/units", payload);
+  const response = await api.post<Unit>("/staff/inventory/units", payload);
   return response.data;
 }
 
 export async function updateUnit(id: number, payload: UnitPayload): Promise<Unit> {
-  const response = await api.patch<Unit>(`/inventory/units/${id}`, payload);
+  const response = await api.patch<Unit>(`/staff/inventory/units/${id}`, payload);
   return response.data;
 }
 
 export async function deleteUnit(id: number): Promise<void> {
-  await api.delete(`/inventory/units/${id}`);
+  await api.delete(`/staff/inventory/units/${id}`);
 }
 
 export interface ListItemsParams {
@@ -65,7 +65,7 @@ export interface ListItemsParams {
 }
 
 export async function listItems(params: ListItemsParams = {}): Promise<Paginated<Item>> {
-  const response = await api.get<Paginated<Item>>("/inventory/items", { params });
+  const response = await api.get<Paginated<Item>>("/staff/inventory/items", { params });
   return response.data;
 }
 
@@ -84,29 +84,29 @@ export interface ItemPayload {
 }
 
 export async function getItem(id: number): Promise<Item> {
-  const response = await api.get<Item>(`/inventory/items/${id}`);
+  const response = await api.get<Item>(`/staff/inventory/items/${id}`);
   return response.data;
 }
 
 export async function createItem(payload: ItemPayload): Promise<Item> {
-  const response = await api.post<Item>("/inventory/items", payload);
+  const response = await api.post<Item>("/staff/inventory/items", payload);
   return response.data;
 }
 
 export async function updateItem(id: number, payload: ItemPayload): Promise<Item> {
-  const response = await api.patch<Item>(`/inventory/items/${id}`, payload);
+  const response = await api.patch<Item>(`/staff/inventory/items/${id}`, payload);
   return response.data;
 }
 
 export async function listItemBatches(id: number, page = 1): Promise<Paginated<Batch>> {
-  const response = await api.get<Paginated<Batch>>(`/inventory/items/${id}/batches`, {
+  const response = await api.get<Paginated<Batch>>(`/staff/inventory/items/${id}/batches`, {
     params: { page },
   });
   return response.data;
 }
 
 export async function getItemStock(id: number): Promise<ItemStockBreakdown[]> {
-  const response = await api.get<ItemStockBreakdown[]>(`/inventory/items/${id}/stock`);
+  const response = await api.get<ItemStockBreakdown[]>(`/staff/inventory/items/${id}/stock`);
   return response.data;
 }
 
@@ -114,7 +114,7 @@ export async function listItemTransactions(
   id: number,
   page = 1,
 ): Promise<Paginated<StockTransaction>> {
-  const response = await api.get<Paginated<StockTransaction>>(`/inventory/items/${id}/transactions`, {
+  const response = await api.get<Paginated<StockTransaction>>(`/staff/inventory/items/${id}/transactions`, {
     params: { page },
   });
   return response.data;
@@ -128,14 +128,14 @@ export interface ListAlertsParams {
 export async function listExpiringAlerts(
   params: ListAlertsParams = {},
 ): Promise<Paginated<Batch>> {
-  const response = await api.get<Paginated<Batch>>("/inventory/alerts/expiring", { params });
+  const response = await api.get<Paginated<Batch>>("/staff/inventory/alerts/expiring", { params });
   return response.data;
 }
 
 export async function listLowStockAlerts(
   params: ListAlertsParams = {},
 ): Promise<Paginated<LowStockItem>> {
-  const response = await api.get<Paginated<LowStockItem>>("/inventory/alerts/low-stock", {
+  const response = await api.get<Paginated<LowStockItem>>("/staff/inventory/alerts/low-stock", {
     params,
   });
   return response.data;
