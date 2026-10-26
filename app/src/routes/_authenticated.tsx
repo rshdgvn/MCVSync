@@ -1,5 +1,6 @@
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
+import { AppShellSkeleton } from "@/components/AppShellSkeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { RouteErrorFallback } from "@/components/RouteErrorFallback";
 import { EchoProvider } from "@/providers/EchoProvider";
@@ -15,6 +16,8 @@ export const Route = createFileRoute("/_authenticated")({
     }
   },
   component: AuthenticatedLayout,
+  pendingComponent: AppShellSkeleton,
+  pendingMs: 150,
   errorComponent: RouteErrorFallback,
 });
 
