@@ -6,15 +6,13 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
-/**
- * Unlike stock_transactions, this is not append-only — a discrepancy is a
- * working item that gets resolved (Purchasing follows up with the
- * supplier, then marks it resolved), not a permanent ledger entry.
- */
 #[Fillable([
-    'purchase_order_id',
-    'purchase_order_item_id',
+    'reference_type',
+    'reference_id',
+    'reference_item_type',
+    'reference_item_id',
     'item_id',
     'type',
     'scanned_quantity',
@@ -23,7 +21,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'resolved_by',
     'resolved_at',
 ])]
-class PurchaseOrderDiscrepancy extends Model
+class Discrepancy extends Model
 {
     use HasFactory;
 
@@ -39,14 +37,14 @@ class PurchaseOrderDiscrepancy extends Model
         ];
     }
 
-    public function purchaseOrder(): BelongsTo
+    public function reference(): MorphTo
     {
-        return $this->belongsTo(PurchaseOrder::class);
+        return $this->morphTo();
     }
 
-    public function purchaseOrderItem(): BelongsTo
+    public function referenceItem(): MorphTo
     {
-        return $this->belongsTo(PurchaseOrderItem::class);
+        return $this->morphTo();
     }
 
     public function item(): BelongsTo

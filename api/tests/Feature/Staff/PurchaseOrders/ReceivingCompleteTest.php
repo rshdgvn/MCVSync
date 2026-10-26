@@ -1,8 +1,8 @@
 <?php
 
+use App\Models\Discrepancy;
 use App\Models\Item;
 use App\Models\PurchaseOrder;
-use App\Models\PurchaseOrderDiscrepancy;
 
 test('completing a session closes the po when every line exactly matches', function () {
     $user = makeStaffUser([], 'APALIT');
@@ -31,7 +31,7 @@ test('completing a session with a short line keeps the po open and logs a short 
     $response->assertOk();
     $response->assertJsonPath('status', 'open');
 
-    $discrepancy = PurchaseOrderDiscrepancy::where('purchase_order_item_id', $line->id)->where('type', 'short')->first();
+    $discrepancy = Discrepancy::whereMorphedTo('referenceItem', $line)->where('type', 'short')->first();
     expect($discrepancy)->not->toBeNull();
     expect($discrepancy->scanned_quantity)->toBe(4);
     expect($discrepancy->resolved)->toBeFalse();
@@ -48,7 +48,7 @@ test('completing a session twice for the same short line does not create a dupli
     $this->actingAs($user, 'staff')->postJson("/api/staff/purchase-orders/{$po->id}/receive/complete")->assertOk();
     $this->actingAs($user, 'staff')->postJson("/api/staff/purchase-orders/{$po->id}/receive/complete")->assertOk();
 
-    expect(PurchaseOrderDiscrepancy::where('purchase_order_item_id', $line->id)->where('type', 'short')->count())->toBe(1);
+    expect(Discrepancy::whereMorphedTo('referenceItem', $line)->where('type', 'short')->count())->toBe(1);
 });
 
 test('a resolved short discrepancy is not reused if the line becomes short again after being completed', function () {
@@ -60,13 +60,13 @@ test('a resolved short discrepancy is not reused if the line becomes short again
     $line = $po->items()->create(['item_id' => $item->id, 'quantity_ordered' => 10, 'quantity_received' => 4, 'unit_cost' => 10, 'discount' => 0, 'total' => 100]);
 
     $this->actingAs($user, 'staff')->postJson("/api/staff/purchase-orders/{$po->id}/receive/complete")->assertOk();
-    $existing = PurchaseOrderDiscrepancy::where('purchase_order_item_id', $line->id)->where('type', 'short')->first();
+    $existing = Discrepancy::whereMorphedTo('referenceItem', $line)->where('type', 'short')->first();
     $existing->update(['resolved' => true]);
 
     $line->update(['quantity_received' => 6]);
     $this->actingAs($user, 'staff')->postJson("/api/staff/purchase-orders/{$po->id}/receive/complete")->assertOk();
 
-    $unresolved = PurchaseOrderDiscrepancy::where('purchase_order_item_id', $line->id)->where('type', 'short')->where('resolved', false)->get();
+    $unresolved = Discrepancy::whereMorphedTo('referenceItem', $line)->where('type', 'short')->where('resolved', false)->get();
     expect($unresolved)->toHaveCount(1);
     expect($unresolved->first()->scanned_quantity)->toBe(6);
 });

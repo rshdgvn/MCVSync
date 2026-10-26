@@ -2,8 +2,13 @@
 
 namespace App\Providers;
 
+use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderItem;
+use App\Models\TransferRequest;
+use App\Models\TransferRequestItem;
 use Illuminate\Auth\EloquentUserProvider;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
@@ -29,6 +34,13 @@ class AppServiceProvider extends ServiceProvider
         // envelope — matching the plain response()->json([...]) shape the
         // existing auth endpoints already return.
         JsonResource::withoutWrapping();
+
+        Relation::morphMap([
+            'purchase_order' => PurchaseOrder::class,
+            'purchase_order_item' => PurchaseOrderItem::class,
+            'transfer_request' => TransferRequest::class,
+            'transfer_request_item' => TransferRequestItem::class,
+        ]);
 
         Auth::provider('scoped-eloquent', function ($app, array $config) {
             return (new EloquentUserProvider($app['hash'], $config['model']))

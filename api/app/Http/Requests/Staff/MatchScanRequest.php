@@ -4,7 +4,7 @@ namespace App\Http\Requests\Staff;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class MatchReceivingScanRequest extends FormRequest
+class MatchScanRequest extends FormRequest
 {
     public function rules(): array
     {

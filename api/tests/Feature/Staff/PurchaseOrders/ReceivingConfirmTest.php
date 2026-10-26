@@ -3,9 +3,9 @@
 use App\Events\LowStockThresholdCrossed;
 use App\Events\StockLevelChanged;
 use App\Models\Batch;
+use App\Models\Discrepancy;
 use App\Models\Item;
 use App\Models\PurchaseOrder;
-use App\Models\PurchaseOrderDiscrepancy;
 use App\Models\StockTransaction;
 use Illuminate\Support\Facades\Event;
 
@@ -133,7 +133,7 @@ test('receiving more than ordered immediately logs an over discrepancy', functio
         'expiry_date' => now()->addYear()->toDateString(),
     ])->assertOk();
 
-    $discrepancy = PurchaseOrderDiscrepancy::where('purchase_order_item_id', $line->id)->where('type', 'over')->first();
+    $discrepancy = Discrepancy::whereMorphedTo('referenceItem', $line)->where('type', 'over')->first();
     expect($discrepancy)->not->toBeNull();
     expect($discrepancy->scanned_quantity)->toBe(8);
 });

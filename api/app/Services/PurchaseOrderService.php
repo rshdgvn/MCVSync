@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Employee;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
-use App\Models\Scopes\BranchScope;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -20,6 +19,8 @@ class PurchaseOrderService
 
     private const CANCELLABLE_STATUSES = ['draft', 'open', 'ready_for_delivery'];
 
+    public function __construct(private readonly DocumentNumberGenerator $numbers) {}
+
     /**
      * @param  array<int, array{item_id: int, quantity_ordered: int, unit_cost: float, discount?: float}>  $items
      */
@@ -28,7 +29,7 @@ class PurchaseOrderService
         return DB::transaction(function () use ($data, $items, $preparedBy) {
             $purchaseOrder = PurchaseOrder::create([
                 ...$data,
-                'po_number' => $this->generatePoNumber(),
+                'po_number' => $this->numbers->next(PurchaseOrder::class, 'po_number', 'PO'),
                 'status' => 'open',
                 'order_date' => $data['order_date'] ?? now()->toDateString(),
                 'prepared_by' => $preparedBy->id,
@@ -140,25 +141,5 @@ class PurchaseOrderService
                 'status' => 'This purchase order can no longer be edited.',
             ]);
         }
-    }
-
-    private function generatePoNumber(): string
-    {
-        // Numbering is global across every branch, never scoped to the
-        // acting employee's own branch — bypass BranchScope explicitly so
-        // a branch-scoped Purchasing user doesn't compute a number based
-        // on only their own branch's POs and collide with another
-        // branch's. Locks the latest row so two concurrent creates can't
-        // compute the same next number — the second transaction blocks
-        // here until the first commits, then sees its committed po_number.
-        $lastNumber = PurchaseOrder::query()
-            ->withoutGlobalScope(BranchScope::class)
-            ->lockForUpdate()
-            ->orderByDesc('id')
-            ->value('po_number');
-
-        $nextSequence = $lastNumber ? ((int) str_replace('PO-', '', $lastNumber)) + 1 : 1;
-
-        return 'PO-'.str_pad((string) $nextSequence, 4, '0', STR_PAD_LEFT);
     }
 }
