@@ -72,3 +72,13 @@ test('logout clears the staff session so protected routes reject further request
     $this->assertGuest('staff');
     $this->getJson('/api/staff/auth/me')->assertUnauthorized();
 });
+
+test('staff login returns the same profile as me so the client can skip a round trip', function () {
+    $user = makeStaffUser();
+    assignStaffRole($user, 'purchasing');
+
+    $login = $this->postJson('/api/staff/auth/login', ['email' => $user->email, 'password' => 'password']);
+
+    $login->assertOk()->assertJsonPath('user.email', $user->email)->assertJsonPath('user.role', 'purchasing');
+    expect($login->json('user'))->toEqual($this->getJson('/api/staff/auth/me')->json());
+});

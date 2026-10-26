@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Staff;
 
 use App\Http\Controllers\Concerns\AuthenticatesGuard;
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class AuthController extends Controller
@@ -17,10 +18,14 @@ class AuthController extends Controller
 
     public function me(Request $request)
     {
-        $user = $request->user('staff');
+        return response()->json($this->profile($request->user('staff')));
+    }
+
+    protected function profile(User $user): array
+    {
         $employee = $user->employee()->with('branch')->first();
 
-        return response()->json([
+        return [
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
@@ -28,6 +33,6 @@ class AuthController extends Controller
             'position' => $employee?->position,
             'branch' => $employee?->branch,
             'permissions' => $user->getAllPermissions()->pluck('name'),
-        ]);
+        ];
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Concerns\AuthenticatesGuard;
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class AuthController extends Controller
@@ -17,15 +18,19 @@ class AuthController extends Controller
 
     public function me(Request $request)
     {
-        $user = $request->user('client');
+        return response()->json($this->profile($request->user('client')));
+    }
+
+    protected function profile(User $user): array
+    {
         $client = $user->client()->with('zone')->first();
 
-        return response()->json([
+        return [
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
             'client_type' => $client?->client_type,
             'zone' => $client?->zone,
-        ]);
+        ];
     }
 }
