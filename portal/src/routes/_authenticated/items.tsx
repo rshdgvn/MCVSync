@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Minus, Plus, RotateCcw, Search, ShoppingCart, Trash2 } from "lucide-react";
+import { RefreshingRegion } from "@/components/RefreshingRegion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -161,18 +162,20 @@ function ItemCatalogPage() {
         )}
 
         {itemsQuery.data && itemsQuery.data.data.length > 0 && (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {itemsQuery.data.data.map((item) => (
-              <ItemCard
-                key={item.id}
-                item={item}
-                buildMode={buildMode}
-                quantity={draft[item.id]?.quantity ?? 0}
-                onAdd={() => addItem(item)}
-                onQuantityChange={(quantity) => setQuantity(item.id, quantity)}
-              />
-            ))}
-          </div>
+          <RefreshingRegion isRefreshing={itemsQuery.isFetching && itemsQuery.isPlaceholderData}>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {itemsQuery.data.data.map((item) => (
+                <ItemCard
+                  key={item.id}
+                  item={item}
+                  buildMode={buildMode}
+                  quantity={draft[item.id]?.quantity ?? 0}
+                  onAdd={() => addItem(item)}
+                  onQuantityChange={(quantity) => setQuantity(item.id, quantity)}
+                />
+              ))}
+            </div>
+          </RefreshingRegion>
         )}
 
         {itemsQuery.data && itemsQuery.data.meta.last_page > 1 && (
