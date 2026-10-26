@@ -31,7 +31,8 @@ RUN chmod +x /usr/local/bin/entrypoint \
     && php artisan package:discover --ansi \
     && chown -R www-data:www-data storage bootstrap/cache
 
-ENV PORT=10000
+ENV PORT=10000 \
+    HOME=/var/www
 
 EXPOSE 10000
 

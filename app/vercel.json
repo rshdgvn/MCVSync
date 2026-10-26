@@ -4,8 +4,8 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://mcvsync-api.onrender.com/api/:path*" },
-    { "source": "/sanctum/:path*", "destination": "https://mcvsync-api.onrender.com/sanctum/:path*" },
+    { "source": "/api/:path*", "destination": "https://mcvsync.onrender.com/api/:path*" },
+    { "source": "/sanctum/:path*", "destination": "https://mcvsync.onrender.com/sanctum/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
