@@ -45,3 +45,8 @@ test('the staff guard provider cannot retrieve a client-type user by credentials
 
     expect($found)->toBeNull();
 });
+
+test('an unauthenticated api request without a json accept header gets a 401, not a login redirect', function () {
+    $this->get('/api/staff/auth/me')->assertUnauthorized()->assertJson(['message' => 'Unauthenticated.']);
+    $this->get('/api/portal/auth/me')->assertUnauthorized()->assertJson(['message' => 'Unauthenticated.']);
+});
