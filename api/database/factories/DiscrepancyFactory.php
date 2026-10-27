@@ -2,24 +2,23 @@
 
 namespace Database\Factories;
 
+use App\Models\Discrepancy;
 use App\Models\PurchaseOrder;
-use App\Models\PurchaseOrderDiscrepancy;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
-/**
- * @extends Factory<PurchaseOrderDiscrepancy>
- */
-class PurchaseOrderDiscrepancyFactory extends Factory
+class DiscrepancyFactory extends Factory
 {
-    protected $model = PurchaseOrderDiscrepancy::class;
+    protected $model = Discrepancy::class;
 
     public function definition(): array
     {
         return [
-            'purchase_order_id' => PurchaseOrder::factory(),
-            'purchase_order_item_id' => null,
+            'reference_type' => 'purchase_order',
+            'reference_id' => PurchaseOrder::factory(),
+            'reference_item_type' => null,
+            'reference_item_id' => null,
             'item_id' => null,
-            'type' => 'not_found_on_po',
+            'type' => 'not_found',
             'scanned_quantity' => fake()->numberBetween(1, 20),
             'notes' => null,
             'resolved' => false,

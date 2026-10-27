@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Branch;
 use App\Models\Item;
 use App\Models\PurchaseOrder;
 
@@ -146,4 +147,13 @@ test('a line item cannot be accessed through a purchase order it does not belong
             'quantity_ordered' => 2, 'unit_cost' => 10,
         ])
         ->assertNotFound();
+});
+
+test('a branch scoped purchasing user cannot open another branch purchase order by id', function () {
+    $cebuUser = makePurchasingUser('CEBU');
+    $apalit = Branch::factory()->create(['code' => 'APALIT', 'is_main' => true]);
+    $po = PurchaseOrder::factory()->create(['branch_id' => $apalit->id, 'status' => 'open']);
+
+    $this->actingAs($cebuUser, 'staff')->getJson("/api/staff/purchase-orders/{$po->id}")->assertNotFound();
+    $this->actingAs($cebuUser, 'staff')->postJson("/api/staff/purchase-orders/{$po->id}/receive/complete")->assertNotFound();
 });

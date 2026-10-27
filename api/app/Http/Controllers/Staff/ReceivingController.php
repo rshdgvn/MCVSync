@@ -5,12 +5,13 @@ namespace App\Http\Controllers\Staff;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Staff\ConfirmReceivingRequest;
 use App\Http\Requests\Staff\LogDiscrepancyRequest;
-use App\Http\Requests\Staff\MatchReceivingScanRequest;
+use App\Http\Requests\Staff\MatchScanRequest;
+use App\Http\Resources\DiscrepancyResource;
 use App\Http\Resources\ItemResource;
-use App\Http\Resources\PurchaseOrderDiscrepancyResource;
 use App\Http\Resources\PurchaseOrderItemResource;
 use App\Http\Resources\PurchaseOrderResource;
 use App\Models\PurchaseOrder;
+use App\Services\DiscrepancyService;
 use App\Services\ReceivingService;
 
 class ReceivingController extends Controller
@@ -22,28 +23,33 @@ class ReceivingController extends Controller
         $session = $service->sessionView($purchaseOrder);
 
         return response()->json([
-            'purchase_order' => new PurchaseOrderResource($session['purchase_order']),
+            'purchase_order' => new PurchaseOrderResource($purchaseOrder->load(['supplier', 'branch', 'preparedBy.user'])),
             'lines' => PurchaseOrderItemResource::collection($session['lines']),
-            'discrepancies' => PurchaseOrderDiscrepancyResource::collection($session['discrepancies']),
+            'discrepancies' => DiscrepancyResource::collection($session['discrepancies']),
         ]);
     }
 
-    public function match(MatchReceivingScanRequest $request, PurchaseOrder $purchaseOrder, ReceivingService $service)
+    public function match(MatchScanRequest $request, PurchaseOrder $purchaseOrder, ReceivingService $service)
     {
         $this->authorize('update', $purchaseOrder);
 
-        $result = $service->match($purchaseOrder, $request->validated('barcode'), $request->validated('item_id'));
+        $result = $service->match(
+            $purchaseOrder,
+            $request->validated('barcode'),
+            $request->validated('item_id'),
+            $this->currentBranchId(),
+        );
 
-        if ($result['status'] === 'not_found_on_po') {
+        if ($result['status'] === 'not_found') {
             return response()->json([
-                'status' => 'not_found_on_po',
+                'status' => 'not_found',
                 'item' => new ItemResource($result['item']->load(['category', 'unit'])),
             ]);
         }
 
         return response()->json([
-            'status' => 'found_on_po',
-            'purchase_order_item' => new PurchaseOrderItemResource($result['purchase_order_item']->load(['item.category', 'item.unit'])),
+            'status' => 'found',
+            'purchase_order_item' => new PurchaseOrderItemResource($result['line']->load(['item.category', 'item.unit'])),
             'remaining_quantity' => $result['remaining_quantity'],
         ]);
     }
@@ -52,7 +58,13 @@ class ReceivingController extends Controller
     {
         $this->authorize('update', $purchaseOrder);
 
-        $line = $service->confirm($purchaseOrder, $request->validated(), $request->user('staff')->employee);
+        $line = $service->confirm(
+            $purchaseOrder,
+            $request->lineId(),
+            $request->validated(),
+            $request->user('staff')->employee,
+            $this->currentBranchId(),
+        );
 
         return new PurchaseOrderItemResource($line->load(['item.category', 'item.unit']));
     }
@@ -61,9 +73,9 @@ class ReceivingController extends Controller
     {
         $this->authorize('update', $purchaseOrder);
 
-        $discrepancy = $service->logDiscrepancy($purchaseOrder, $request->validated());
+        $discrepancy = $service->logDiscrepancy($purchaseOrder, $request->discrepancyData(), $this->currentBranchId());
 
-        return (new PurchaseOrderDiscrepancyResource($discrepancy->load(['item', 'purchaseOrderItem.item'])))
+        return (new DiscrepancyResource($discrepancy->load(DiscrepancyService::RELATIONS)))
             ->response()
             ->setStatusCode(201);
     }
@@ -72,7 +84,7 @@ class ReceivingController extends Controller
     {
         $this->authorize('update', $purchaseOrder);
 
-        $purchaseOrder = $service->complete($purchaseOrder);
+        $purchaseOrder = $service->complete($purchaseOrder, $this->currentBranchId());
 
         return new PurchaseOrderResource($purchaseOrder->load(['supplier', 'branch', 'preparedBy.user', 'items.item.category', 'items.item.unit']));
     }

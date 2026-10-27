@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/EmptyState";
 import { Pagination } from "@/components/Pagination";
+import { RefreshingRegion } from "@/components/RefreshingRegion";
 import { RouteErrorFallback } from "@/components/RouteErrorFallback";
 import { TableSkeleton } from "@/components/TableSkeleton";
 import { useLowStockAlertsQuery } from "@/hooks/useInventory";
@@ -58,7 +59,7 @@ function LowStockItemsPage() {
       )}
 
       {alertsQuery.data && alertsQuery.data.data.length > 0 && (
-        <>
+        <RefreshingRegion isRefreshing={alertsQuery.isFetching && alertsQuery.isPlaceholderData}>
           <Table>
             <TableHeader>
               <TableRow>
@@ -86,7 +87,7 @@ function LowStockItemsPage() {
             </TableBody>
           </Table>
           <Pagination meta={alertsQuery.data.meta} onPageChange={setPage} />
-        </>
+        </RefreshingRegion>
       )}
     </div>
   );

@@ -63,3 +63,12 @@ test('logout clears the client session so protected routes reject further reques
     $this->assertGuest('client');
     $this->getJson('/api/portal/auth/me')->assertUnauthorized();
 });
+
+test('client login returns the same profile as me so the client can skip a round trip', function () {
+    $user = makeClientUser();
+
+    $login = $this->postJson('/api/portal/auth/login', ['email' => $user->email, 'password' => 'password']);
+
+    $login->assertOk()->assertJsonPath('user.email', $user->email);
+    expect($login->json('user'))->toEqual($this->getJson('/api/portal/auth/me')->json());
+});

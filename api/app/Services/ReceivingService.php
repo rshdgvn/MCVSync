@@ -2,124 +2,71 @@
 
 namespace App\Services;
 
-use App\Events\StockLevelChanged;
+use App\Contracts\ReceivableDocument;
 use App\Models\Batch;
+use App\Models\Discrepancy;
 use App\Models\Employee;
 use App\Models\Item;
-use App\Models\PurchaseOrder;
-use App\Models\PurchaseOrderDiscrepancy;
-use App\Models\PurchaseOrderItem;
 use App\Models\StockTransaction;
+use App\Services\Concerns\EnforcesActingBranch;
 use Carbon\Carbon;
-use Illuminate\Support\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
-/**
- * Owns the entire atomic receiving write path (Receiving Stock spec
- * Section 4), the match lookup, discrepancy logging, and the
- * session-completion logic that decides whether a PO can close.
- */
 class ReceivingService
 {
-    private const RECEIVABLE_STATUSES = ['open', 'ready_for_delivery'];
+    use EnforcesActingBranch;
 
     public function __construct(
         private readonly BatchAllocationService $batchAllocation,
-        private readonly StockAvailabilityService $availability,
+        private readonly ScanMatchService $scanMatcher,
+        private readonly DiscrepancyService $discrepancies,
+        private readonly StockLevelNotifier $notifier,
     ) {}
 
-    /**
-     * @return array{purchase_order: PurchaseOrder, lines: Collection<int, PurchaseOrderItem>, discrepancies: Collection<int, PurchaseOrderDiscrepancy>}
-     */
-    public function sessionView(PurchaseOrder $purchaseOrder): array
+    public function sessionView(ReceivableDocument $document): array
     {
         return [
-            'purchase_order' => $purchaseOrder->load(['supplier', 'branch', 'preparedBy.user']),
-            'lines' => $purchaseOrder->items()->with(['item.category', 'item.unit'])->get(),
-            'discrepancies' => $purchaseOrder->discrepancies()->with(['item', 'purchaseOrderItem.item', 'resolvedBy.user'])->get(),
+            'lines' => $document->receivingLines()->with(['item.category', 'item.unit'])->get(),
+            'discrepancies' => $this->discrepancies->forDocument($document),
         ];
     }
 
-    /**
-     * @return array{status: string, item?: Item, purchase_order_item?: PurchaseOrderItem, remaining_quantity?: int}
-     */
-    public function match(PurchaseOrder $purchaseOrder, ?string $barcode, ?int $itemId): array
+    public function match(ReceivableDocument $document, ?string $barcode, ?int $itemId, ?int $actingBranchId): array
     {
-        $this->assertReceivable($purchaseOrder);
+        $this->assertReceivable($document, $actingBranchId);
 
-        $item = $itemId ? Item::find($itemId) : Item::where('barcode', $barcode)->first();
-
-        if (! $item) {
-            throw ValidationException::withMessages([
-                'barcode' => 'No item matches this barcode.',
-            ]);
-        }
-
-        $line = PurchaseOrderItem::query()
-            ->where('purchase_order_id', $purchaseOrder->id)
-            ->where('item_id', $item->id)
-            ->first();
+        $item = $this->scanMatcher->findItem($barcode, $itemId);
+        $line = $this->scanMatcher->lineFor($document->receivingLines(), $item);
 
         if (! $line) {
-            return ['status' => 'not_found_on_po', 'item' => $item];
+            return ['status' => 'not_found', 'item' => $item];
         }
 
         return [
-            'status' => 'found_on_po',
-            'purchase_order_item' => $line,
-            'remaining_quantity' => max(0, $line->quantity_ordered - $line->quantity_received),
+            'status' => 'found',
+            'line' => $line,
+            'remaining_quantity' => max(0, $line->expectedReceiptQuantity() - $line->quantity_received),
         ];
     }
 
-    /**
-     * @param  array{purchase_order_item_id: int, quantity_received: int, batch_number: string, mfg_date?: string, expiry_date?: string}  $data
-     */
-    public function confirm(PurchaseOrder $purchaseOrder, array $data, Employee $performedBy): PurchaseOrderItem
-    {
-        $this->assertReceivable($purchaseOrder);
+    public function confirm(
+        ReceivableDocument $document,
+        int $lineId,
+        array $data,
+        Employee $performedBy,
+        ?int $actingBranchId,
+    ): Model {
+        $this->assertReceivable($document, $actingBranchId);
 
-        return DB::transaction(function () use ($purchaseOrder, $data, $performedBy) {
-            $line = PurchaseOrderItem::query()
-                ->where('purchase_order_id', $purchaseOrder->id)
-                ->where('id', $data['purchase_order_item_id'])
-                ->lockForUpdate()
-                ->firstOrFail();
-
+        return DB::transaction(function () use ($document, $lineId, $data, $performedBy) {
+            $branchId = $document->receivingBranchId();
+            $line = $document->receivingLines()->whereKey($lineId)->lockForUpdate()->firstOrFail();
             $item = Item::findOrFail($line->item_id);
-
-            if ($item->has_expiry && empty($data['expiry_date'])) {
-                throw ValidationException::withMessages([
-                    'expiry_date' => 'Expiry date is required for this item.',
-                ]);
-            }
-
             $quantity = (int) $data['quantity_received'];
-            $submittedExpiry = isset($data['expiry_date']) ? Carbon::parse($data['expiry_date'])->toDateString() : null;
 
-            $batch = $this->batchAllocation->findExistingBatch($item->id, $purchaseOrder->branch_id, $data['batch_number']);
-
-            if ($batch) {
-                $existingExpiry = $batch->expiry_date?->toDateString();
-
-                if ($existingExpiry !== $submittedExpiry) {
-                    throw ValidationException::withMessages([
-                        'expiry_date' => 'This batch number already exists with a different expiry date.',
-                    ]);
-                }
-
-                $batch->increment('quantity', $quantity);
-            } else {
-                $batch = Batch::create([
-                    'item_id' => $item->id,
-                    'branch_id' => $purchaseOrder->branch_id,
-                    'batch_number' => $data['batch_number'],
-                    'mfg_date' => $data['mfg_date'] ?? null,
-                    'quantity' => $quantity,
-                    'expiry_date' => $submittedExpiry,
-                    'received_date' => now()->toDateString(),
-                ]);
-            }
+            $batch = $this->receiveIntoBatch($item, $branchId, $data, $quantity);
 
             $line->increment('quantity_received', $quantity);
             $line->refresh();
@@ -127,125 +74,118 @@ class ReceivingService
             StockTransaction::create([
                 'item_id' => $item->id,
                 'batch_id' => $batch->id,
-                'branch_id' => $purchaseOrder->branch_id,
-                'type' => 'receive',
+                'branch_id' => $branchId,
+                'type' => $document->receivingTransactionType(),
                 'quantity' => $quantity,
-                'reference_type' => 'purchase_order',
-                'reference_id' => $purchaseOrder->id,
+                'reference_type' => $document->getMorphClass(),
+                'reference_id' => $document->getKey(),
                 'performed_by' => $performedBy->id,
             ]);
 
-            // Detectable the instant it happens — short discrepancies, by
-            // contrast, can only be determined at session completion.
-            if ($line->quantity_received > $line->quantity_ordered) {
-                PurchaseOrderDiscrepancy::create([
-                    'purchase_order_id' => $purchaseOrder->id,
-                    'purchase_order_item_id' => $line->id,
-                    'item_id' => $item->id,
-                    'type' => 'over',
-                    'scanned_quantity' => $line->quantity_received,
-                ]);
+            if ($line->quantity_received > $line->expectedReceiptQuantity()) {
+                $this->discrepancies->record($document, $line, $item->id, 'over', $line->quantity_received);
             }
 
-            $current = $this->availability->currentStock($item->id, $purchaseOrder->branch_id);
-            $reserved = $this->availability->reservedStock($item->id, $purchaseOrder->branch_id);
-
-            // Receiving only ever moves availability upward — never fire
-            // LowStockThresholdCrossed from here, that event specifically
-            // represents crossing at or below the reorder point.
-            StockLevelChanged::dispatch($item->id, $purchaseOrder->branch_id, $current - $reserved, $reserved, $current);
+            $this->notifier->changed($item->id, $branchId);
 
             return $line;
         });
     }
 
-    /**
-     * @param  array{item_id?: int, purchase_order_item_id?: int, type: string, scanned_quantity?: int, notes?: string}  $data
-     */
-    public function logDiscrepancy(PurchaseOrder $purchaseOrder, array $data): PurchaseOrderDiscrepancy
+    public function logDiscrepancy(ReceivableDocument $document, array $data, ?int $actingBranchId): Discrepancy
     {
-        $this->assertReceivable($purchaseOrder);
+        $this->assertReceivable($document, $actingBranchId);
 
-        return PurchaseOrderDiscrepancy::create([
-            'purchase_order_id' => $purchaseOrder->id,
-            'purchase_order_item_id' => $data['purchase_order_item_id'] ?? null,
-            'item_id' => $data['item_id'] ?? null,
-            'type' => $data['type'],
-            'scanned_quantity' => $data['scanned_quantity'] ?? null,
-            'notes' => $data['notes'] ?? null,
-        ]);
+        $line = isset($data['line_id'])
+            ? $document->receivingLines()->whereKey($data['line_id'])->firstOrFail()
+            : null;
+
+        return $this->discrepancies->record(
+            $document,
+            $line,
+            $data['item_id'] ?? $line?->item_id,
+            $data['type'],
+            $data['scanned_quantity'] ?? null,
+            $data['notes'] ?? null,
+        );
     }
 
-    /**
-     * Closes only when every line's quantity_received exactly equals
-     * quantity_ordered — a short OR an over line both fail that equality
-     * and keep the PO open, with a `short` discrepancy upserted (not
-     * duplicated on repeat calls) for whichever lines are still short.
-     * `over` lines already got their discrepancy row the instant it
-     * happened in confirm(), so nothing more to do for those here.
-     */
-    public function complete(PurchaseOrder $purchaseOrder): PurchaseOrder
+    public function complete(ReceivableDocument $document, ?int $actingBranchId): ReceivableDocument
     {
-        $this->assertReceivable($purchaseOrder);
+        $this->assertReceivable($document, $actingBranchId);
 
-        return DB::transaction(function () use ($purchaseOrder) {
-            $lines = $purchaseOrder->items()->lockForUpdate()->get();
+        return DB::transaction(function () use ($document) {
+            $lines = $document->receivingLines()->lockForUpdate()->get();
             $allMatched = true;
 
             foreach ($lines as $line) {
-                if ($line->quantity_received === $line->quantity_ordered) {
+                $expected = $line->expectedReceiptQuantity();
+
+                if ($line->quantity_received === $expected) {
                     continue;
                 }
 
                 $allMatched = false;
 
-                if ($line->quantity_received < $line->quantity_ordered) {
-                    PurchaseOrderDiscrepancy::updateOrCreate(
-                        [
-                            'purchase_order_item_id' => $line->id,
-                            'type' => 'short',
-                            'resolved' => false,
-                        ],
-                        [
-                            'purchase_order_id' => $purchaseOrder->id,
-                            'item_id' => $line->item_id,
-                            'scanned_quantity' => $line->quantity_received,
-                        ],
-                    );
+                if ($line->quantity_received < $expected) {
+                    $this->discrepancies->recordShortfall($document, $line);
                 }
             }
 
             if ($allMatched) {
-                $purchaseOrder->update(['status' => 'closed']);
+                $document->markFullyReceived();
             }
 
-            return $purchaseOrder->fresh();
+            return $document->fresh();
         });
     }
 
-    public function resolveDiscrepancy(PurchaseOrderDiscrepancy $discrepancy, Employee $resolvedBy): PurchaseOrderDiscrepancy
+    private function receiveIntoBatch(Item $item, int $branchId, array $data, int $quantity): Batch
     {
-        if ($discrepancy->resolved) {
+        if ($item->has_expiry && empty($data['expiry_date'])) {
             throw ValidationException::withMessages([
-                'resolved' => 'This discrepancy has already been resolved.',
+                'expiry_date' => 'Expiry date is required for this item.',
             ]);
         }
 
-        $discrepancy->update([
-            'resolved' => true,
-            'resolved_by' => $resolvedBy->id,
-            'resolved_at' => now(),
-        ]);
+        $submittedExpiry = isset($data['expiry_date']) ? Carbon::parse($data['expiry_date'])->toDateString() : null;
+        $batch = $this->batchAllocation->findExistingBatch($item->id, $branchId, $data['batch_number']);
 
-        return $discrepancy;
+        if (! $batch) {
+            return Batch::create([
+                'item_id' => $item->id,
+                'branch_id' => $branchId,
+                'batch_number' => $data['batch_number'],
+                'mfg_date' => $data['mfg_date'] ?? null,
+                'quantity' => $quantity,
+                'expiry_date' => $submittedExpiry,
+                'received_date' => now()->toDateString(),
+            ]);
+        }
+
+        if ($batch->expiry_date?->toDateString() !== $submittedExpiry) {
+            throw ValidationException::withMessages([
+                'expiry_date' => 'This batch number already exists with a different expiry date.',
+            ]);
+        }
+
+        $batch->increment('quantity', $quantity);
+
+        return $batch;
     }
 
-    private function assertReceivable(PurchaseOrder $purchaseOrder): void
+    private function assertReceivable(ReceivableDocument $document, ?int $actingBranchId): void
     {
-        if (! in_array($purchaseOrder->status, self::RECEIVABLE_STATUSES, true)) {
+        if (! $document->isReceivable()) {
             throw ValidationException::withMessages([
-                'status' => 'This purchase order is not open for receiving.',
+                'status' => 'This document is not open for receiving.',
             ]);
         }
+
+        $this->ensureActingBranch(
+            $actingBranchId,
+            $document->receivingBranchId(),
+            'Only the receiving branch can receive against this document.',
+        );
     }
 }

@@ -18,9 +18,15 @@ export interface ResetPasswordPayload {
   password_confirmation: string;
 }
 
-export async function login(payload: LoginPayload): Promise<void> {
+interface LoginResponse {
+  message: string;
+  user: User;
+}
+
+export async function login(payload: LoginPayload): Promise<User> {
   await ensureCsrfCookie();
-  await api.post("/portal/auth/login", payload);
+  const response = await api.post<LoginResponse>("/portal/auth/login", payload);
+  return response.data.user;
 }
 
 export async function logout(): Promise<void> {

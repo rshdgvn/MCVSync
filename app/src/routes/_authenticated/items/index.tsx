@@ -21,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/EmptyState";
 import { Pagination } from "@/components/Pagination";
+import { RefreshingRegion } from "@/components/RefreshingRegion";
 import { RouteErrorFallback } from "@/components/RouteErrorFallback";
 import { StockStatusBadge } from "@/components/StockStatusBadge";
 import { TableSkeleton } from "@/components/TableSkeleton";
@@ -155,7 +156,7 @@ function ItemsListPage() {
       )}
 
       {itemsQuery.data && itemsQuery.data.data.length > 0 && (
-        <>
+        <RefreshingRegion isRefreshing={itemsQuery.isFetching && itemsQuery.isPlaceholderData}>
           <Table>
             <TableHeader>
               <TableRow>
@@ -195,7 +196,7 @@ function ItemsListPage() {
             </TableBody>
           </Table>
           <Pagination meta={itemsQuery.data.meta} onPageChange={setPage} />
-        </>
+        </RefreshingRegion>
       )}
     </div>
   );

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Batch;
 use App\Models\Scopes\BranchScope;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * The one place in the codebase that decides "which batch is next" for a
@@ -18,18 +19,31 @@ class BatchAllocationService
 {
     public function nextAvailableBatch(int $itemId, int $branchId): ?Batch
     {
+        return $this->availableInFefoOrder($itemId, $branchId)->first();
+    }
+
+    public function lockNextAvailableBatch(int $itemId, int $branchId): ?Batch
+    {
+        return $this->availableInFefoOrder($itemId, $branchId)->lockForUpdate()->first();
+    }
+
+    public function lockBatchForPick(int $batchId, int $itemId, int $branchId): ?Batch
+    {
         return Batch::query()
             ->withoutGlobalScope(BranchScope::class)
+            ->whereKey($batchId)
             ->where('item_id', $itemId)
             ->where('branch_id', $branchId)
             ->where('status', 'active')
-            ->where('quantity', '>', 0)
-            // Non-null expiry dates (true FEFO) sort before null ones
-            // (non-expiring items), which then fall back to FIFO.
-            ->orderByRaw('expiry_date IS NULL')
-            ->orderBy('expiry_date')
-            ->orderBy('received_date')
+            ->lockForUpdate()
             ->first();
+    }
+
+    public function isFefoCompliant(Batch $batch): bool
+    {
+        $next = $this->nextAvailableBatch($batch->item_id, $batch->branch_id);
+
+        return $next === null || $next->expiry_date?->toDateString() === $batch->expiry_date?->toDateString();
     }
 
     /**
@@ -46,5 +60,19 @@ class BatchAllocationService
             ->where('batch_number', $batchNumber)
             ->lockForUpdate()
             ->first();
+    }
+
+    private function availableInFefoOrder(int $itemId, int $branchId): Builder
+    {
+        return Batch::query()
+            ->withoutGlobalScope(BranchScope::class)
+            ->where('item_id', $itemId)
+            ->where('branch_id', $branchId)
+            ->where('status', 'active')
+            ->where('quantity', '>', 0)
+            ->orderByRaw('expiry_date IS NULL')
+            ->orderBy('expiry_date')
+            ->orderBy('received_date')
+            ->orderBy('id');
     }
 }

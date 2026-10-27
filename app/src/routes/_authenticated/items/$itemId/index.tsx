@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/EmptyState";
 import { Pagination } from "@/components/Pagination";
+import { RefreshingRegion } from "@/components/RefreshingRegion";
 import { RouteErrorFallback } from "@/components/RouteErrorFallback";
 import { TableSkeleton } from "@/components/TableSkeleton";
 import {
@@ -117,32 +118,34 @@ function BatchesTab({ itemId }: { itemId: number }) {
   }
 
   return (
-    <div className="flex flex-col gap-3 pt-3">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Batch Number</TableHead>
-            <TableHead>Branch</TableHead>
-            <TableHead>Quantity</TableHead>
-            <TableHead>Expiry Date</TableHead>
-            <TableHead>Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {batchesQuery.data.data.map((batch) => (
-            <TableRow key={batch.id}>
-              <TableCell>{batch.batch_number}</TableCell>
-              <TableCell>{batch.branch?.name ?? "—"}</TableCell>
-              <TableCell>{batch.quantity}</TableCell>
-              <TableCell>{batch.expiry_date ?? "No expiry"}</TableCell>
-              <TableCell>
-                <Badge variant={BATCH_STATUS_VARIANT[batch.status]}>{batch.status}</Badge>
-              </TableCell>
+    <div className="pt-3">
+      <RefreshingRegion isRefreshing={batchesQuery.isFetching && batchesQuery.isPlaceholderData}>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Batch Number</TableHead>
+              <TableHead>Branch</TableHead>
+              <TableHead>Quantity</TableHead>
+              <TableHead>Expiry Date</TableHead>
+              <TableHead>Status</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <Pagination meta={batchesQuery.data.meta} onPageChange={setPage} />
+          </TableHeader>
+          <TableBody>
+            {batchesQuery.data.data.map((batch) => (
+              <TableRow key={batch.id}>
+                <TableCell>{batch.batch_number}</TableCell>
+                <TableCell>{batch.branch?.name ?? "—"}</TableCell>
+                <TableCell>{batch.quantity}</TableCell>
+                <TableCell>{batch.expiry_date ?? "No expiry"}</TableCell>
+                <TableCell>
+                  <Badge variant={BATCH_STATUS_VARIANT[batch.status]}>{batch.status}</Badge>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <Pagination meta={batchesQuery.data.meta} onPageChange={setPage} />
+      </RefreshingRegion>
     </div>
   );
 }
@@ -210,32 +213,34 @@ function TransactionsTab({ itemId }: { itemId: number }) {
   }
 
   return (
-    <div className="flex flex-col gap-3 pt-3">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Date</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Quantity</TableHead>
-            <TableHead>Branch</TableHead>
-            <TableHead>Performed By</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {transactionsQuery.data.data.map((transaction) => (
-            <TableRow key={transaction.id}>
-              <TableCell>{new Date(transaction.created_at).toLocaleString()}</TableCell>
-              <TableCell className="capitalize">{transaction.type.replace("_", " ")}</TableCell>
-              <TableCell className={transaction.quantity < 0 ? "text-destructive" : "text-foreground"}>
-                {transaction.quantity > 0 ? `+${transaction.quantity}` : transaction.quantity}
-              </TableCell>
-              <TableCell>{transaction.branch?.name ?? "—"}</TableCell>
-              <TableCell>{transaction.performed_by ?? "—"}</TableCell>
+    <div className="pt-3">
+      <RefreshingRegion isRefreshing={transactionsQuery.isFetching && transactionsQuery.isPlaceholderData}>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Date</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Quantity</TableHead>
+              <TableHead>Branch</TableHead>
+              <TableHead>Performed By</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <Pagination meta={transactionsQuery.data.meta} onPageChange={setPage} />
+          </TableHeader>
+          <TableBody>
+            {transactionsQuery.data.data.map((transaction) => (
+              <TableRow key={transaction.id}>
+                <TableCell>{new Date(transaction.created_at).toLocaleString()}</TableCell>
+                <TableCell className="capitalize">{transaction.type.replace("_", " ")}</TableCell>
+                <TableCell className={transaction.quantity < 0 ? "text-destructive" : "text-foreground"}>
+                  {transaction.quantity > 0 ? `+${transaction.quantity}` : transaction.quantity}
+                </TableCell>
+                <TableCell>{transaction.branch?.name ?? "—"}</TableCell>
+                <TableCell>{transaction.performed_by ?? "—"}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <Pagination meta={transactionsQuery.data.meta} onPageChange={setPage} />
+      </RefreshingRegion>
     </div>
   );
 }

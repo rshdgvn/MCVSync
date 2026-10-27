@@ -8,6 +8,7 @@ use App\Http\Controllers\Staff\AuthController as StaffAuthController;
 use App\Http\Controllers\Staff\BranchController;
 use App\Http\Controllers\Staff\DiscrepancyController;
 use App\Http\Controllers\Staff\EmployeeController;
+use App\Http\Controllers\Staff\FefoOverrideController;
 use App\Http\Controllers\Staff\Inventory\AlertController;
 use App\Http\Controllers\Staff\Inventory\BatchController;
 use App\Http\Controllers\Staff\Inventory\CategoryController;
@@ -23,6 +24,9 @@ use App\Http\Controllers\Staff\PurchaseOrderItemController;
 use App\Http\Controllers\Staff\ReceivingController;
 use App\Http\Controllers\Staff\RoleController;
 use App\Http\Controllers\Staff\SupplierController;
+use App\Http\Controllers\Staff\TransferController;
+use App\Http\Controllers\Staff\TransferFulfillmentController;
+use App\Http\Controllers\Staff\TransferReceivingController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('staff/auth')->group(function () {
@@ -116,6 +120,32 @@ Route::prefix('staff/discrepancies')
     ->middleware(['auth:staff', 'ensure-active-account', 'scope-to-branch'])
     ->group(function () {
         Route::post('/{discrepancy}/resolve', [DiscrepancyController::class, 'resolve']);
+    });
+
+Route::prefix('staff/transfers')
+    ->middleware(['auth:staff', 'ensure-active-account', 'scope-to-branch'])
+    ->group(function () {
+        Route::get('/', [TransferController::class, 'index']);
+        Route::post('/', [TransferController::class, 'store']);
+        Route::get('/{transferRequest}', [TransferController::class, 'show']);
+        Route::post('/{transferRequest}/ship', [TransferController::class, 'ship']);
+        Route::post('/{transferRequest}/cancel', [TransferController::class, 'cancel']);
+
+        Route::post('/{transferRequest}/fulfill/match', [TransferFulfillmentController::class, 'match']);
+        Route::post('/{transferRequest}/fulfill/pick', [TransferFulfillmentController::class, 'pick']);
+
+        Route::post('/{transferRequest}/receive/match', [TransferReceivingController::class, 'match']);
+        Route::post('/{transferRequest}/receive/confirm', [TransferReceivingController::class, 'confirm']);
+        Route::post('/{transferRequest}/receive/discrepancy', [TransferReceivingController::class, 'discrepancy']);
+        Route::post('/{transferRequest}/receive/complete', [TransferReceivingController::class, 'complete']);
+
+        Route::get('/{transferRequest}/discrepancies', [DiscrepancyController::class, 'transferIndex']);
+    });
+
+Route::prefix('staff/fefo-overrides')
+    ->middleware(['auth:staff', 'ensure-active-account'])
+    ->group(function () {
+        Route::post('/', [FefoOverrideController::class, 'store']);
     });
 
 Route::prefix('staff/pricing')

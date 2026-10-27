@@ -26,11 +26,11 @@ test('matching by item_id already on the po returns the line and remaining quant
     ]);
 
     $response->assertOk();
-    $response->assertJsonPath('status', 'found_on_po');
+    $response->assertJsonPath('status', 'found');
     $response->assertJsonPath('remaining_quantity', 7);
 });
 
-test('matching by barcode for an item not on the po returns not_found_on_po', function () {
+test('matching by barcode for an item not on the po returns not_found', function () {
     $user = makeStaffUser([], 'APALIT');
     assignStaffRole($user, 'purchasing');
 
@@ -42,7 +42,7 @@ test('matching by barcode for an item not on the po returns not_found_on_po', fu
     ]);
 
     $response->assertOk();
-    $response->assertJsonPath('status', 'not_found_on_po');
+    $response->assertJsonPath('status', 'not_found');
     $response->assertJsonPath('item.id', $item->id);
 });
 

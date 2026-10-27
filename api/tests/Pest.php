@@ -1,8 +1,12 @@
 <?php
 
+use App\Models\Batch;
 use App\Models\Branch;
 use App\Models\Client;
 use App\Models\Employee;
+use App\Models\Item;
+use App\Models\StockReservation;
+use App\Models\TransferRequest;
 use App\Models\User;
 use App\Models\Zone;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -54,7 +58,7 @@ function makeStaffUser(array $overrides = [], string $branchCode = 'APALIT', str
 {
     $branch = Branch::firstOrCreate(
         ['code' => $branchCode],
-        ['name' => $branchCode, 'address' => 'Test address', 'is_main' => true]
+        ['name' => $branchCode, 'address' => 'Test address', 'is_main' => $branchCode === 'APALIT']
     );
 
     $user = User::factory()->staff()->create($overrides);
@@ -88,4 +92,42 @@ function makeClientUser(array $overrides = [], string $zoneName = 'Pampanga/Bula
     ]);
 
     return $user->fresh();
+}
+
+function makePurchasingUser(string $branchCode): User
+{
+    return assignStaffRole(makeStaffUser([], $branchCode), 'purchasing');
+}
+
+function makeTransfer(User $requester, User $fulfiller, array $quantitiesByItemId): TransferRequest
+{
+    $transfer = TransferRequest::factory()->create([
+        'requesting_branch_id' => $requester->employee->branch_id,
+        'fulfilling_branch_id' => $fulfiller->employee->branch_id,
+        'requested_by' => $requester->employee->id,
+    ]);
+
+    foreach ($quantitiesByItemId as $itemId => $quantity) {
+        $transfer->items()->create(['item_id' => $itemId, 'quantity_requested' => $quantity]);
+    }
+
+    return $transfer;
+}
+
+function stockAt(User $user, Item $item, int $quantity, string $expiry, string $batchNumber): Batch
+{
+    return Batch::factory()->create([
+        'item_id' => $item->id,
+        'branch_id' => $user->employee->branch_id,
+        'quantity' => $quantity,
+        'expiry_date' => $expiry,
+        'batch_number' => $batchNumber,
+    ]);
+}
+
+function transferReservations(TransferRequest $transfer)
+{
+    return StockReservation::withoutGlobalScopes()
+        ->where('reference_type', 'transfer_request')
+        ->where('reference_id', $transfer->id);
 }

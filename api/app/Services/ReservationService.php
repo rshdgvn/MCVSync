@@ -2,14 +2,13 @@
 
 namespace App\Services;
 
-use App\Events\LowStockThresholdCrossed;
-use App\Events\StockLevelChanged;
 use App\Exceptions\InsufficientStockException;
 use App\Models\Batch;
-use App\Models\Item;
 use App\Models\Scopes\BranchScope;
 use App\Models\StockReservation;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use LogicException;
 
 /**
  * Owns the atomic reserve/release logic from the Inventory Module spec
@@ -23,7 +22,10 @@ use Illuminate\Support\Facades\DB;
  */
 class ReservationService
 {
-    public function __construct(private readonly StockAvailabilityService $availability) {}
+    public function __construct(
+        private readonly StockAvailabilityService $availability,
+        private readonly StockLevelNotifier $notifier,
+    ) {}
 
     /**
      * @throws InsufficientStockException
@@ -52,8 +54,7 @@ class ReservationService
                 ->pluck('quantity')
                 ->sum();
 
-            $reservedStock = $this->availability->reservedStock($itemId, $branchId);
-            $availableBefore = $currentStock - $reservedStock;
+            $availableBefore = $currentStock - $this->availability->reservedStock($itemId, $branchId);
 
             if ($quantity > $availableBefore) {
                 throw new InsufficientStockException($itemId, $branchId, $quantity, $availableBefore);
@@ -68,15 +69,7 @@ class ReservationService
                 'status' => 'active',
             ]);
 
-            $availableAfter = $availableBefore - $quantity;
-
-            StockLevelChanged::dispatch($itemId, $branchId, $availableAfter, $reservedStock + $quantity, $currentStock);
-
-            $reorderPoint = Item::where('id', $itemId)->value('reorder_point');
-
-            if ($reorderPoint !== null && $availableBefore > $reorderPoint && $availableAfter <= $reorderPoint) {
-                LowStockThresholdCrossed::dispatch($itemId, $branchId, $availableAfter, $reorderPoint);
-            }
+            $this->notifier->decreased($itemId, $branchId, $availableBefore);
 
             return $reservation;
         });
@@ -99,22 +92,55 @@ class ReservationService
 
             $reservation->update(['status' => 'released']);
 
-            $itemId = $reservation->item_id;
-            $branchId = $reservation->branch_id;
-            $current = $this->availability->currentStock($itemId, $branchId);
-            $reserved = $this->availability->reservedStock($itemId, $branchId);
-
-            // Releasing only ever increases availability, so it can never
-            // newly cross into low-stock — only reserve() can do that.
-            StockLevelChanged::dispatch($itemId, $branchId, $current - $reserved, $reserved, $current);
+            $this->notifier->changed($reservation->item_id, $reservation->branch_id);
         });
     }
 
-    // Fulfillment (reservation -> fulfilled, FEFO batch decrement, and the
-    // stock_transactions write, all in one transaction) is explicitly the
-    // Receiving/Issuing Stock spec's responsibility, not this module's —
-    // see Section 4's closing note. Not stubbed here on purpose: a partial
-    // status-only implementation would be worse than none, since it would
-    // look complete without doing the batch/transaction work that must
-    // happen atomically alongside it.
+    public function releaseAllFor(string $referenceType, int $referenceId): void
+    {
+        DB::transaction(function () use ($referenceType, $referenceId) {
+            $this->forReference($referenceType, $referenceId)
+                ->where('status', 'active')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get()
+                ->each(fn (StockReservation $reservation) => $this->release($reservation));
+        });
+    }
+
+    public function hasReservationsFor(string $referenceType, int $referenceId): bool
+    {
+        return $this->forReference($referenceType, $referenceId)->exists();
+    }
+
+    public function consume(string $referenceType, int $referenceId, int $itemId, int $branchId, int $quantity): void
+    {
+        DB::transaction(function () use ($referenceType, $referenceId, $itemId, $branchId, $quantity) {
+            $reservation = $this->forReference($referenceType, $referenceId)
+                ->where('item_id', $itemId)
+                ->where('branch_id', $branchId)
+                ->where('status', 'active')
+                ->lockForUpdate()
+                ->first();
+
+            if (! $reservation) {
+                throw new LogicException("No active reservation for item {$itemId} on {$referenceType} {$referenceId}.");
+            }
+
+            $remaining = max(0, $reservation->quantity - $quantity);
+
+            $reservation->update([
+                'quantity' => $remaining,
+                'status' => $remaining === 0 ? 'fulfilled' : 'active',
+            ]);
+        });
+    }
+
+    private function forReference(string $referenceType, int $referenceId): Builder
+    {
+        return StockReservation::query()
+            ->withoutGlobalScope(BranchScope::class)
+            ->where('reference_type', $referenceType)
+            ->where('reference_id', $referenceId);
+    }
 }

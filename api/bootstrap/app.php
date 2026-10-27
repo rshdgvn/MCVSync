@@ -1,8 +1,11 @@
 <?php
 
+use App\Exceptions\InsufficientStockException;
 use App\Http\Middleware\EnsureActiveAccount;
 use App\Http\Middleware\EnsureHasRole;
 use App\Http\Middleware\ScopeToBranch;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -18,6 +21,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->statefulApi();
         $middleware->trustProxies(at: '*');
+        $middleware->redirectGuestsTo(fn () => null);
+        $middleware->appendToPriorityList(AuthenticatesRequests::class, ScopeToBranch::class);
 
         $middleware->alias([
             'ensure-active-account' => EnsureActiveAccount::class,
@@ -37,4 +42,19 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*'),
         );
+
+        $exceptions->render(fn (InsufficientStockException $exception) => response()->json([
+            'message' => $exception->getMessage(),
+            'reason' => 'insufficient_stock',
+            'item_id' => $exception->itemId,
+            'branch_id' => $exception->branchId,
+            'requested' => $exception->requested,
+            'available' => $exception->available,
+        ], 422));
+
+        $exceptions->render(function (AuthenticationException $exception, Request $request) {
+            if ($request->is('api/*')) {
+                return response()->json(['message' => $exception->getMessage()], 401);
+            }
+        });
     })->create();

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Concerns;
 
+use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\AuthLockoutService;
 use Illuminate\Http\Request;
@@ -11,6 +12,8 @@ use Illuminate\Validation\ValidationException;
 trait AuthenticatesGuard
 {
     abstract protected function guardName(): string;
+
+    abstract protected function profile(User $user): array;
 
     public function login(Request $request, AuthLockoutService $lockout, AuditLogger $audit)
     {
@@ -53,7 +56,7 @@ trait AuthenticatesGuard
         $request->session()->regenerate();
         $audit->record('login.success', $user, $guard);
 
-        return response()->json(['message' => 'Logged in.']);
+        return response()->json(['message' => 'Logged in.', 'user' => $this->profile($user)]);
     }
 
     public function logout(Request $request, AuditLogger $audit)
