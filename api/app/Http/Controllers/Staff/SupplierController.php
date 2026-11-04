@@ -24,6 +24,13 @@ class SupplierController extends Controller
             ->additional(['counts' => $this->statusCounts($request)]);
     }
 
+    public function show(Supplier $supplier)
+    {
+        $this->authorize('view', $supplier);
+
+        return new SupplierResource($supplier);
+    }
+
     public function store(SupplierRequest $request)
     {
         $this->authorize('create', Supplier::class);

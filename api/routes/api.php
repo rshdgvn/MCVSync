@@ -89,6 +89,7 @@ Route::prefix('staff/suppliers')
     ->group(function () {
         Route::get('/', [SupplierController::class, 'index']);
         Route::post('/', [SupplierController::class, 'store']);
+        Route::get('/{supplier}', [SupplierController::class, 'show']);
         Route::patch('/{supplier}', [SupplierController::class, 'update']);
         Route::post('/{supplier}/deactivate', [SupplierController::class, 'deactivate']);
         Route::post('/{supplier}/activate', [SupplierController::class, 'activate']);
