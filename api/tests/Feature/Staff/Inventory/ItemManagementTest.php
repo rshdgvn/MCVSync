@@ -4,6 +4,7 @@ use App\Models\Batch;
 use App\Models\Branch;
 use App\Models\Category;
 use App\Models\Item;
+use App\Models\StockReservation;
 use App\Models\Unit;
 
 test('purchasing can create and update an item', function () {
@@ -108,4 +109,42 @@ test('items index searches by name or sku', function () {
 
     $bySku = $this->actingAs($admin, 'staff')->getJson('/api/staff/inventory/items?search=BND');
     expect(collect($bySku->json('data'))->pluck('id'))->toContain($bandages->id)->not->toContain($gloves->id);
+});
+
+test('the items list returns available stock for the acting branch and the effective expiry threshold', function () {
+    $user = makePurchasingUser('APALIT');
+    $cebu = Branch::factory()->create(['code' => 'CEBU']);
+    $item = Item::factory()->create(['expiry_alert_threshold_days' => null]);
+    Batch::factory()->create(['item_id' => $item->id, 'branch_id' => $user->employee->branch_id, 'quantity' => 10]);
+    Batch::factory()->create(['item_id' => $item->id, 'branch_id' => $cebu->id, 'quantity' => 5]);
+    StockReservation::create([
+        'item_id' => $item->id, 'branch_id' => $user->employee->branch_id, 'quantity' => 3,
+        'reference_type' => 'transfer_request', 'reference_id' => 1, 'status' => 'active',
+    ]);
+
+    $row = collect($this->actingAs($user, 'staff')->getJson('/api/staff/inventory/items')->assertOk()->json('data'))
+        ->firstWhere('id', $item->id);
+
+    expect($row['available'])->toBe(7);
+    expect($row['effective_expiry_alert_threshold_days'])->toBe(30);
+
+    $admin = assignStaffRole(makeStaffUser([], 'APALIT'), 'admin');
+    app()->forgetInstance('currentBranchId');
+    $adminRow = collect($this->actingAs($admin, 'staff')->getJson('/api/staff/inventory/items')->json('data'))
+        ->firstWhere('id', $item->id);
+
+    expect($adminRow['available'])->toBe(12);
+});
+
+test('the items list returns status counts that ignore the status filter but respect search', function () {
+    $user = makePurchasingUser('APALIT');
+    Item::factory()->count(3)->create(['is_active' => true, 'name' => 'Gauze pad']);
+    Item::factory()->create(['is_active' => false, 'name' => 'Gauze roll']);
+    Item::factory()->create(['is_active' => true, 'name' => 'Syringe']);
+
+    $response = $this->actingAs($user, 'staff')->getJson('/api/staff/inventory/items?search=gauze&is_active=0');
+
+    $response->assertOk();
+    expect($response->json('data'))->toHaveCount(1);
+    expect($response->json('counts'))->toBe(['all' => 4, 'active' => 3, 'inactive' => 1]);
 });
