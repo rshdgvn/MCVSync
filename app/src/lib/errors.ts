@@ -38,3 +38,10 @@ export function getFieldErrors(error: unknown): Record<string, string> {
       .map(([field, messages]) => [field, messages[0]]),
   );
 }
+
+export function getGeneralError(error: unknown): string | null {
+  if (!error) {
+    return null;
+  }
+  return Object.keys(getFieldErrors(error)).length === 0 ? getErrorMessage(error) : null;
+}

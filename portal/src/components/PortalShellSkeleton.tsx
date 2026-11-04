@@ -1,33 +1,29 @@
+import { DataListSkeleton } from "@/components/DataList";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const NAV_ITEM_COUNT = 3;
-const CARD_COUNT = 6;
 
 export function PortalShellSkeleton() {
   return (
-    <div className="flex min-h-screen flex-col bg-background" aria-busy="true" aria-label="Loading">
-      <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border px-4">
-        <Skeleton className="h-4 w-36" />
-        <Skeleton className="h-8 w-20" />
-      </header>
-
-      <nav className="flex items-center gap-2 border-b border-border px-4 py-2">
-        {Array.from({ length: NAV_ITEM_COUNT }).map((_, index) => (
-          <Skeleton key={index} className="h-7 w-16" />
-        ))}
-      </nav>
-
-      <main className="flex flex-1 flex-col gap-4 p-4 md:p-6">
-        <Skeleton className="h-6 w-48" />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: CARD_COUNT }).map((_, index) => (
-            <div key={index} className="space-y-3 border border-border p-4">
-              <Skeleton className="h-4 w-2/3" />
-              <Skeleton className="h-3 w-1/2" />
-              <Skeleton className="h-3 w-1/3" />
-            </div>
+    <div className="flex min-h-dvh flex-col bg-background" aria-busy="true" aria-label="Loading">
+      <header className="border-b border-border bg-card">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 md:px-6">
+          <div className="flex items-center gap-2.5">
+            <Skeleton className="size-7" />
+            <Skeleton className="h-4 w-36" />
+          </div>
+          <Skeleton className="h-8 w-20" />
+        </div>
+        <div className="mx-auto flex max-w-6xl gap-2 px-4 py-2 md:px-6">
+          {Array.from({ length: NAV_ITEM_COUNT }).map((_, index) => (
+            <Skeleton key={index} className="h-7 w-16" />
           ))}
         </div>
+      </header>
+
+      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-4 p-4 md:p-6">
+        <Skeleton className="h-6 w-48" />
+        <DataListSkeleton columns={4} rows={6} />
       </main>
     </div>
   );

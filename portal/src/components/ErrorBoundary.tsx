@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from "react";
+import { ErrorState } from "@/components/ErrorState";
 
 interface Props {
   children: ReactNode;
@@ -18,18 +19,14 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
-          <h1 className="text-lg font-semibold">Something went wrong</h1>
-          <p className="text-sm text-gray-500">
-            Please refresh the page. If the problem continues, contact support.
-          </p>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="rounded-md bg-gray-900 px-4 py-2 text-sm text-white"
-          >
-            Refresh
-          </button>
+        <div className="flex min-h-dvh items-center justify-center bg-background p-4">
+          <div className="w-full max-w-md border border-border bg-card">
+            <ErrorState
+              title="Something went wrong"
+              message="The app hit an unexpected error. Reload to continue; if it keeps happening, contact support."
+              onRetry={() => window.location.reload()}
+            />
+          </div>
         </div>
       );
     }
