@@ -1,104 +1,83 @@
 import { useState } from "react";
-import { Link, createFileRoute } from "@tanstack/react-router";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { EmptyState } from "@/components/EmptyState";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { DataList, type DataListColumn } from "@/components/DataList";
+import { ExpiryChip } from "@/components/ExpiryChip";
+import { PageHeader } from "@/components/PageHeader";
 import { Pagination } from "@/components/Pagination";
-import { RefreshingRegion } from "@/components/RefreshingRegion";
-import { RouteErrorFallback } from "@/components/RouteErrorFallback";
-import { TableSkeleton } from "@/components/TableSkeleton";
-import { useExpiringAlertsQuery } from "@/hooks/useInventory";
-import { getErrorMessage } from "@/lib/errors";
+import { itemQueryOptions, useExpiringAlertsQuery } from "@/hooks/useInventory";
+import { formatNumber } from "@/lib/format";
 import { requireRole } from "@/lib/rbac";
+import type { Batch } from "@/types/inventory";
 
 export const Route = createFileRoute("/_authenticated/inventory/expiring")({
   beforeLoad: requireRole("purchasing", "admin", "super_admin"),
   component: ExpiringItemsPage,
-  errorComponent: RouteErrorFallback,
 });
 
+const COLUMNS: DataListColumn<Batch>[] = [
+  {
+    key: "item",
+    header: "Item",
+    mobile: "title",
+    cell: (batch) => <span className="font-medium">{batch.item?.name ?? "—"}</span>,
+  },
+  {
+    key: "batch",
+    header: "Batch Number",
+    mobile: "subtitle",
+    cell: (batch) => <span className="font-mono text-xs text-muted-foreground">{batch.batch_number}</span>,
+  },
+  { key: "branch", header: "Branch", cell: (batch) => batch.branch?.name ?? "—" },
+  {
+    key: "quantity",
+    header: "On Hand",
+    align: "right",
+    cell: (batch) => <span className="font-mono tabular-nums">{formatNumber(batch.quantity)}</span>,
+  },
+  {
+    key: "expiry",
+    header: "Expiry Date",
+    mobile: "badge",
+    cell: (batch) => (
+      <ExpiryChip
+        expiryDate={batch.expiry_date}
+        thresholdDays={batch.item?.effective_expiry_alert_threshold_days ?? 0}
+      />
+    ),
+  },
+];
+
 function ExpiringItemsPage() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const alertsQuery = useExpiringAlertsQuery({ page });
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-lg font-semibold text-foreground">Near-Expiry Items</h1>
-        <p className="text-sm text-muted-foreground">
-          Active batches expiring within their item's alert threshold.
-        </p>
-      </div>
+      <PageHeader
+        title="Near-Expiry Items"
+        description="Active batches expiring within their item's alert threshold, soonest first."
+      />
 
-      {alertsQuery.isPending && <TableSkeleton rows={8} columns={4} />}
-
-      {alertsQuery.isError && (
-        <EmptyState
-          title="Couldn't load expiring batches"
-          description={getErrorMessage(alertsQuery.error)}
-          action={
-            <Button variant="outline" size="sm" onClick={() => alertsQuery.refetch()}>
-              Retry
-            </Button>
-          }
-        />
-      )}
-
-      {alertsQuery.data && alertsQuery.data.data.length === 0 && (
-        <EmptyState title="Nothing near expiry" description="Every active batch is outside its alert window." />
-      )}
-
-      {alertsQuery.data && alertsQuery.data.data.length > 0 && (
-        <RefreshingRegion isRefreshing={alertsQuery.isFetching && alertsQuery.isPlaceholderData}>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Item</TableHead>
-                <TableHead>Batch Number</TableHead>
-                <TableHead>Branch</TableHead>
-                <TableHead>Quantity</TableHead>
-                <TableHead>Expiry Date</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {alertsQuery.data.data.map((batch) => (
-                <TableRow key={batch.id}>
-                  <TableCell className="font-medium text-foreground">
-                    {batch.item ? (
-                      <Link
-                        to="/items/$itemId"
-                        params={{ itemId: String(batch.item.id) }}
-                        className="hover:underline"
-                      >
-                        {batch.item.name}
-                      </Link>
-                    ) : (
-                      "—"
-                    )}
-                  </TableCell>
-                  <TableCell>{batch.batch_number}</TableCell>
-                  <TableCell>{batch.branch?.name ?? "—"}</TableCell>
-                  <TableCell>{batch.quantity}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400">
-                      {batch.expiry_date}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <Pagination meta={alertsQuery.data.meta} onPageChange={setPage} />
-        </RefreshingRegion>
-      )}
+      <DataList
+        label="Near-expiry batches"
+        columns={COLUMNS}
+        rows={alertsQuery.data?.data}
+        rowKey={(batch) => batch.id}
+        isPending={alertsQuery.isPending}
+        error={alertsQuery.error}
+        onRetry={() => void alertsQuery.refetch()}
+        isRefreshing={alertsQuery.isFetching && alertsQuery.isPlaceholderData}
+        skeletonRows={8}
+        empty={{ title: "Nothing near expiry", description: "Every active batch is outside its alert window." }}
+        onRowClick={(batch) =>
+          batch.item && void navigate({ to: "/items/$itemId", params: { itemId: String(batch.item.id) } })
+        }
+        onRowIntent={(batch) => batch.item && void queryClient.prefetchQuery(itemQueryOptions(batch.item.id))}
+        footer={alertsQuery.data && <Pagination meta={alertsQuery.data.meta} onPageChange={setPage} />}
+      />
     </div>
   );
 }

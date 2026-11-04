@@ -3,6 +3,7 @@ import type {
   Batch,
   Category,
   Item,
+  ItemListResponse,
   ItemStockBreakdown,
   LowStockItem,
   Paginated,
@@ -64,8 +65,8 @@ export interface ListItemsParams {
   is_active?: boolean;
 }
 
-export async function listItems(params: ListItemsParams = {}): Promise<Paginated<Item>> {
-  const response = await api.get<Paginated<Item>>("/staff/inventory/items", { params });
+export async function listItems(params: ListItemsParams = {}): Promise<ItemListResponse> {
+  const response = await api.get<ItemListResponse>("/staff/inventory/items", { params });
   return response.data;
 }
 

@@ -14,6 +14,7 @@ import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedSyncIssuesRouteImport } from './routes/_authenticated/sync-issues'
 import { Route as AuthenticatedUnauthorizedRouteImport } from './routes/_authenticated/unauthorized'
 import { Route as AuthenticatedAccountingClientPricingRouteImport } from './routes/_authenticated/accounting/client-pricing'
 import { Route as AuthenticatedAccountingItemsRouteImport } from './routes/_authenticated/accounting/items'
@@ -81,6 +82,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
 const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedSyncIssuesRoute = AuthenticatedSyncIssuesRouteImport.update({
+  id: '/sync-issues',
+  path: '/sync-issues',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedUnauthorizedRoute =
@@ -347,6 +353,7 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/sync-issues': typeof AuthenticatedSyncIssuesRoute
   '/unauthorized': typeof AuthenticatedUnauthorizedRoute
   '/accounting/client-pricing': typeof AuthenticatedAccountingClientPricingRoute
   '/accounting/items': typeof AuthenticatedAccountingItemsRoute
@@ -396,6 +403,7 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/sync-issues': typeof AuthenticatedSyncIssuesRoute
   '/unauthorized': typeof AuthenticatedUnauthorizedRoute
   '/': typeof AuthenticatedIndexRoute
   '/accounting/client-pricing': typeof AuthenticatedAccountingClientPricingRoute
@@ -448,6 +456,7 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/sync-issues': typeof AuthenticatedSyncIssuesRoute
   '/_authenticated/unauthorized': typeof AuthenticatedUnauthorizedRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/accounting/client-pricing': typeof AuthenticatedAccountingClientPricingRoute
@@ -501,6 +510,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/reset-password'
+    | '/sync-issues'
     | '/unauthorized'
     | '/accounting/client-pricing'
     | '/accounting/items'
@@ -550,6 +560,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/reset-password'
+    | '/sync-issues'
     | '/unauthorized'
     | '/'
     | '/accounting/client-pricing'
@@ -601,6 +612,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/reset-password'
+    | '/_authenticated/sync-issues'
     | '/_authenticated/unauthorized'
     | '/_authenticated/'
     | '/_authenticated/accounting/client-pricing'
@@ -690,6 +702,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/sync-issues': {
+      id: '/_authenticated/sync-issues'
+      path: '/sync-issues'
+      fullPath: '/sync-issues'
+      preLoaderRoute: typeof AuthenticatedSyncIssuesRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/unauthorized': {
@@ -1004,6 +1023,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedSyncIssuesRoute: typeof AuthenticatedSyncIssuesRoute
   AuthenticatedUnauthorizedRoute: typeof AuthenticatedUnauthorizedRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedAccountingClientPricingRoute: typeof AuthenticatedAccountingClientPricingRoute
@@ -1052,6 +1072,7 @@ interface AuthenticatedRouteChildren {
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedSyncIssuesRoute: AuthenticatedSyncIssuesRoute,
   AuthenticatedUnauthorizedRoute: AuthenticatedUnauthorizedRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedAccountingClientPricingRoute:

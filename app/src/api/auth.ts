@@ -5,6 +5,7 @@ import type { User } from "@/types/user";
 export interface LoginPayload {
   email: string;
   password: string;
+  remember?: boolean;
 }
 
 export interface ForgotPasswordPayload {

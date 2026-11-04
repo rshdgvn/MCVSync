@@ -1,17 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ShieldAlert } from "lucide-react";
 import { EmptyState } from "@/components/EmptyState";
-import { RouteErrorFallback } from "@/components/RouteErrorFallback";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/unauthorized")({
   component: UnauthorizedPage,
-  errorComponent: RouteErrorFallback,
 });
 
 function UnauthorizedPage() {
   return (
-    <div className="flex flex-col gap-4">
+    <div className="border border-border bg-card">
       <EmptyState
         icon={ShieldAlert}
         title="You don't have access to this page"

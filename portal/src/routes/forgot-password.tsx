@@ -1,7 +1,13 @@
 import { useState, type FormEvent } from "react";
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { CheckCircle2 } from "lucide-react";
+import { AuthCard } from "@/components/AuthCard";
+import { FormError } from "@/components/FormError";
+import { FormField, fieldA11yProps } from "@/components/FormField";
+import { LoadingButton } from "@/components/LoadingButton";
+import { Input } from "@/components/ui/input";
 import { useForgotPasswordMutation } from "@/hooks/useAuth";
-import { getErrorMessage } from "@/lib/errors";
+import { getFieldErrors, getGeneralError } from "@/lib/errors";
 
 export const Route = createFileRoute("/forgot-password")({
   component: ForgotPasswordPage,
@@ -10,6 +16,7 @@ export const Route = createFileRoute("/forgot-password")({
 function ForgotPasswordPage() {
   const forgotPasswordMutation = useForgotPasswordMutation();
   const [email, setEmail] = useState("");
+  const fieldErrors = getFieldErrors(forgotPasswordMutation.error);
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -17,56 +24,44 @@ function ForgotPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-sm space-y-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <div>
-          <h1 className="text-lg font-semibold text-gray-900">Reset your password</h1>
-          <p className="text-sm text-gray-500">
-            Enter your email and we'll send you a reset link.
-          </p>
-        </div>
-
-        {forgotPasswordMutation.isSuccess ? (
-          <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
-            If that account exists, a reset link has been sent.
-          </p>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {forgotPasswordMutation.isError && (
-              <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
-                {getErrorMessage(forgotPasswordMutation.error)}
-              </p>
-            )}
-
-            <div className="space-y-1">
-              <label htmlFor="email" className="text-sm font-medium text-gray-700">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                required
-                autoComplete="username"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={forgotPasswordMutation.isPending}
-              className="w-full rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-            >
-              {forgotPasswordMutation.isPending ? "Sending..." : "Send reset link"}
-            </button>
-          </form>
-        )}
-
-        <Link to="/login" className="block text-center text-sm text-gray-500 hover:text-gray-900">
-          Back to sign in
+    <AuthCard
+      title="Reset Your Password"
+      description="Enter your account email and we'll send you a reset link."
+      footer={
+        <Link to="/login" className="text-sm font-medium text-primary hover:underline md:text-xs">
+          Back to Sign In
         </Link>
-      </div>
-    </div>
+      }
+    >
+      {forgotPasswordMutation.isSuccess ? (
+        <p role="status" className="flex items-start gap-2 bg-success-muted px-3 py-2.5 text-sm text-success md:text-xs">
+          <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+          If that account exists, a reset link is on its way.
+        </p>
+      ) : (
+        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+          <FormError message={getGeneralError(forgotPasswordMutation.error)} />
+          <FormField label="Email Address" htmlFor="email" layout="stacked" error={fieldErrors.email}>
+            <Input
+              {...fieldA11yProps("email", fieldErrors.email)}
+              type="email"
+              inputMode="email"
+              required
+              autoComplete="username"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          </FormField>
+          <LoadingButton
+            type="submit"
+            className="w-full"
+            isPending={forgotPasswordMutation.isPending}
+            pendingText="Sending…"
+          >
+            Send Reset Link
+          </LoadingButton>
+        </form>
+      )}
+    </AuthCard>
   );
 }

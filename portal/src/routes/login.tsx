@@ -1,7 +1,14 @@
 import { useState, type FormEvent } from "react";
 import { Link, createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { Eye, EyeOff } from "lucide-react";
+import { AuthCard } from "@/components/AuthCard";
+import { FormError } from "@/components/FormError";
+import { FormField, fieldA11yProps } from "@/components/FormField";
+import { LoadingButton } from "@/components/LoadingButton";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { meQueryOptions, useLoginMutation } from "@/hooks/useAuth";
-import { getErrorMessage } from "@/lib/errors";
+import { getFieldErrors, getGeneralError } from "@/lib/errors";
 
 export const Route = createFileRoute("/login")({
   beforeLoad: async ({ context }) => {
@@ -21,77 +28,75 @@ function LoginPage() {
   const loginMutation = useLoginMutation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const fieldErrors = getFieldErrors(loginMutation.error);
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     loginMutation.mutate(
-      { email, password },
+      { email, password, remember: rememberMe },
       { onSuccess: () => navigate({ to: "/" }) },
     );
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-sm space-y-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
-      >
-        <div>
-          <h1 className="text-lg font-semibold text-gray-900">Sign in</h1>
-          <p className="text-sm text-gray-500">MCVSync client portal</p>
-        </div>
-
-        {loginMutation.isError && (
-          <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
-            {getErrorMessage(loginMutation.error)}
-          </p>
-        )}
-
-        <div className="space-y-1">
-          <label htmlFor="email" className="text-sm font-medium text-gray-700">
-            Email
-          </label>
-          <input
-            id="email"
+    <AuthCard title="Sign In" description="Order and track supplies for your clinic.">
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+        <FormError message={getGeneralError(loginMutation.error)} />
+        <FormField label="Email Address" htmlFor="email" layout="stacked" error={fieldErrors.email}>
+          <Input
+            {...fieldA11yProps("email", fieldErrors.email)}
             type="email"
+            inputMode="email"
             required
             autoComplete="username"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
           />
-        </div>
-
-        <div className="space-y-1">
-          <label htmlFor="password" className="text-sm font-medium text-gray-700">
-            Password
+        </FormField>
+        <FormField label="Password" htmlFor="password" layout="stacked" error={fieldErrors.password}>
+          <div className="relative">
+            <Input
+              {...fieldA11yProps("password", fieldErrors.password)}
+              type={showPassword ? "text" : "password"}
+              required
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="pr-11 md:pr-9"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((current) => !current)}
+              className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-muted-foreground hover:text-foreground md:w-9"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
+        </FormField>
+        <div className="flex items-center justify-between gap-3">
+          <label className="flex min-h-11 items-center gap-2 text-sm text-foreground md:min-h-0 md:text-ui">
+            <Checkbox
+              checked={rememberMe}
+              onCheckedChange={(checked) => setRememberMe(checked === true)}
+            />
+            Remember me
           </label>
-          <input
-            id="password"
-            type="password"
-            required
-            autoComplete="current-password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
-          />
+          <Link to="/forgot-password" className="text-sm font-medium text-primary hover:underline md:text-xs">
+            Forgot password?
+          </Link>
         </div>
-
-        <button
+        <LoadingButton
           type="submit"
-          disabled={loginMutation.isPending}
-          className="w-full rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="w-full"
+          isPending={loginMutation.isPending}
+          pendingText="Signing in…"
         >
-          {loginMutation.isPending ? "Signing in..." : "Sign in"}
-        </button>
-
-        <Link
-          to="/forgot-password"
-          className="block text-center text-sm text-gray-500 hover:text-gray-900"
-        >
-          Forgot password?
-        </Link>
+          Log In
+        </LoadingButton>
       </form>
-    </div>
+    </AuthCard>
   );
 }

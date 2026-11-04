@@ -1,5 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as inventoryApi from "@/api/inventory";
+
+const REFERENCE_DATA_STALE_TIME = 30 * 60 * 1000;
 
 export const categoriesQueryKey = ["inventory", "categories"] as const;
 export const unitsQueryKey = ["inventory", "units"] as const;
@@ -17,7 +19,11 @@ export const lowStockAlertsQueryKey = (params: inventoryApi.ListAlertsParams) =>
   ["inventory", "alerts", "low-stock", params] as const;
 
 export function useCategoriesQuery() {
-  return useQuery({ queryKey: categoriesQueryKey, queryFn: inventoryApi.listCategories });
+  return useQuery({
+    queryKey: categoriesQueryKey,
+    queryFn: inventoryApi.listCategories,
+    staleTime: REFERENCE_DATA_STALE_TIME,
+  });
 }
 
 export function useCreateCategoryMutation() {
@@ -49,7 +55,11 @@ export function useDeleteCategoryMutation() {
 }
 
 export function useUnitsQuery() {
-  return useQuery({ queryKey: unitsQueryKey, queryFn: inventoryApi.listUnits });
+  return useQuery({
+    queryKey: unitsQueryKey,
+    queryFn: inventoryApi.listUnits,
+    staleTime: REFERENCE_DATA_STALE_TIME,
+  });
 }
 
 export function useCreateUnitMutation() {
@@ -84,12 +94,15 @@ export function useItemsQuery(params: inventoryApi.ListItemsParams) {
   return useQuery({
     queryKey: itemsQueryKey(params),
     queryFn: () => inventoryApi.listItems(params),
-    placeholderData: (previous) => previous,
+    placeholderData: keepPreviousData,
   });
 }
 
+export const itemQueryOptions = (id: number) =>
+  queryOptions({ queryKey: itemQueryKey(id), queryFn: () => inventoryApi.getItem(id) });
+
 export function useItemQuery(id: number) {
-  return useQuery({ queryKey: itemQueryKey(id), queryFn: () => inventoryApi.getItem(id) });
+  return useQuery(itemQueryOptions(id));
 }
 
 export function useCreateItemMutation() {
@@ -118,7 +131,7 @@ export function useItemBatchesQuery(id: number, page: number) {
   return useQuery({
     queryKey: itemBatchesQueryKey(id, page),
     queryFn: () => inventoryApi.listItemBatches(id, page),
-    placeholderData: (previous) => previous,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -130,7 +143,7 @@ export function useItemTransactionsQuery(id: number, page: number) {
   return useQuery({
     queryKey: itemTransactionsQueryKey(id, page),
     queryFn: () => inventoryApi.listItemTransactions(id, page),
-    placeholderData: (previous) => previous,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -138,7 +151,7 @@ export function useExpiringAlertsQuery(params: inventoryApi.ListAlertsParams = {
   return useQuery({
     queryKey: expiringAlertsQueryKey(params),
     queryFn: () => inventoryApi.listExpiringAlerts(params),
-    placeholderData: (previous) => previous,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -146,6 +159,6 @@ export function useLowStockAlertsQuery(params: inventoryApi.ListAlertsParams = {
   return useQuery({
     queryKey: lowStockAlertsQueryKey(params),
     queryFn: () => inventoryApi.listLowStockAlerts(params),
-    placeholderData: (previous) => previous,
+    placeholderData: keepPreviousData,
   });
 }

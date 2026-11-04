@@ -1,195 +1,184 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { AlertCircle, Check, Pencil, Plus, Trash2, X } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Pencil, Plus, Trash2 } from "lucide-react";
+import { FormError } from "@/components/FormError";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { DataList, type DataListColumn } from "@/components/DataList";
+import { FormField, fieldA11yProps } from "@/components/FormField";
+import { LoadingButton } from "@/components/LoadingButton";
+import { PageHeader } from "@/components/PageHeader";
+import { ResponsiveDialog } from "@/components/ResponsiveDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { EmptyState } from "@/components/EmptyState";
-import { LoadingButton } from "@/components/LoadingButton";
-import { RouteErrorFallback } from "@/components/RouteErrorFallback";
-import { TableSkeleton } from "@/components/TableSkeleton";
 import {
   useCategoriesQuery,
   useCreateCategoryMutation,
   useDeleteCategoryMutation,
   useUpdateCategoryMutation,
 } from "@/hooks/useInventory";
-import { getErrorMessage } from "@/lib/errors";
+import { getErrorMessage, getFieldErrors, getGeneralError } from "@/lib/errors";
 import { requireRole } from "@/lib/rbac";
+import { toast } from "@/stores/toast.store";
 import type { Category } from "@/types/inventory";
 
 export const Route = createFileRoute("/_authenticated/items/categories")({
   beforeLoad: requireRole("purchasing", "admin", "super_admin"),
   component: CategoriesPage,
-  errorComponent: RouteErrorFallback,
 });
+
+type DialogState = { mode: "create" } | { mode: "edit"; category: Category } | null;
+
+const COLUMNS: DataListColumn<Category>[] = [
+  { key: "name", header: "Category Name", mobile: "title", cell: (category) => category.name },
+];
 
 function CategoriesPage() {
   const categoriesQuery = useCategoriesQuery();
-  const createMutation = useCreateCategoryMutation();
-  const [newName, setNewName] = useState("");
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const deleteMutation = useDeleteCategoryMutation();
+  const [dialog, setDialog] = useState<DialogState>(null);
+  const [deleting, setDeleting] = useState<Category | null>(null);
 
-  function handleCreate(event: React.FormEvent) {
-    event.preventDefault();
-    createMutation.mutate({ name: newName }, { onSuccess: () => setNewName("") });
+  function confirmDelete() {
+    if (!deleting) {
+      return;
+    }
+    deleteMutation.mutate(deleting.id, {
+      onSuccess: () => {
+        toast.success(`${deleting.name} deleted.`);
+        setDeleting(null);
+      },
+    });
   }
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-lg font-semibold text-foreground">Categories</h1>
-        <p className="text-sm text-muted-foreground">Reference data used by the item catalog.</p>
-      </div>
+      <PageHeader
+        title="Categories"
+        description="Group items in the catalog. A category in use by items can't be deleted."
+        primaryAction={
+          <Button onClick={() => setDialog({ mode: "create" })}>
+            <Plus />
+            Add Category
+          </Button>
+        }
+      />
 
-      <form onSubmit={handleCreate} className="flex items-end gap-2">
-        <div className="flex flex-1 flex-col gap-1.5">
-          <label className="text-xs font-medium text-foreground" htmlFor="new-category-name">
-            New category
-          </label>
-          <Input
-            id="new-category-name"
-            required
-            placeholder="e.g. Consumables"
-            value={newName}
-            onChange={(event) => setNewName(event.target.value)}
-          />
-        </div>
-        <LoadingButton type="submit" isPending={createMutation.isPending} pendingText="Adding...">
-          <Plus />
-          Add
-        </LoadingButton>
-      </form>
+      <DataList
+        label="Categories"
+        columns={COLUMNS}
+        rows={categoriesQuery.data}
+        rowKey={(category) => category.id}
+        isPending={categoriesQuery.isPending}
+        error={categoriesQuery.error}
+        onRetry={() => void categoriesQuery.refetch()}
+        skeletonRows={5}
+        empty={{
+          title: "No categories yet",
+          description: "Add the first category to start organizing items.",
+          action: (
+            <Button size="sm" onClick={() => setDialog({ mode: "create" })}>
+              <Plus />
+              Add Category
+            </Button>
+          ),
+        }}
+        rowActions={(category) => [
+          { label: "Edit", icon: Pencil, onClick: () => setDialog({ mode: "edit", category }) },
+          {
+            label: "Delete",
+            icon: Trash2,
+            destructive: true,
+            onClick: () => {
+              deleteMutation.reset();
+              setDeleting(category);
+            },
+          },
+        ]}
+      />
 
-      {createMutation.isError && (
-        <Alert variant="destructive">
-          <AlertCircle />
-          <AlertDescription>{getErrorMessage(createMutation.error)}</AlertDescription>
-        </Alert>
-      )}
-
-      {categoriesQuery.isPending && <TableSkeleton rows={5} columns={2} />}
-
-      {categoriesQuery.isError && (
-        <EmptyState
-          title="Couldn't load categories"
-          description={getErrorMessage(categoriesQuery.error)}
+      {dialog && (
+        <CategoryDialog
+          key={dialog.mode === "edit" ? dialog.category.id : "create"}
+          category={dialog.mode === "edit" ? dialog.category : undefined}
+          onClose={() => setDialog(null)}
         />
       )}
 
-      {categoriesQuery.data && categoriesQuery.data.length === 0 && (
-        <EmptyState title="No categories yet" description="Add the first one above." />
-      )}
-
-      {categoriesQuery.data && categoriesQuery.data.length > 0 && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {categoriesQuery.data.map((category) => (
-              <CategoryRow
-                key={category.id}
-                category={category}
-                isEditing={editingId === category.id}
-                onEdit={() => setEditingId(category.id)}
-                onDone={() => setEditingId(null)}
-              />
-            ))}
-          </TableBody>
-        </Table>
-      )}
+      <ConfirmDialog
+        open={deleting !== null}
+        onOpenChange={(open) => !open && setDeleting(null)}
+        title="Delete Category?"
+        description={
+          <>
+            <span className="font-semibold">{deleting?.name}</span> will be removed. This can't be undone.
+          </>
+        }
+        confirmLabel="Delete Category"
+        destructive
+        isPending={deleteMutation.isPending}
+        error={deleteMutation.isError ? getErrorMessage(deleteMutation.error) : null}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }
 
-function CategoryRow({
-  category,
-  isEditing,
-  onEdit,
-  onDone,
-}: {
-  category: Category;
-  isEditing: boolean;
-  onEdit: () => void;
-  onDone: () => void;
-}) {
+interface CategoryDialogProps {
+  category?: Category;
+  onClose: () => void;
+}
+
+function CategoryDialog({ category, onClose }: CategoryDialogProps) {
+  const createMutation = useCreateCategoryMutation();
   const updateMutation = useUpdateCategoryMutation();
-  const deleteMutation = useDeleteCategoryMutation();
-  const [name, setName] = useState(category.name);
+  const [name, setName] = useState(category?.name ?? "");
+  const mutation = category ? updateMutation : createMutation;
+  const fieldErrors = getFieldErrors(mutation.error);
+  const generalError = getGeneralError(mutation.error);
 
-  function handleSave() {
-    updateMutation.mutate({ id: category.id, payload: { name } }, { onSuccess: onDone });
-  }
-
-  function handleDelete() {
-    if (window.confirm(`Delete category "${category.name}"? This cannot be undone.`)) {
-      deleteMutation.mutate(category.id);
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    const onSuccess = () => {
+      toast.success(category ? "Category updated." : `${name} added.`);
+      onClose();
+    };
+    if (category) {
+      updateMutation.mutate({ id: category.id, payload: { name } }, { onSuccess });
+    } else {
+      createMutation.mutate({ name }, { onSuccess });
     }
   }
 
-  if (isEditing) {
-    return (
-      <TableRow>
-        <TableCell>
-          <Input value={name} onChange={(event) => setName(event.target.value)} autoFocus />
-          {updateMutation.isError && (
-            <p className="mt-1 text-xs text-destructive">{getErrorMessage(updateMutation.error)}</p>
-          )}
-        </TableCell>
-        <TableCell className="flex justify-end gap-2 text-right">
-          <LoadingButton
-            variant="ghost"
-            size="icon-sm"
-            isPending={updateMutation.isPending}
-            onClick={handleSave}
-          >
-            <Check />
-            <span className="sr-only">Save</span>
-          </LoadingButton>
-          <Button variant="ghost" size="icon-sm" onClick={onDone}>
-            <X />
-            <span className="sr-only">Cancel</span>
-          </Button>
-        </TableCell>
-      </TableRow>
-    );
-  }
-
   return (
-    <TableRow>
-      <TableCell>{category.name}</TableCell>
-      <TableCell className="text-right">
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" size="icon-sm" onClick={onEdit}>
-            <Pencil />
-            <span className="sr-only">Edit</span>
+    <ResponsiveDialog
+      open
+      onOpenChange={(open) => !open && !mutation.isPending && onClose()}
+      title={category ? "Edit Category" : "Add Category"}
+      size="sm"
+      footer={
+        <>
+          <Button variant="outline" disabled={mutation.isPending} onClick={onClose}>
+            Cancel
           </Button>
-          <LoadingButton
-            variant="ghost"
-            size="icon-sm"
-            isPending={deleteMutation.isPending}
-            onClick={handleDelete}
-          >
-            <Trash2 />
-            <span className="sr-only">Delete</span>
+          <LoadingButton type="submit" form="category-form" isPending={mutation.isPending} pendingText="Saving…">
+            {category ? "Save Changes" : "Add Category"}
           </LoadingButton>
-        </div>
-        {deleteMutation.isError && (
-          <p className="mt-1 text-xs text-destructive">{getErrorMessage(deleteMutation.error)}</p>
-        )}
-      </TableCell>
-    </TableRow>
+        </>
+      }
+    >
+      <form id="category-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-3">
+        <FormError message={generalError} />
+        <FormField label="Name" htmlFor="category-name" required error={fieldErrors.name}>
+          <Input
+            {...fieldA11yProps("category-name", fieldErrors.name)}
+            autoFocus
+            required
+            placeholder="e.g. Consumables"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
+        </FormField>
+      </form>
+    </ResponsiveDialog>
   );
 }
