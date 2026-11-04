@@ -1,10 +1,11 @@
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AuthCard } from "@/components/AuthCard";
 import { FormError } from "@/components/FormError";
 import { FormField, fieldA11yProps } from "@/components/FormField";
 import { LoadingButton } from "@/components/LoadingButton";
 import { Input } from "@/components/ui/input";
+import { SubmitForm } from "@/components/SubmitForm";
 import { useResetPasswordMutation } from "@/hooks/useAuth";
 import { getFieldErrors, getGeneralError } from "@/lib/errors";
 import { toast } from "@/stores/toast.store";
@@ -25,9 +26,8 @@ function ResetPasswordPage() {
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const fieldErrors = getFieldErrors(resetPasswordMutation.error);
 
-  function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    resetPasswordMutation.mutate(
+  function handleSubmit() {
+    return resetPasswordMutation.mutateAsync(
       { token, email, password, password_confirmation: passwordConfirmation },
       {
         onSuccess: () => {
@@ -48,7 +48,7 @@ function ResetPasswordPage() {
         </Link>
       }
     >
-      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+      <SubmitForm onSubmit={handleSubmit} className="flex flex-col gap-4">
         <FormError message={getGeneralError(resetPasswordMutation.error) ?? fieldErrors.email ?? fieldErrors.token} />
         <FormField
           label="New Password"
@@ -84,7 +84,7 @@ function ResetPasswordPage() {
         >
           Save New Password
         </LoadingButton>
-      </form>
+      </SubmitForm>
     </AuthCard>
   );
 }

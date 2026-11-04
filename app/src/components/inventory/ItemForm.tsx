@@ -1,21 +1,23 @@
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import type { ItemPayload } from "@/api/inventory";
 import { FormError } from "@/components/FormError";
 import { FormField, fieldA11yProps } from "@/components/FormField";
 import { LoadingButton } from "@/components/LoadingButton";
 import { SectionTitle } from "@/components/SectionTitle";
 import { StickyActionBar } from "@/components/StickyActionBar";
+import { SubmitForm } from "@/components/SubmitForm";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { SelectField } from "@/components/SelectField";
 import { useCategoriesQuery, useUnitsQuery } from "@/hooks/useInventory";
+import type { SubmitHandler } from "@/hooks/useSubmitOnce";
 import { getFieldErrors, getGeneralError } from "@/lib/errors";
 import type { Item } from "@/types/inventory";
 
 interface ItemFormProps {
   initialItem?: Item;
-  onSubmit: (payload: ItemPayload) => void;
+  onSubmit: (payload: ItemPayload) => ReturnType<SubmitHandler>;
   isPending: boolean;
   submitError?: unknown;
 }
@@ -45,10 +47,8 @@ export function ItemForm({ initialItem, onSubmit, isPending, submitError }: Item
   const [reorderQuantity, setReorderQuantity] = useState(toInputValue(initialItem?.reorder_quantity));
   const [isActive, setIsActive] = useState(initialItem?.is_active ?? true);
 
-  function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-
-    onSubmit({
+  function handleSubmit() {
+    return onSubmit({
       name,
       sku,
       barcode: barcode.trim() || null,
@@ -73,7 +73,7 @@ export function ItemForm({ initialItem, onSubmit, isPending, submitError }: Item
   );
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="border border-border bg-card px-4 pb-5 md:px-6">
+    <SubmitForm onSubmit={handleSubmit} className="border border-border bg-card px-4 pb-5 md:px-6">
       <FormError message={generalError} />
 
       <SectionTitle>Details</SectionTitle>
@@ -206,6 +206,6 @@ export function ItemForm({ initialItem, onSubmit, isPending, submitError }: Item
 
       <div className="mt-6 hidden justify-end border-t border-border-subtle pt-4 md:flex">{submitButton}</div>
       <StickyActionBar>{submitButton}</StickyActionBar>
-    </form>
+    </SubmitForm>
   );
 }

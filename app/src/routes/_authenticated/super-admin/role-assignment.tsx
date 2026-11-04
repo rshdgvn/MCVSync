@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { UserCog } from "lucide-react";
 import { DataList, type DataListColumn } from "@/components/DataList";
@@ -11,6 +11,7 @@ import { ResponsiveDialog } from "@/components/ResponsiveDialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { SelectField } from "@/components/SelectField";
+import { SubmitForm } from "@/components/SubmitForm";
 import { useAssignEmployeeRoleMutation, useEmployeesQuery } from "@/hooks/useStaff";
 import { getErrorMessage } from "@/lib/errors";
 import { requireRole } from "@/lib/rbac";
@@ -99,12 +100,11 @@ function RoleDialog({ employee, onClose }: RoleDialogProps) {
   const assignMutation = useAssignEmployeeRoleMutation();
   const [role, setRole] = useState<Role | "">(employee.role ?? "");
 
-  function handleSubmit(event: FormEvent) {
-    event.preventDefault();
+  function handleSubmit() {
     if (!role) {
       return;
     }
-    assignMutation.mutate(
+    return assignMutation.mutateAsync(
       { employeeId: employee.id, role },
       {
         onSuccess: () => {
@@ -139,7 +139,7 @@ function RoleDialog({ employee, onClose }: RoleDialogProps) {
         </>
       }
     >
-      <form id="role-form" onSubmit={handleSubmit} className="flex flex-col gap-3">
+      <SubmitForm id="role-form" onSubmit={handleSubmit} noValidate={false} className="flex flex-col gap-3">
         <FormError message={assignMutation.isError ? getErrorMessage(assignMutation.error) : null} />
         <FormField label="Role" htmlFor="employee-role" required>
           <SelectField
@@ -150,7 +150,7 @@ function RoleDialog({ employee, onClose }: RoleDialogProps) {
             options={ROLES.map((option) => ({ value: option, label: ROLE_LABELS[option] }))}
           />
         </FormField>
-      </form>
+      </SubmitForm>
     </ResponsiveDialog>
   );
 }

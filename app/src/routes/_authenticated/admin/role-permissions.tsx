@@ -98,7 +98,7 @@ function RolePermissionsPanel({ role, allPermissions, initialPermissionIds }: Ro
   }
 
   function handleSave() {
-    updateMutation.mutate(
+    return updateMutation.mutateAsync(
       { role, permissionIds: Array.from(selected) },
       {
         onSuccess: () => toast.success(`${ROLE_LABELS[role]} permissions saved.`),

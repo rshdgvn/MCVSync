@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { ResponsiveDialog } from "@/components/ResponsiveDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SubmitForm } from "@/components/SubmitForm";
 import {
   useCreateUnitMutation,
   useDeleteUnitMutation,
@@ -48,7 +49,7 @@ function UnitsPage() {
     if (!deleting) {
       return;
     }
-    deleteMutation.mutate(deleting.id, {
+    return deleteMutation.mutateAsync(deleting.id, {
       onSuccess: () => {
         toast.success(`${deleting.name} deleted.`);
         setDeleting(null);
@@ -142,17 +143,16 @@ function UnitDialog({ unit, onClose }: UnitDialogProps) {
   const mutation = unit ? updateMutation : createMutation;
   const fieldErrors = getFieldErrors(mutation.error);
 
-  function handleSubmit(event: FormEvent) {
-    event.preventDefault();
+  function handleSubmit() {
     const payload = { code, name };
     const onSuccess = () => {
       toast.success(unit ? "Unit updated." : `${name} added.`);
       onClose();
     };
     if (unit) {
-      updateMutation.mutate({ id: unit.id, payload }, { onSuccess });
+      return updateMutation.mutateAsync({ id: unit.id, payload }, { onSuccess });
     } else {
-      createMutation.mutate(payload, { onSuccess });
+      return createMutation.mutateAsync(payload, { onSuccess });
     }
   }
 
@@ -173,7 +173,7 @@ function UnitDialog({ unit, onClose }: UnitDialogProps) {
         </>
       }
     >
-      <form id="unit-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-3">
+      <SubmitForm id="unit-form" onSubmit={handleSubmit} className="flex flex-col gap-3">
         <FormError message={getGeneralError(mutation.error)} />
         <FormField label="Name" htmlFor="unit-name" required error={fieldErrors.name}>
           <Input
@@ -195,7 +195,7 @@ function UnitDialog({ unit, onClose }: UnitDialogProps) {
             onChange={(event) => setCode(event.target.value)}
           />
         </FormField>
-      </form>
+      </SubmitForm>
     </ResponsiveDialog>
   );
 }

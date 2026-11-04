@@ -54,7 +54,7 @@ function ItemEditPage() {
           isPending={updateMutation.isPending}
           submitError={updateMutation.error}
           onSubmit={(payload) =>
-            updateMutation.mutate(
+            updateMutation.mutateAsync(
               { id: itemQuery.data.id, payload },
               {
                 onSuccess: () => {

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CheckCircle2 } from "lucide-react";
 import { AuthCard } from "@/components/AuthCard";
@@ -6,6 +6,7 @@ import { FormError } from "@/components/FormError";
 import { FormField, fieldA11yProps } from "@/components/FormField";
 import { LoadingButton } from "@/components/LoadingButton";
 import { Input } from "@/components/ui/input";
+import { SubmitForm } from "@/components/SubmitForm";
 import { useForgotPasswordMutation } from "@/hooks/useAuth";
 import { getFieldErrors, getGeneralError } from "@/lib/errors";
 
@@ -18,9 +19,8 @@ function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const fieldErrors = getFieldErrors(forgotPasswordMutation.error);
 
-  function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    forgotPasswordMutation.mutate({ email });
+  function handleSubmit() {
+    return forgotPasswordMutation.mutateAsync({ email });
   }
 
   return (
@@ -39,7 +39,7 @@ function ForgotPasswordPage() {
           If that account exists, a reset link is on its way.
         </p>
       ) : (
-        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+        <SubmitForm onSubmit={handleSubmit} className="flex flex-col gap-4">
           <FormError message={getGeneralError(forgotPasswordMutation.error)} />
           <FormField label="Email Address" htmlFor="email" layout="stacked" error={fieldErrors.email}>
             <Input
@@ -60,7 +60,7 @@ function ForgotPasswordPage() {
           >
             Send Reset Link
           </LoadingButton>
-        </form>
+        </SubmitForm>
       )}
     </AuthCard>
   );

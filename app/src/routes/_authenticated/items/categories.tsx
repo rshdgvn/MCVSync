@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { FormError } from "@/components/FormError";
@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { ResponsiveDialog } from "@/components/ResponsiveDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SubmitForm } from "@/components/SubmitForm";
 import {
   useCategoriesQuery,
   useCreateCategoryMutation,
@@ -42,7 +43,7 @@ function CategoriesPage() {
     if (!deleting) {
       return;
     }
-    deleteMutation.mutate(deleting.id, {
+    return deleteMutation.mutateAsync(deleting.id, {
       onSuccess: () => {
         toast.success(`${deleting.name} deleted.`);
         setDeleting(null);
@@ -136,16 +137,15 @@ function CategoryDialog({ category, onClose }: CategoryDialogProps) {
   const fieldErrors = getFieldErrors(mutation.error);
   const generalError = getGeneralError(mutation.error);
 
-  function handleSubmit(event: FormEvent) {
-    event.preventDefault();
+  function handleSubmit() {
     const onSuccess = () => {
       toast.success(category ? "Category updated." : `${name} added.`);
       onClose();
     };
     if (category) {
-      updateMutation.mutate({ id: category.id, payload: { name } }, { onSuccess });
+      return updateMutation.mutateAsync({ id: category.id, payload: { name } }, { onSuccess });
     } else {
-      createMutation.mutate({ name }, { onSuccess });
+      return createMutation.mutateAsync({ name }, { onSuccess });
     }
   }
 
@@ -166,7 +166,7 @@ function CategoryDialog({ category, onClose }: CategoryDialogProps) {
         </>
       }
     >
-      <form id="category-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-3">
+      <SubmitForm id="category-form" onSubmit={handleSubmit} className="flex flex-col gap-3">
         <FormError message={generalError} />
         <FormField label="Name" htmlFor="category-name" required error={fieldErrors.name}>
           <Input
@@ -178,7 +178,7 @@ function CategoryDialog({ category, onClose }: CategoryDialogProps) {
             onChange={(event) => setName(event.target.value)}
           />
         </FormField>
-      </form>
+      </SubmitForm>
     </ResponsiveDialog>
   );
 }

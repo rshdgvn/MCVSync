@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Ban, CheckCircle2, Pencil, Plus } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -14,6 +14,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SelectField } from "@/components/SelectField";
+import { SubmitForm } from "@/components/SubmitForm";
 import {
   useActivateEmployeeMutation,
   useBranchesQuery,
@@ -104,7 +105,7 @@ function StaffAccountsPage() {
     if (!deactivating) {
       return;
     }
-    deactivateMutation.mutate(deactivating.id, {
+    return deactivateMutation.mutateAsync(deactivating.id, {
       onSuccess: () => {
         toast.success(`${deactivating.name} was deactivated.`);
         setDeactivating(null);
@@ -216,8 +217,7 @@ function EmployeeDialog({ employee, onClose }: EmployeeDialogProps) {
   const mutation = employee ? updateMutation : createMutation;
   const fieldErrors = getFieldErrors(mutation.error);
 
-  function handleSubmit(event: FormEvent) {
-    event.preventDefault();
+  function handleSubmit() {
     const branch_id = branchId === NO_BRANCH ? null : Number(branchId);
     const onSuccess = () => {
       toast.success(employee ? "Staff account updated." : `${name} added.`);
@@ -225,9 +225,9 @@ function EmployeeDialog({ employee, onClose }: EmployeeDialogProps) {
     };
 
     if (employee) {
-      updateMutation.mutate({ id: employee.id, payload: { name, email, position, branch_id } }, { onSuccess });
+      return updateMutation.mutateAsync({ id: employee.id, payload: { name, email, position, branch_id } }, { onSuccess });
     } else {
-      createMutation.mutate({ name, email, password, position, branch_id }, { onSuccess });
+      return createMutation.mutateAsync({ name, email, password, position, branch_id }, { onSuccess });
     }
   }
 
@@ -248,7 +248,7 @@ function EmployeeDialog({ employee, onClose }: EmployeeDialogProps) {
         </>
       }
     >
-      <form id="employee-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-4 md:gap-3.5">
+      <SubmitForm id="employee-form" onSubmit={handleSubmit} className="flex flex-col gap-4 md:gap-3.5">
         <FormError message={getGeneralError(mutation.error)} />
 
         <FormField label="Full Name" htmlFor="employee-name" required error={fieldErrors.name}>
@@ -315,7 +315,7 @@ function EmployeeDialog({ employee, onClose }: EmployeeDialogProps) {
             ]}
           />
         </FormField>
-      </form>
+      </SubmitForm>
     </ResponsiveDialog>
   );
 }

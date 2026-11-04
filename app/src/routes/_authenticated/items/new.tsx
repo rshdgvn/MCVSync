@@ -24,7 +24,7 @@ function ItemCreatePage() {
         isPending={createMutation.isPending}
         submitError={createMutation.error}
         onSubmit={(payload) =>
-          createMutation.mutate(payload, {
+          createMutation.mutateAsync(payload, {
             onSuccess: (item) => {
               toast.success(`${item.name} added.`);
               void navigate({ to: "/items/$itemId", params: { itemId: String(item.id) } });

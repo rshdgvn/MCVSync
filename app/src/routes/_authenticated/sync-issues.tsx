@@ -119,7 +119,7 @@ function SyncIssuesPage() {
         description="The change will be removed from this device and never sent to the server. This can't be undone."
         confirmLabel="Discard Change"
         destructive
-        onConfirm={() => void discard()}
+        onConfirm={discard}
       />
     </div>
   );

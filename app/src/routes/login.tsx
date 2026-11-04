@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { Link, Navigate, createFileRoute } from "@tanstack/react-router";
 import { AlertCircle, Eye, EyeOff } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SubmitForm } from "@/components/SubmitForm";
 import { useLoginMutation, useMeQuery } from "@/hooks/useAuth";
 import { getErrorMessage } from "@/lib/errors";
 
@@ -28,9 +29,8 @@ function LoginPage() {
     return <Navigate to="/" replace />;
   }
 
-  function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    loginMutation.mutate({ email, password, remember: rememberMe });
+  function handleSubmit() {
+    return loginMutation.mutateAsync({ email, password, remember: rememberMe });
   }
 
   return (
@@ -78,7 +78,7 @@ function LoginPage() {
             Sign in to your MCVSync account to continue.
           </p>
 
-          <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
+          <SubmitForm onSubmit={handleSubmit} noValidate={false} className="mt-8 flex flex-col gap-4">
             {loginMutation.isError && (
               <Alert variant="destructive">
                 <AlertCircle />
@@ -147,7 +147,7 @@ function LoginPage() {
             >
               Log In
             </LoadingButton>
-          </form>
+          </SubmitForm>
 
           <p className="mt-8 text-center text-xs text-muted-foreground">
             MCVSync © {new Date().getFullYear()} · Medical Inventory Management

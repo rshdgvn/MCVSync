@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { Link, Navigate, createFileRoute } from "@tanstack/react-router";
 import { Eye, EyeOff } from "lucide-react";
 import { AuthCard } from "@/components/AuthCard";
@@ -7,6 +7,7 @@ import { FormField, fieldA11yProps } from "@/components/FormField";
 import { LoadingButton } from "@/components/LoadingButton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { SubmitForm } from "@/components/SubmitForm";
 import { useLoginMutation, useMeQuery } from "@/hooks/useAuth";
 import { getFieldErrors, getGeneralError } from "@/lib/errors";
 
@@ -27,14 +28,13 @@ function LoginPage() {
     return <Navigate to="/" replace />;
   }
 
-  function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    loginMutation.mutate({ email, password, remember: rememberMe });
+  function handleSubmit() {
+    return loginMutation.mutateAsync({ email, password, remember: rememberMe });
   }
 
   return (
     <AuthCard title="Sign In" description="Order and track supplies for your clinic.">
-      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+      <SubmitForm onSubmit={handleSubmit} className="flex flex-col gap-4">
         <FormError message={getGeneralError(loginMutation.error)} />
         <FormField label="Email Address" htmlFor="email" layout="stacked" error={fieldErrors.email}>
           <Input
@@ -88,7 +88,7 @@ function LoginPage() {
         >
           Log In
         </LoadingButton>
-      </form>
+      </SubmitForm>
     </AuthCard>
   );
 }
