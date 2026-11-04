@@ -95,12 +95,12 @@ export interface Paginated<T> {
   meta: PaginationMeta;
 }
 
-export interface ItemStatusCounts {
+export interface ActiveStatusCounts {
   all: number;
   active: number;
   inactive: number;
 }
 
 export interface ItemListResponse extends Paginated<Item> {
-  counts: ItemStatusCounts;
+  counts: ActiveStatusCounts;
 }
