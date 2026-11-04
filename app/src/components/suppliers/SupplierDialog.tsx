@@ -1,12 +1,12 @@
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { FormError } from "@/components/FormError";
 import { FormField, fieldA11yProps } from "@/components/FormField";
 import { LoadingButton } from "@/components/LoadingButton";
 import { ResponsiveDialog } from "@/components/ResponsiveDialog";
+import { SubmitForm } from "@/components/SubmitForm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useSubmitOnce } from "@/hooks/useSubmitOnce";
 import { useCreateSupplierMutation, useUpdateSupplierMutation } from "@/hooks/useSuppliers";
 import { getFieldErrors, getGeneralError } from "@/lib/errors";
 import { toast } from "@/stores/toast.store";
@@ -56,7 +56,6 @@ interface SupplierDialogProps {
 export function SupplierDialog({ supplier, onClose }: SupplierDialogProps) {
   const createMutation = useCreateSupplierMutation();
   const updateMutation = useUpdateSupplierMutation();
-  const submitOnce = useSubmitOnce();
   const [values, setValues] = useState(() => toFormValues(supplier));
   const mutation = supplier ? updateMutation : createMutation;
   const fieldErrors = getFieldErrors(mutation.error);
@@ -66,30 +65,24 @@ export function SupplierDialog({ supplier, onClose }: SupplierDialogProps) {
     setValues((current) => ({ ...current, [field]: value }));
   }
 
-  function handleSubmit(event: FormEvent) {
-    event.preventDefault();
+  function handleSubmit() {
     const payload = toPayload(values);
-    submitOnce((release) => {
-      if (supplier) {
-        updateMutation.mutate(
-          { id: supplier.id, payload },
-          {
-            onSuccess: () => {
-              toast.success("Supplier updated.");
-              onClose();
-            },
-            onSettled: release,
+    if (supplier) {
+      return updateMutation.mutateAsync(
+        { id: supplier.id, payload },
+        {
+          onSuccess: () => {
+            toast.success("Supplier updated.");
+            onClose();
           },
-        );
-        return;
-      }
-      createMutation.mutate(payload, {
-        onSuccess: (created) => {
-          toast.success(`${created.name} added.`);
-          onClose();
         },
-        onSettled: release,
-      });
+      );
+    }
+    return createMutation.mutateAsync(payload, {
+      onSuccess: (created) => {
+        toast.success(`${created.name} added.`);
+        onClose();
+      },
     });
   }
 
@@ -109,7 +102,7 @@ export function SupplierDialog({ supplier, onClose }: SupplierDialogProps) {
         </>
       }
     >
-      <form id="supplier-form" onSubmit={handleSubmit} noValidate className="flex flex-col gap-3">
+      <SubmitForm id="supplier-form" onSubmit={handleSubmit} className="flex flex-col gap-3">
         <FormError message={generalError} />
         <FormField label="Name" htmlFor="supplier-name" required error={fieldErrors.name}>
           <Input
@@ -164,7 +157,7 @@ export function SupplierDialog({ supplier, onClose }: SupplierDialogProps) {
             onChange={(event) => setField("address", event.target.value)}
           />
         </FormField>
-      </form>
+      </SubmitForm>
     </ResponsiveDialog>
   );
 }

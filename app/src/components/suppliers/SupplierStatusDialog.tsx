@@ -1,5 +1,4 @@
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { useSubmitOnce } from "@/hooks/useSubmitOnce";
 import { useSetSupplierActiveMutation } from "@/hooks/useSuppliers";
 import { getErrorMessage } from "@/lib/errors";
 import { toast } from "@/stores/toast.store";
@@ -12,26 +11,21 @@ interface SupplierStatusDialogProps {
 
 export function SupplierStatusDialog({ supplier, onClose }: SupplierStatusDialogProps) {
   const mutation = useSetSupplierActiveMutation();
-  const submitOnce = useSubmitOnce();
   const deactivating = supplier?.is_active ?? true;
 
   function confirm() {
     if (!supplier) {
       return;
     }
-    const target = supplier;
-    submitOnce((release) => {
-      mutation.mutate(
-        { id: target.id, active: !target.is_active },
-        {
-          onSuccess: (saved) => {
-            toast.success(`${saved.name} ${saved.is_active ? "activated" : "deactivated"}.`);
-            onClose();
-          },
-          onSettled: release,
+    return mutation.mutateAsync(
+      { id: supplier.id, active: !supplier.is_active },
+      {
+        onSuccess: (saved) => {
+          toast.success(`${saved.name} ${saved.is_active ? "activated" : "deactivated"}.`);
+          onClose();
         },
-      );
-    });
+      },
+    );
   }
 
   return (

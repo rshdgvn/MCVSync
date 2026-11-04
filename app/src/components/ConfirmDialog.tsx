@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { FormError } from "@/components/FormError";
 import { LoadingButton } from "@/components/LoadingButton";
 import { ResponsiveDialog } from "@/components/ResponsiveDialog";
+import type { SubmitHandler } from "@/hooks/useSubmitOnce";
 import { Button } from "@/components/ui/button";
 
 interface ConfirmDialogProps {
@@ -10,7 +11,7 @@ interface ConfirmDialogProps {
   title: string;
   description: ReactNode;
   confirmLabel: string;
-  onConfirm: () => void;
+  onConfirm: SubmitHandler;
   isPending?: boolean;
   destructive?: boolean;
   error?: string | null;
