@@ -13,6 +13,12 @@ export function getErrorMessage(error: unknown): string {
     if (error.response?.data?.message) {
       return error.response.data.message;
     }
+
+    if (!error.response) {
+      return navigator.onLine
+        ? "Can't reach the server. Check your connection and try again."
+        : "You're offline. Reconnect and try again.";
+    }
   }
 
   return "Something went wrong. Please try again.";
