@@ -11,6 +11,7 @@ import {
   me,
   resetPassword,
 } from "@/api/auth";
+import { purgeUserData } from "@/pwa/userCache";
 
 export const meQueryKey = ["auth", "me"] as const;
 
@@ -34,11 +35,9 @@ export function useLoginMutation() {
 }
 
 export function useLogoutMutation() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: logout,
-    onSuccess: () => queryClient.removeQueries({ queryKey: meQueryKey }),
+    onSuccess: () => purgeUserData(),
   });
 }
 
