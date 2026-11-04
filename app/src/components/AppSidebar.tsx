@@ -21,7 +21,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { NAVIGATION, findActiveKeys, type NavItem } from "@/config/navigation";
+import { NAVIGATION, findActiveKeys, type ActiveNavKeys, type NavItem } from "@/config/navigation";
 import { FAST_TRANSITION } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/types/user";
@@ -38,7 +38,8 @@ export function AppSidebar({ role, badges = {} }: AppSidebarProps) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const { setOpenMobile } = useSidebar();
   const items = NAVIGATION[role];
-  const { parentKey } = findActiveKeys(items, pathname);
+  const activeKeys = findActiveKeys(items, pathname);
+  const { parentKey } = activeKeys;
   const [expandedKey, setExpandedKey] = useState<string | null>(parentKey ?? null);
 
   useEffect(() => {
@@ -78,7 +79,7 @@ export function AppSidebar({ role, badges = {} }: AppSidebarProps) {
                 <NavEntry
                   key={item.key}
                   item={item}
-                  pathname={pathname}
+                  activeKeys={activeKeys}
                   badges={badges}
                   expanded={expandedKey === item.key}
                   onToggle={() =>
@@ -104,20 +105,20 @@ export function AppSidebar({ role, badges = {} }: AppSidebarProps) {
 
 interface NavEntryProps {
   item: NavItem;
-  pathname: string;
+  activeKeys: ActiveNavKeys;
   badges: Record<string, number>;
   expanded: boolean;
   onToggle: () => void;
 }
 
-function NavEntry({ item, pathname, badges, expanded, onToggle }: NavEntryProps) {
+function NavEntry({ item, activeKeys, badges, expanded, onToggle }: NavEntryProps) {
   const badgeCount = item.badgeKey ? badges[item.badgeKey] : undefined;
 
   if (!item.children) {
     return (
       <SidebarMenuItem>
         <SidebarMenuButton
-          isActive={item.to === pathname}
+          isActive={activeKeys.parentKey === item.key && !activeKeys.childKey}
           tooltip={item.label}
           render={<Link to={item.to ?? "/"} />}
         >
@@ -150,7 +151,7 @@ function NavEntry({ item, pathname, badges, expanded, onToggle }: NavEntryProps)
 
               return (
                 <SidebarMenuSubItem key={child.key}>
-                  <SidebarMenuSubButton isActive={child.to === pathname} render={<Link to={child.to ?? "/"} />}>
+                  <SidebarMenuSubButton isActive={activeKeys.parentKey === item.key && activeKeys.childKey === child.key} render={<Link to={child.to ?? "/"} />}>
                     <span className="min-w-0 truncate">{child.label}</span>
                   </SidebarMenuSubButton>
                   {!!childBadge && <SidebarMenuBadge>{childBadge}</SidebarMenuBadge>}

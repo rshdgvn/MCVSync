@@ -307,22 +307,40 @@ export const NAVIGATION: Record<Role, NavItem[]> = {
   ],
 };
 
-export function findActiveKeys(
-  items: NavItem[],
-  pathname: string,
-): { parentKey?: string; childKey?: string } {
+export interface ActiveNavKeys {
+  parentKey?: string;
+  childKey?: string;
+}
+
+function matchedPrefixLength(to: string | undefined, pathname: string): number {
+  if (!to) {
+    return -1;
+  }
+  if (to === pathname) {
+    return to.length;
+  }
+  return to !== "/" && pathname.startsWith(`${to}/`) ? to.length : -1;
+}
+
+export function findActiveKeys(items: NavItem[], pathname: string): ActiveNavKeys {
+  let longest = -1;
+  let active: ActiveNavKeys = {};
+
   for (const item of items) {
-    if (item.to === pathname) {
-      return { parentKey: item.key };
+    const length = matchedPrefixLength(item.to, pathname);
+    if (length > longest) {
+      longest = length;
+      active = { parentKey: item.key };
     }
 
-    if (item.children) {
-      const match = item.children.find((child) => child.to === pathname);
-      if (match) {
-        return { parentKey: item.key, childKey: match.key };
+    for (const child of item.children ?? []) {
+      const childLength = matchedPrefixLength(child.to, pathname);
+      if (childLength > longest) {
+        longest = childLength;
+        active = { parentKey: item.key, childKey: child.key };
       }
     }
   }
 
-  return {};
+  return active;
 }
