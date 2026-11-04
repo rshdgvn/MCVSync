@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { Link, Navigate, createFileRoute } from "@tanstack/react-router";
 import { AlertCircle, Eye, EyeOff } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
 import { LoadingButton } from "@/components/LoadingButton";
@@ -7,38 +7,30 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { meQueryOptions, useLoginMutation } from "@/hooks/useAuth";
+import { useLoginMutation, useMeQuery } from "@/hooks/useAuth";
 import { getErrorMessage } from "@/lib/errors";
 
 const FEATURE_PILLS = ["Real-time Tracking", "Expiry Alerts", "Auto Reorder"];
 
 export const Route = createFileRoute("/login")({
-  beforeLoad: async ({ context }) => {
-    try {
-      await context.queryClient.ensureQueryData(meQueryOptions);
-    } catch {
-      return;
-    }
-
-    throw redirect({ to: "/" });
-  },
   component: LoginPage,
 });
 
 function LoginPage() {
-  const navigate = useNavigate();
+  const meQuery = useMeQuery();
   const loginMutation = useLoginMutation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
+  if (meQuery.data) {
+    return <Navigate to="/" replace />;
+  }
+
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    loginMutation.mutate(
-      { email, password, remember: rememberMe },
-      { onSuccess: () => navigate({ to: "/" }) },
-    );
+    loginMutation.mutate({ email, password, remember: rememberMe });
   }
 
   return (

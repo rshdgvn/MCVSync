@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { Link, Navigate, createFileRoute } from "@tanstack/react-router";
 import { Eye, EyeOff } from "lucide-react";
 import { AuthCard } from "@/components/AuthCard";
 import { FormError } from "@/components/FormError";
@@ -7,24 +7,15 @@ import { FormField, fieldA11yProps } from "@/components/FormField";
 import { LoadingButton } from "@/components/LoadingButton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { meQueryOptions, useLoginMutation } from "@/hooks/useAuth";
+import { useLoginMutation, useMeQuery } from "@/hooks/useAuth";
 import { getFieldErrors, getGeneralError } from "@/lib/errors";
 
 export const Route = createFileRoute("/login")({
-  beforeLoad: async ({ context }) => {
-    try {
-      await context.queryClient.ensureQueryData(meQueryOptions);
-    } catch {
-      return;
-    }
-
-    throw redirect({ to: "/" });
-  },
   component: LoginPage,
 });
 
 function LoginPage() {
-  const navigate = useNavigate();
+  const meQuery = useMeQuery();
   const loginMutation = useLoginMutation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,12 +23,13 @@ function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const fieldErrors = getFieldErrors(loginMutation.error);
 
+  if (meQuery.data) {
+    return <Navigate to="/" replace />;
+  }
+
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    loginMutation.mutate(
-      { email, password, remember: rememberMe },
-      { onSuccess: () => navigate({ to: "/" }) },
-    );
+    loginMutation.mutate({ email, password, remember: rememberMe });
   }
 
   return (
