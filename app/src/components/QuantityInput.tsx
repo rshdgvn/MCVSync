@@ -63,7 +63,14 @@ export function QuantityInput({
         pattern="[0-9]*"
         disabled={disabled}
         value={draft}
-        onChange={(event) => setDraft(event.target.value.replace(/[^0-9]/g, ""))}
+        onChange={(event) => {
+          const digits = event.target.value.replace(/[^0-9]/g, "");
+          setDraft(digits);
+          const parsed = Number.parseInt(digits, 10);
+          if (!Number.isNaN(parsed) && parsed >= min && parsed <= max && parsed !== value) {
+            onChange(parsed);
+          }
+        }}
         onBlur={(event) => commit(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
