@@ -7,8 +7,8 @@ export const employeesQueryKey = ["employees"] as const;
 export const rolesQueryKey = ["roles"] as const;
 export const permissionsQueryKey = ["permissions"] as const;
 
-export function useBranchesQuery() {
-  return useQuery({ queryKey: branchesQueryKey, queryFn: staffApi.listBranches });
+export function useBranchesQuery(enabled = true) {
+  return useQuery({ queryKey: branchesQueryKey, queryFn: staffApi.listBranches, enabled });
 }
 
 export function useEmployeesQuery() {
