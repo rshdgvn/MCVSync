@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Staff;
 
+use App\Rules\DiscountWithinLineSubtotal;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -15,7 +16,7 @@ class UpdatePurchaseOrderItemRequest extends FormRequest
         return [
             'quantity_ordered' => ['required', 'integer', 'min:1'],
             'unit_cost' => ['required', 'numeric', 'min:0'],
-            'discount' => ['nullable', 'numeric', 'min:0'],
+            'discount' => ['nullable', 'numeric', 'min:0', new DiscountWithinLineSubtotal],
         ];
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Staff;
 
+use App\Rules\DiscountWithinLineSubtotal;
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -22,7 +23,7 @@ class StorePurchaseOrderRequest extends FormRequest
             'items.*.item_id' => ['required', 'integer', Rule::exists('items', 'id')->where('is_active', true)],
             'items.*.quantity_ordered' => ['required', 'integer', 'min:1'],
             'items.*.unit_cost' => ['required', 'numeric', 'min:0'],
-            'items.*.discount' => ['nullable', 'numeric', 'min:0'],
+            'items.*.discount' => ['nullable', 'numeric', 'min:0', new DiscountWithinLineSubtotal],
         ];
     }
 
