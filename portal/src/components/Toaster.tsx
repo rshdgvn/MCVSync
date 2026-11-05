@@ -18,7 +18,7 @@ export function Toaster() {
   return (
     <div
       aria-live="polite"
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex flex-col items-center gap-2 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] max-md:[body:has([data-sticky-action-bar])_&]:pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:inset-x-auto md:right-6 md:bottom-6 md:items-end md:px-0 md:pb-0"
+      className="pointer-events-none fixed inset-x-0 top-0 z-[60] flex flex-col items-center gap-2 px-4 pt-[calc(0.75rem+env(safe-area-inset-top))] md:inset-x-auto md:top-auto md:right-6 md:bottom-6 md:items-end md:px-0 md:pt-0"
     >
       <AnimatePresence initial={false}>
         {toasts.map((toast) => {
@@ -28,9 +28,9 @@ export function Toaster() {
             <motion.div
               key={toast.id}
               role={toast.tone === "error" ? "alert" : "status"}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
               transition={BASE_TRANSITION}
               className="pointer-events-auto flex w-full max-w-sm items-center gap-3 border border-border bg-card py-2 pr-2 pl-3.5 shadow-lg"
             >
