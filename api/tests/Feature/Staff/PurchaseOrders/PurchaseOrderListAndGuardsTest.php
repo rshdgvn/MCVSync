@@ -133,3 +133,54 @@ test('admin and super admin can create a purchase order for any branch', functio
             ->assertJsonPath('branch.id', $cebu->id);
     }
 });
+
+test('a purchase order cannot be created for an inactive supplier or with an inactive item', function () {
+    $user = makeStaffUser([], 'APALIT');
+    assignStaffRole($user, 'purchasing');
+    $branch = $user->employee->branch;
+
+    $inactiveSupplier = $this->actingAs($user, 'staff')->postJson(
+        '/api/staff/purchase-orders',
+        purchaseOrderPayload(Supplier::factory()->create(['is_active' => false]), $branch, Item::factory()->create()),
+    );
+    $inactiveSupplier->assertUnprocessable();
+    $inactiveSupplier->assertJsonValidationErrors(['supplier_id' => 'Choose an active supplier.']);
+
+    $inactiveItem = $this->actingAs($user, 'staff')->postJson(
+        '/api/staff/purchase-orders',
+        purchaseOrderPayload(Supplier::factory()->create(), $branch, Item::factory()->create(['is_active' => false])),
+    );
+    $inactiveItem->assertUnprocessable();
+    $inactiveItem->assertJsonValidationErrors(['items.0.item_id' => 'Choose an active item.']);
+
+    expect(PurchaseOrder::withoutGlobalScopes()->count())->toBe(0);
+});
+
+test('an inactive item cannot be added as a new line', function () {
+    $user = makeStaffUser([], 'APALIT');
+    assignStaffRole($user, 'purchasing');
+    $po = PurchaseOrder::factory()->create(['status' => 'open', 'branch_id' => $user->employee->branch_id]);
+
+    $response = $this->actingAs($user, 'staff')->postJson("/api/staff/purchase-orders/{$po->id}/items", [
+        'item_id' => Item::factory()->create(['is_active' => false])->id,
+        'quantity_ordered' => 1,
+        'unit_cost' => 5,
+    ]);
+
+    $response->assertUnprocessable();
+    $response->assertJsonValidationErrors(['item_id' => 'Choose an active item.']);
+    expect($po->items()->count())->toBe(0);
+});
+
+test('an existing purchase order still shows a supplier deactivated after it was created', function () {
+    $admin = makeStaffUser([], 'APALIT');
+    assignStaffRole($admin, 'admin');
+    $supplier = Supplier::factory()->create();
+    $po = PurchaseOrder::factory()->create(['supplier_id' => $supplier->id]);
+    $supplier->update(['is_active' => false]);
+
+    $this->actingAs($admin, 'staff')->getJson("/api/staff/purchase-orders/{$po->id}")
+        ->assertOk()
+        ->assertJsonPath('supplier.id', $supplier->id)
+        ->assertJsonPath('supplier.is_active', false);
+});
