@@ -104,3 +104,32 @@ test('status counts for a branch scoped user only include their own branch', fun
     $response->assertJsonPath('counts.all', 1);
     $response->assertJsonPath('counts.open', 1);
 });
+
+test('a branch scoped purchasing user cannot create a purchase order for another branch', function () {
+    $cebu = Branch::firstOrCreate(['code' => 'CEBU'], ['name' => 'Cebu', 'address' => 'Cebu', 'is_main' => false]);
+    $user = makeStaffUser([], 'APALIT');
+    assignStaffRole($user, 'purchasing');
+
+    $response = $this->actingAs($user, 'staff')->postJson(
+        '/api/staff/purchase-orders',
+        purchaseOrderPayload(Supplier::factory()->create(), $cebu, Item::factory()->create()),
+    );
+
+    $response->assertUnprocessable();
+    $response->assertJsonValidationErrors(['branch_id' => 'You can only create purchase orders for your own branch.']);
+    expect(PurchaseOrder::withoutGlobalScopes()->count())->toBe(0);
+});
+
+test('admin and super admin can create a purchase order for any branch', function () {
+    $cebu = Branch::firstOrCreate(['code' => 'CEBU'], ['name' => 'Cebu', 'address' => 'Cebu', 'is_main' => false]);
+
+    foreach (['admin', 'super_admin'] as $role) {
+        $user = makeStaffUser([], 'APALIT');
+        assignStaffRole($user, $role);
+
+        $this->actingAs($user, 'staff')
+            ->postJson('/api/staff/purchase-orders', purchaseOrderPayload(Supplier::factory()->create(), $cebu, Item::factory()->create()))
+            ->assertCreated()
+            ->assertJsonPath('branch.id', $cebu->id);
+    }
+});

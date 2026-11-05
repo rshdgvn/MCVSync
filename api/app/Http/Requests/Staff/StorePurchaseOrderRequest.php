@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Staff;
 
+use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StorePurchaseOrderRequest extends FormRequest
@@ -10,7 +11,7 @@ class StorePurchaseOrderRequest extends FormRequest
     {
         return [
             'supplier_id' => ['required', 'integer', 'exists:suppliers,id'],
-            'branch_id' => ['required', 'integer', 'exists:branches,id'],
+            'branch_id' => ['required', 'integer', 'exists:branches,id', $this->ownBranchOnly(...)],
             'order_date' => ['nullable', 'date'],
             'request_delivery_date' => ['nullable', 'date'],
             'terms' => ['nullable', 'string', 'max:255'],
@@ -22,5 +23,12 @@ class StorePurchaseOrderRequest extends FormRequest
             'items.*.unit_cost' => ['required', 'numeric', 'min:0'],
             'items.*.discount' => ['nullable', 'numeric', 'min:0'],
         ];
+    }
+
+    private function ownBranchOnly(string $attribute, mixed $value, Closure $fail): void
+    {
+        if (app()->bound('currentBranchId') && (int) $value !== (int) app('currentBranchId')) {
+            $fail('You can only create purchase orders for your own branch.');
+        }
     }
 }
