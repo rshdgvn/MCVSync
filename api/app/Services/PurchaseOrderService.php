@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Employee;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -19,7 +20,43 @@ class PurchaseOrderService
 
     private const CANCELLABLE_STATUSES = ['draft', 'open', 'ready_for_delivery'];
 
+    private const STATUSES = ['draft', 'open', 'ready_for_delivery', 'closed', 'cancelled'];
+
     public function __construct(private readonly DocumentNumberGenerator $numbers) {}
+
+    /**
+     * @param  array{search?: string, status?: string, supplier_id?: int, branch_id?: int}  $filters
+     */
+    public function listQuery(array $filters): Builder
+    {
+        return $this->filteredOrders($filters)
+            ->with(['supplier', 'branch'])
+            ->withCount('items')
+            ->withSum('items', 'total')
+            ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
+            ->orderByDesc('order_date')
+            ->orderByDesc('id');
+    }
+
+    /**
+     * @param  array{search?: string, supplier_id?: int, branch_id?: int}  $filters
+     * @return array<string, int>
+     */
+    public function statusCounts(array $filters): array
+    {
+        $totals = $this->filteredOrders($filters)
+            ->toBase()
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        $counts = ['all' => (int) $totals->sum()];
+        foreach (self::STATUSES as $status) {
+            $counts[$status] = (int) ($totals[$status] ?? 0);
+        }
+
+        return $counts;
+    }
 
     /**
      * @param  array<int, array{item_id: int, quantity_ordered: int, unit_cost: float, discount?: float}>  $items
@@ -132,6 +169,22 @@ class PurchaseOrderService
             'discount' => $discount,
             'total' => ($quantity * $unitCost) - $discount,
         ]);
+    }
+
+    /**
+     * @param  array{search?: string, supplier_id?: int, branch_id?: int}  $filters
+     */
+    private function filteredOrders(array $filters): Builder
+    {
+        return PurchaseOrder::query()
+            ->when($filters['search'] ?? null, function (Builder $query, string $search) {
+                $pattern = '%'.$search.'%';
+                $query->where(fn (Builder $inner) => $inner
+                    ->whereLike('po_number', $pattern)
+                    ->orWhereHas('supplier', fn (Builder $supplier) => $supplier->whereLike('name', $pattern)));
+            })
+            ->when($filters['supplier_id'] ?? null, fn (Builder $query, int $supplierId) => $query->where('supplier_id', $supplierId))
+            ->when($filters['branch_id'] ?? null, fn (Builder $query, int $branchId) => $query->where('branch_id', $branchId));
     }
 
     private function assertLinesEditable(PurchaseOrder $purchaseOrder): void

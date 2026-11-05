@@ -1,0 +1,106 @@
+<?php
+
+use App\Models\Branch;
+use App\Models\Item;
+use App\Models\PurchaseOrder;
+use App\Models\Supplier;
+
+function addPurchaseOrderLine(PurchaseOrder $po, int $quantity, float $unitCost): void
+{
+    $po->items()->create([
+        'item_id' => Item::factory()->create()->id,
+        'quantity_ordered' => $quantity,
+        'unit_cost' => $unitCost,
+        'discount' => 0,
+        'total' => $quantity * $unitCost,
+    ]);
+}
+
+function purchaseOrderPayload(Supplier $supplier, Branch $branch, Item $item): array
+{
+    return [
+        'supplier_id' => $supplier->id,
+        'branch_id' => $branch->id,
+        'items' => [['item_id' => $item->id, 'quantity_ordered' => 2, 'unit_cost' => 10]],
+    ];
+}
+
+test('the purchase orders list returns each order total and line count', function () {
+    $admin = makeStaffUser([], 'APALIT');
+    assignStaffRole($admin, 'admin');
+
+    $po = PurchaseOrder::factory()->create();
+    addPurchaseOrderLine($po, 4, 100);
+    addPurchaseOrderLine($po, 2, 25.5);
+    $empty = PurchaseOrder::factory()->create();
+
+    $response = $this->actingAs($admin, 'staff')->getJson('/api/staff/purchase-orders');
+
+    $response->assertOk();
+    $rows = collect($response->json('data'))->keyBy('id');
+    expect($rows[$po->id]['total'])->toEqual(451);
+    expect($rows[$po->id]['items_count'])->toBe(2);
+    expect($rows[$po->id])->not->toHaveKey('items');
+    expect($rows[$empty->id]['total'])->toEqual(0);
+    expect($rows[$empty->id]['items_count'])->toBe(0);
+});
+
+test('the purchase orders list is searchable by po number and supplier name', function () {
+    $admin = makeStaffUser([], 'APALIT');
+    assignStaffRole($admin, 'admin');
+
+    $acme = PurchaseOrder::factory()->create([
+        'po_number' => 'PO-0101',
+        'supplier_id' => Supplier::factory()->create(['name' => 'Acme Medical'])->id,
+    ]);
+    $globex = PurchaseOrder::factory()->create([
+        'po_number' => 'PO-0202',
+        'supplier_id' => Supplier::factory()->create(['name' => 'Globex Pharma'])->id,
+    ]);
+
+    $byNumber = $this->actingAs($admin, 'staff')->getJson('/api/staff/purchase-orders?search=0202');
+    expect(collect($byNumber->json('data'))->pluck('id')->all())->toBe([$globex->id]);
+
+    $bySupplier = $this->actingAs($admin, 'staff')->getJson('/api/staff/purchase-orders?search=acme');
+    expect(collect($bySupplier->json('data'))->pluck('id')->all())->toBe([$acme->id]);
+});
+
+test('status counts follow the search and supplier filters but not the status filter', function () {
+    $admin = makeStaffUser([], 'APALIT');
+    assignStaffRole($admin, 'admin');
+    $supplier = Supplier::factory()->create();
+
+    PurchaseOrder::factory()->create(['status' => 'open', 'supplier_id' => $supplier->id]);
+    PurchaseOrder::factory()->create(['status' => 'open', 'supplier_id' => $supplier->id]);
+    PurchaseOrder::factory()->create(['status' => 'ready_for_delivery', 'supplier_id' => $supplier->id]);
+    PurchaseOrder::factory()->create(['status' => 'cancelled']);
+
+    $response = $this->actingAs($admin, 'staff')
+        ->getJson("/api/staff/purchase-orders?supplier_id={$supplier->id}&status=open");
+
+    $response->assertOk();
+    expect($response->json('data'))->toHaveCount(2);
+    $response->assertJsonPath('counts', [
+        'all' => 3,
+        'draft' => 0,
+        'open' => 2,
+        'ready_for_delivery' => 1,
+        'closed' => 0,
+        'cancelled' => 0,
+    ]);
+});
+
+test('status counts for a branch scoped user only include their own branch', function () {
+    $apalit = Branch::firstOrCreate(['code' => 'APALIT'], ['name' => 'Apalit', 'address' => 'Apalit', 'is_main' => true]);
+    $cebu = Branch::firstOrCreate(['code' => 'CEBU'], ['name' => 'Cebu', 'address' => 'Cebu', 'is_main' => false]);
+    $user = makeStaffUser([], 'APALIT');
+    assignStaffRole($user, 'purchasing');
+
+    PurchaseOrder::factory()->create(['status' => 'open', 'branch_id' => $apalit->id]);
+    PurchaseOrder::factory()->create(['status' => 'open', 'branch_id' => $cebu->id]);
+
+    $response = $this->actingAs($user, 'staff')->getJson('/api/staff/purchase-orders');
+
+    $response->assertJsonPath('counts.all', 1);
+    $response->assertJsonPath('counts.open', 1);
+});

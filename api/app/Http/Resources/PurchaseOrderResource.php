@@ -23,7 +23,10 @@ class PurchaseOrderResource extends JsonResource
             'source_type' => $this->source_type,
             'source_id' => $this->source_id,
             'items' => PurchaseOrderItemResource::collection($this->whenLoaded('items')),
-            'total' => $this->whenLoaded('items', fn () => (float) $this->items->sum('total')),
+            'items_count' => $this->whenCounted('items'),
+            'total' => $this->relationLoaded('items')
+                ? (float) $this->items->sum('total')
+                : ($this->whenAggregated('items', 'total', 'sum', fn ($sum) => (float) $sum) ?? 0.0),
         ];
     }
 }

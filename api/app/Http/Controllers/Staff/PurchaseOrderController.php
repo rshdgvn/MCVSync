@@ -12,19 +12,19 @@ use Illuminate\Http\Request;
 
 class PurchaseOrderController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, PurchaseOrderService $service)
     {
         $this->authorize('viewAny', PurchaseOrder::class);
 
-        $purchaseOrders = PurchaseOrder::query()
-            ->with(['supplier', 'branch'])
-            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
-            ->when($request->filled('supplier_id'), fn ($query) => $query->where('supplier_id', $request->integer('supplier_id')))
-            ->when($request->filled('branch_id'), fn ($query) => $query->where('branch_id', $request->integer('branch_id')))
-            ->orderByDesc('order_date')
-            ->paginate($this->perPage($request));
+        $filters = array_filter([
+            'search' => $request->filled('search') ? (string) $request->string('search') : null,
+            'status' => $request->filled('status') ? (string) $request->string('status') : null,
+            'supplier_id' => $request->filled('supplier_id') ? $request->integer('supplier_id') : null,
+            'branch_id' => $request->filled('branch_id') ? $request->integer('branch_id') : null,
+        ], fn ($value) => $value !== null);
 
-        return PurchaseOrderResource::collection($purchaseOrders);
+        return PurchaseOrderResource::collection($service->listQuery($filters)->paginate($this->perPage($request)))
+            ->additional(['counts' => $service->statusCounts($filters)]);
     }
 
     public function store(StorePurchaseOrderRequest $request, PurchaseOrderService $service)
