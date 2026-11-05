@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Ban, Pencil, Plus, Trash2, Truck } from "lucide-react";
+import { Ban, PackageCheck, Pencil, Plus, Trash2, Truck } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DataList, type DataListColumn } from "@/components/DataList";
+import { DiscrepancyList } from "@/components/discrepancies/DiscrepancyList";
 import { DetailCard, DetailField } from "@/components/DetailFields";
 import { DetailHeader, type OverflowAction } from "@/components/DetailHeader";
 import { DetailLoadError } from "@/components/DetailLoadError";
@@ -15,6 +16,7 @@ import {
   canCancelPurchaseOrder,
   canEditPurchaseOrder,
   canMarkPurchaseOrderReady,
+  canReceivePurchaseOrder,
 } from "@/components/purchase-orders/purchaseOrderRules";
 import { QuantityProgress } from "@/components/QuantityProgress";
 import { SectionTitle } from "@/components/SectionTitle";
@@ -23,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SUPPLIER_ROUTES, supplierSectionFor } from "@/components/suppliers/supplierRoutes";
 import { useEffectiveRole } from "@/hooks/useAuth";
+import { useDiscrepanciesQuery } from "@/hooks/useDiscrepancies";
 import {
   useAddPurchaseOrderLineMutation,
   useCancelPurchaseOrderMutation,
@@ -93,6 +96,8 @@ function PurchaseOrderDetailView({ purchaseOrder }: { purchaseOrder: PurchaseOrd
   const lineMutation = lineDialog?.mode === "edit" ? updateLineMutation : addLineMutation;
   const statusMutation = statusAction === "cancel" ? cancelMutation : markReadyMutation;
   const supplierSection = supplierSectionFor(useEffectiveRole());
+  const [discrepancyPage, setDiscrepancyPage] = useState(1);
+  const discrepanciesQuery = useDiscrepanciesQuery({ page: discrepancyPage, reference_type: "purchase_order", reference_id: id });
 
   function openLineDialog(state: LineDialogState) {
     addLineMutation.reset();
@@ -210,16 +215,32 @@ function PurchaseOrderDetailView({ purchaseOrder }: { purchaseOrder: PurchaseOrd
           }
           overflowActions={overflowActions}
           primaryAction={
-            canMarkPurchaseOrderReady(status) && (
-              <Button
-                onClick={() => {
-                  markReadyMutation.reset();
-                  setStatusAction("mark-ready");
-                }}
-              >
-                <Truck />
-                Mark Ready for Delivery
-              </Button>
+            canReceivePurchaseOrder(status) && (
+              <>
+                <Button
+                  variant={canMarkPurchaseOrderReady(status) ? "outline" : "default"}
+                  render={
+                    <Link
+                      to="/purchasing/stock-receiving/purchase-orders/$purchaseOrderId"
+                      params={{ purchaseOrderId: String(id) }}
+                    />
+                  }
+                >
+                  <PackageCheck />
+                  Receive Stock
+                </Button>
+                {canMarkPurchaseOrderReady(status) && (
+                  <Button
+                    onClick={() => {
+                      markReadyMutation.reset();
+                      setStatusAction("mark-ready");
+                    }}
+                  >
+                    <Truck />
+                    Mark Ready for Delivery
+                  </Button>
+                )}
+              </>
             )
           }
         />
@@ -303,6 +324,16 @@ function PurchaseOrderDetailView({ purchaseOrder }: { purchaseOrder: PurchaseOrd
               <span className="font-mono text-base font-bold">{formatMoney(purchaseOrder.total)}</span>
             </div>
           }
+        />
+      </div>
+
+      <div>
+        <SectionTitle>Discrepancies</SectionTitle>
+        <DiscrepancyList
+          query={discrepanciesQuery}
+          onPageChange={setDiscrepancyPage}
+          showDocument={false}
+          empty={{ title: "No discrepancies", description: "Short, over and not-on-document items found while receiving appear here." }}
         />
       </div>
 
