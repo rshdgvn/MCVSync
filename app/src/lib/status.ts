@@ -46,6 +46,10 @@ const STATUS: Record<string, { label: string; tone: Tone }> = {
   short: { label: "Short", tone: "danger" },
   over: { label: "Over", tone: "warning" },
   not_found: { label: "Not on Document", tone: "neutral" },
+  partial: { label: "Partial", tone: "warning" },
+  complete: { label: "Complete", tone: "success" },
+  resolved: { label: "Resolved", tone: "success" },
+  unresolved: { label: "Unresolved", tone: "warning" },
 };
 
 function humanize(value: string): string {
