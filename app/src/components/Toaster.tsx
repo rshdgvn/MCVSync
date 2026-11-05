@@ -18,7 +18,7 @@ export function Toaster() {
   return (
     <div
       aria-live="polite"
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex flex-col items-center gap-2 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:inset-x-auto md:right-6 md:bottom-6 md:items-end md:px-0 md:pb-0"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex flex-col items-center gap-2 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] max-md:[body:has([data-sticky-action-bar])_&]:pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:inset-x-auto md:right-6 md:bottom-6 md:items-end md:px-0 md:pb-0"
     >
       <AnimatePresence initial={false}>
         {toasts.map((toast) => {
