@@ -1,5 +1,6 @@
 import { queryClient } from "@/lib/queryClient";
 import { itemQueryKey, itemStockQueryKey, lowStockAlertsQueryKey } from "@/hooks/useInventory";
+import { receivingKeys, sessionHasItem } from "@/hooks/useReceiving";
 import { notify } from "@/lib/notifications";
 import type { Item, ItemStockBreakdown, LowStockItem, Paginated } from "@/types/inventory";
 
@@ -21,6 +22,11 @@ export interface LowStockThresholdCrossedPayload {
 const badgeSetQueryKey = lowStockAlertsQueryKey({ per_page: 100 });
 
 export function handleStockLevelChanged(payload: StockLevelChangedPayload) {
+  void queryClient.invalidateQueries({
+    queryKey: receivingKeys.all,
+    predicate: (query) => sessionHasItem(query.state.data, payload.item_id),
+  });
+
   queryClient.setQueryData<ItemStockBreakdown[]>(itemStockQueryKey(payload.item_id), (old) => {
     if (!old) {
       return old;
