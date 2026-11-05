@@ -13,14 +13,14 @@ import { useMeQuery } from "@/hooks/useAuth";
 import { usePurchaseOrdersQuery } from "@/hooks/usePurchaseOrders";
 import { useBranchesQuery } from "@/hooks/useStaff";
 import { formatNumber } from "@/lib/format";
-import { requireRole, seesAllBranches } from "@/lib/rbac";
+import { PURCHASE_ORDER_ROLES, requireRole, seesAllBranches } from "@/lib/rbac";
 import { statusInfo } from "@/lib/status";
 import { PURCHASE_ORDER_STATUSES } from "@/components/purchase-orders/purchaseOrderRules";
 import type { PurchaseOrderStatus, PurchaseOrderStatusCounts } from "@/types/purchaseOrder";
 import type { Supplier } from "@/types/supplier";
 
 export const Route = createFileRoute("/_authenticated/purchasing/purchase-orders/")({
-  beforeLoad: requireRole("purchasing"),
+  beforeLoad: requireRole(...PURCHASE_ORDER_ROLES),
   component: PurchaseOrdersPage,
 });
 

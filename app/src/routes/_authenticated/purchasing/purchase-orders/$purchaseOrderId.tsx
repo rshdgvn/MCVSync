@@ -21,6 +21,8 @@ import { SectionTitle } from "@/components/SectionTitle";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SUPPLIER_ROUTES, supplierSectionFor } from "@/components/suppliers/supplierRoutes";
+import { useEffectiveRole } from "@/hooks/useAuth";
 import {
   useAddPurchaseOrderLineMutation,
   useCancelPurchaseOrderMutation,
@@ -31,12 +33,12 @@ import {
 } from "@/hooks/usePurchaseOrders";
 import { getErrorMessage } from "@/lib/errors";
 import { formatDate, formatMoney } from "@/lib/format";
-import { requireRole } from "@/lib/rbac";
+import { PURCHASE_ORDER_ROLES, requireRole } from "@/lib/rbac";
 import { toast } from "@/stores/toast.store";
 import type { PurchaseOrderDetail, PurchaseOrderLine } from "@/types/purchaseOrder";
 
 export const Route = createFileRoute("/_authenticated/purchasing/purchase-orders/$purchaseOrderId")({
-  beforeLoad: requireRole("purchasing"),
+  beforeLoad: requireRole(...PURCHASE_ORDER_ROLES),
   component: PurchaseOrderDetailRoute,
 });
 
@@ -90,6 +92,7 @@ function PurchaseOrderDetailView({ purchaseOrder }: { purchaseOrder: PurchaseOrd
   const isLastLine = purchaseOrder.items.length <= 1;
   const lineMutation = lineDialog?.mode === "edit" ? updateLineMutation : addLineMutation;
   const statusMutation = statusAction === "cancel" ? cancelMutation : markReadyMutation;
+  const supplierSection = supplierSectionFor(useEffectiveRole());
 
   function openLineDialog(state: LineDialogState) {
     addLineMutation.reset();
@@ -226,13 +229,17 @@ function PurchaseOrderDetailView({ purchaseOrder }: { purchaseOrder: PurchaseOrd
         <DetailCard title="Supplier Details">
           <DetailField label="Supplier">
             <span className="inline-flex flex-wrap items-center gap-2">
-              <Link
-                to="/purchasing/suppliers/$supplierId"
-                params={{ supplierId: String(purchaseOrder.supplier.id) }}
-                className="font-semibold text-primary hover:underline"
-              >
-                {purchaseOrder.supplier.name}
-              </Link>
+              {supplierSection ? (
+                <Link
+                  to={SUPPLIER_ROUTES[supplierSection].detail}
+                  params={{ supplierId: String(purchaseOrder.supplier.id) }}
+                  className="font-semibold text-primary hover:underline"
+                >
+                  {purchaseOrder.supplier.name}
+                </Link>
+              ) : (
+                <span className="font-semibold">{purchaseOrder.supplier.name}</span>
+              )}
               {!purchaseOrder.supplier.is_active && <StatusBadge status="inactive" />}
             </span>
           </DetailField>

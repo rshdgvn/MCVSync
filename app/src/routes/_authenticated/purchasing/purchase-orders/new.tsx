@@ -30,7 +30,7 @@ import { useCreatePurchaseOrderMutation } from "@/hooks/usePurchaseOrders";
 import { useBranchesQuery } from "@/hooks/useStaff";
 import { getFieldErrors, getGeneralError } from "@/lib/errors";
 import { formatDate, formatMoney, formatQuantity, toIsoDate } from "@/lib/format";
-import { requireRole, seesAllBranches } from "@/lib/rbac";
+import { PURCHASE_ORDER_ROLES, requireRole, seesAllBranches } from "@/lib/rbac";
 import { toast } from "@/stores/toast.store";
 import type { Supplier } from "@/types/supplier";
 
@@ -45,7 +45,7 @@ function positiveInteger(value: unknown): number | undefined {
 }
 
 export const Route = createFileRoute("/_authenticated/purchasing/purchase-orders/new")({
-  beforeLoad: requireRole("purchasing"),
+  beforeLoad: requireRole(...PURCHASE_ORDER_ROLES),
   validateSearch: (search: Record<string, unknown>): NewPurchaseOrderSearch => ({
     item_id: positiveInteger(search.item_id),
     qty: positiveInteger(search.qty),

@@ -84,7 +84,7 @@ export function SupplierDetailPage({ section, supplierId }: SupplierDetailPagePr
         <DetailField label="Address">{supplier.address}</DetailField>
       </DetailCard>
 
-      <SupplierPurchaseOrders supplier={supplier} section={section} />
+      <SupplierPurchaseOrders supplier={supplier} />
 
       {editing && <SupplierDialog supplier={supplier} onClose={() => setEditing(false)} />}
       <SupplierStatusDialog supplier={statusTarget} onClose={() => setStatusTarget(null)} />
