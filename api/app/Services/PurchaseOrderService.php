@@ -122,9 +122,18 @@ class PurchaseOrderService
 
     public function removeItem(PurchaseOrderItem $item): void
     {
-        $this->assertLinesEditable($item->purchaseOrder);
+        DB::transaction(function () use ($item) {
+            $purchaseOrder = PurchaseOrder::query()->lockForUpdate()->findOrFail($item->purchase_order_id);
+            $this->assertLinesEditable($purchaseOrder);
 
-        $item->delete();
+            if ($purchaseOrder->items()->count() <= 1) {
+                throw ValidationException::withMessages([
+                    'item' => 'A purchase order needs at least one item. Add another item before removing this one.',
+                ]);
+            }
+
+            $item->delete();
+        });
     }
 
     public function markReady(PurchaseOrder $purchaseOrder): PurchaseOrder
