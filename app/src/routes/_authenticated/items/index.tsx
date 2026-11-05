@@ -1,203 +1,189 @@
 import { useState } from "react";
-import { Link, createFileRoute } from "@tanstack/react-router";
-import { Plus, Search } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import { EmptyState } from "@/components/EmptyState";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { Eye, Pencil, Plus } from "lucide-react";
+import { DataList, type DataListColumn } from "@/components/DataList";
+import { FilterBar } from "@/components/FilterBar";
+import { FilterTabs } from "@/components/FilterTabs";
+import { PageHeader } from "@/components/PageHeader";
 import { Pagination } from "@/components/Pagination";
-import { RefreshingRegion } from "@/components/RefreshingRegion";
-import { RouteErrorFallback } from "@/components/RouteErrorFallback";
-import { StockStatusBadge } from "@/components/StockStatusBadge";
-import { TableSkeleton } from "@/components/TableSkeleton";
-import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import { useCategoriesQuery, useItemsQuery } from "@/hooks/useInventory";
-import { useItemAlertFlags } from "@/hooks/useItemAlertFlags";
+import { StatusBadge } from "@/components/StatusBadge";
+import { StockLevelBar } from "@/components/StockLevelBar";
+import { Button } from "@/components/ui/button";
+import { SelectField } from "@/components/SelectField";
+import { itemQueryOptions, useCategoriesQuery, useItemsQuery } from "@/hooks/useInventory";
+import { useItemAlertFlags, type ItemAlertStatus } from "@/hooks/useItemAlertFlags";
 import { useInventoryChannels, usePurchasingOwnBranchIds } from "@/hooks/useInventoryChannels";
-import { getErrorMessage } from "@/lib/errors";
 import { requireRole } from "@/lib/rbac";
+import type { Item } from "@/types/inventory";
 
 export const Route = createFileRoute("/_authenticated/items/")({
   beforeLoad: requireRole("purchasing", "admin", "super_admin"),
   component: ItemsListPage,
-  errorComponent: RouteErrorFallback,
 });
 
 type StatusFilter = "all" | "active" | "inactive";
 
+const ALERT_BADGE_STATUS: Record<Exclude<ItemAlertStatus, "ok">, string> = {
+  low_stock: "low_stock",
+  expiring_soon: "near_expiry",
+};
+
+const ALL_CATEGORIES = "all";
+
 function ItemsListPage() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [categoryId, setCategoryId] = useState<string>("all");
+  const [categoryId, setCategoryId] = useState(ALL_CATEGORIES);
   const [status, setStatus] = useState<StatusFilter>("all");
-  const debouncedSearch = useDebouncedValue(search);
 
   const categoriesQuery = useCategoriesQuery();
   const itemsQuery = useItemsQuery({
     page,
-    search: debouncedSearch || undefined,
-    category_id: categoryId === "all" ? undefined : Number(categoryId),
+    search: search || undefined,
+    category_id: categoryId === ALL_CATEGORIES ? undefined : Number(categoryId),
     is_active: status === "all" ? undefined : status === "active",
   });
   const { statusFor } = useItemAlertFlags();
   useInventoryChannels(usePurchasingOwnBranchIds());
 
+  const counts = itemsQuery.data?.counts;
+
+  function openItem(item: Item) {
+    void navigate({ to: "/items/$itemId", params: { itemId: String(item.id) } });
+  }
+
+  const columns: DataListColumn<Item>[] = [
+    {
+      key: "name",
+      header: "Item Name",
+      mobile: "title",
+      cell: (item) => <span className="font-medium">{item.name}</span>,
+    },
+    {
+      key: "sku",
+      header: "SKU",
+      mobile: "subtitle",
+      cell: (item) => <span className="font-mono text-xs text-muted-foreground">{item.sku}</span>,
+    },
+    { key: "category", header: "Category", cell: (item) => item.category?.name ?? "—" },
+    { key: "unit", header: "Unit", cell: (item) => item.unit?.code ?? "—" },
+    {
+      key: "stock",
+      header: "Available",
+      className: "w-44",
+      cell: (item) =>
+        item.available === undefined ? "—" : <StockLevelBar available={item.available} reorderPoint={item.reorder_point} />,
+    },
+    {
+      key: "status",
+      header: "Status",
+      mobile: "badge",
+      cell: (item) => {
+        const alert = statusFor(item.id);
+        return (
+          <span className="inline-flex flex-wrap gap-1">
+            <StatusBadge status={item.is_active ? "active" : "inactive"} />
+            {alert !== "ok" && <StatusBadge status={ALERT_BADGE_STATUS[alert]} />}
+          </span>
+        );
+      },
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-semibold text-foreground">Items</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage the item catalog — categories, units, and stock alerts live here too.
-          </p>
-        </div>
-        <Button size="sm" render={<Link to="/items/new" />}>
-          <Plus />
-          New Item
-        </Button>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-48 flex-1">
-          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search by name or SKU"
-            className="pl-8"
-            value={search}
-            onChange={(event) => {
-              setSearch(event.target.value);
-              setPage(1);
-            }}
-          />
-        </div>
-        <Select
-          value={categoryId}
-          onValueChange={(value) => {
-            setCategoryId(value ?? "all");
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All categories</SelectItem>
-            {categoriesQuery.data?.map((category) => (
-              <SelectItem key={category.id} value={String(category.id)}>
-                {category.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={status}
-          onValueChange={(value) => {
-            setStatus((value as StatusFilter) ?? "all");
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
-          </SelectContent>
-        </Select>
-        <Link
-          to="/items/categories"
-          className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-        >
-          Manage categories
-        </Link>
-        <Link
-          to="/items/units"
-          className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-        >
-          Manage units
-        </Link>
-      </div>
-
-      {itemsQuery.isPending && <TableSkeleton rows={8} columns={6} />}
-
-      {itemsQuery.isError && (
-        <EmptyState
-          title="Couldn't load items"
-          description={getErrorMessage(itemsQuery.error)}
-          action={
-            <Button variant="outline" size="sm" onClick={() => itemsQuery.refetch()}>
-              Retry
+      <PageHeader
+        title="Items"
+        description="The item catalog. Categories and units are managed from their own pages."
+        actions={
+          <>
+            <Button variant="outline" size="sm" render={<Link to="/items/categories" />}>
+              Categories
             </Button>
-          }
-        />
-      )}
+            <Button variant="outline" size="sm" render={<Link to="/items/units" />}>
+              Units
+            </Button>
+          </>
+        }
+        primaryAction={
+          <Button render={<Link to="/items/new" />}>
+            <Plus />
+            Add Item
+          </Button>
+        }
+      />
 
-      {itemsQuery.data && itemsQuery.data.data.length === 0 && (
-        <EmptyState
-          title="No items found"
-          description="Try a different search or filter, or create the first item."
-        />
-      )}
+      <FilterTabs
+        ariaLabel="Filter items by status"
+        value={status}
+        onChange={(next) => {
+          setStatus(next);
+          setPage(1);
+        }}
+        tabs={[
+          { value: "all", label: "All Items", count: counts?.all },
+          { value: "active", label: "Active", count: counts?.active },
+          { value: "inactive", label: "Inactive", count: counts?.inactive },
+        ]}
+      />
 
-      {itemsQuery.data && itemsQuery.data.data.length > 0 && (
-        <RefreshingRegion isRefreshing={itemsQuery.isFetching && itemsQuery.isPlaceholderData}>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Unit</TableHead>
-                <TableHead>Stock Status</TableHead>
-                <TableHead>Active</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {itemsQuery.data.data.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium text-foreground">
-                    <Link
-                      to="/items/$itemId"
-                      params={{ itemId: String(item.id) }}
-                      className="hover:underline"
-                    >
-                      {item.name}
-                    </Link>
-                  </TableCell>
-                  <TableCell>{item.sku}</TableCell>
-                  <TableCell>{item.category?.name ?? "—"}</TableCell>
-                  <TableCell>{item.unit?.code ?? "—"}</TableCell>
-                  <TableCell>
-                    <StockStatusBadge status={statusFor(item.id)} />
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={item.is_active ? "default" : "outline"}>
-                      {item.is_active ? "Active" : "Inactive"}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <Pagination meta={itemsQuery.data.meta} onPageChange={setPage} />
-        </RefreshingRegion>
-      )}
+      <FilterBar
+        search={search}
+        onSearchChange={(next) => {
+          setSearch(next);
+          setPage(1);
+        }}
+        searchPlaceholder="Search by name or SKU"
+        activeFilterCount={categoryId === ALL_CATEGORIES ? 0 : 1}
+        onClearFilters={() => {
+          setCategoryId(ALL_CATEGORIES);
+          setPage(1);
+        }}
+      >
+        <SelectField
+          value={categoryId}
+          onChange={(value) => {
+            setCategoryId(value || ALL_CATEGORIES);
+            setPage(1);
+          }}
+          placeholder="Category"
+          triggerProps={{ className: "w-full md:w-48", "aria-label": "Category" }}
+          options={[
+            { value: ALL_CATEGORIES, label: "All Categories" },
+            ...(categoriesQuery.data ?? []).map((category) => ({ value: String(category.id), label: category.name })),
+          ]}
+        />
+      </FilterBar>
+
+      <DataList
+        label="Items"
+        columns={columns}
+        rows={itemsQuery.data?.data}
+        rowKey={(item) => item.id}
+        isPending={itemsQuery.isPending}
+        error={itemsQuery.error}
+        onRetry={() => void itemsQuery.refetch()}
+        isRefreshing={itemsQuery.isFetching && itemsQuery.isPlaceholderData}
+        skeletonRows={8}
+        empty={{
+          title: "No items found",
+          description: "Try a different search or filter, or add the first item.",
+        }}
+        onRowClick={openItem}
+        onRowIntent={(item) => void queryClient.prefetchQuery(itemQueryOptions(item.id))}
+        rowActions={(item) => [
+          { label: "View", icon: Eye, onClick: () => openItem(item) },
+          {
+            label: "Edit",
+            icon: Pencil,
+            onClick: () => void navigate({ to: "/items/$itemId/edit", params: { itemId: String(item.id) } }),
+          },
+        ]}
+        footer={itemsQuery.data && <Pagination meta={itemsQuery.data.meta} onPageChange={setPage} />}
+      />
     </div>
   );
 }

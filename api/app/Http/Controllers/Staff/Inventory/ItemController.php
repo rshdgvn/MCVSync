@@ -8,39 +8,27 @@ use App\Http\Requests\Staff\Inventory\UpdateItemRequest;
 use App\Http\Resources\ItemResource;
 use App\Http\Resources\ItemWithCogsResource;
 use App\Models\Item;
-use App\Models\Scopes\BranchScope;
 use App\Services\InventoryService;
 use App\Services\PricingService;
 use Illuminate\Http\Request;
 
 class ItemController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, InventoryService $service)
     {
         $this->authorize('viewAny', Item::class);
 
-        $items = Item::query()
-            ->with(['category', 'unit'])
-            ->when($request->filled('search'), function ($query) use ($request) {
-                $search = '%'.$request->string('search').'%';
-                $query->where(fn ($inner) => $inner->whereLike('name', $search)->orWhereLike('sku', $search));
-            })
-            ->when($request->filled('category_id'), fn ($query) => $query->where('category_id', $request->integer('category_id')))
-            ->when($request->has('is_active'), fn ($query) => $query->where('is_active', $request->boolean('is_active')))
-            ->when($request->filled('branch_id'), function ($query) use ($request) {
-                $branchId = $request->integer('branch_id');
+        $filters = [
+            'search' => $request->filled('search') ? (string) $request->string('search') : null,
+            'category_id' => $request->filled('category_id') ? $request->integer('category_id') : null,
+            'is_active' => $request->has('is_active') ? $request->boolean('is_active') : null,
+            'branch_id' => $request->filled('branch_id') ? $request->integer('branch_id') : null,
+        ];
 
-                $query->whereHas('batches', function ($batchQuery) use ($branchId) {
-                    $batchQuery->withoutGlobalScope(BranchScope::class)
-                        ->where('branch_id', $branchId)
-                        ->where('status', 'active')
-                        ->where('quantity', '>', 0);
-                });
-            })
-            ->orderBy('name')
-            ->paginate($this->perPage($request));
+        $filters = array_filter($filters, fn ($value) => $value !== null);
 
-        return ItemResource::collection($items);
+        return ItemResource::collection($service->itemsQuery($filters)->paginate($this->perPage($request)))
+            ->additional(['counts' => $service->itemStatusCounts($filters)]);
     }
 
     public function show(Item $item, PricingService $pricing)

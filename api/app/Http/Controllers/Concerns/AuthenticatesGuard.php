@@ -17,10 +17,13 @@ trait AuthenticatesGuard
 
     public function login(Request $request, AuthLockoutService $lockout, AuditLogger $audit)
     {
-        $credentials = $request->validate([
+        $validated = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
+            'remember' => ['sometimes', 'boolean'],
         ]);
+
+        $credentials = ['email' => $validated['email'], 'password' => $validated['password']];
 
         $guard = $this->guardName();
         $email = $credentials['email'];
@@ -31,7 +34,7 @@ trait AuthenticatesGuard
             ]);
         }
 
-        if (! Auth::guard($guard)->attempt($credentials)) {
+        if (! Auth::guard($guard)->attempt($credentials, $request->boolean('remember'))) {
             $lockout->recordFailure($guard, $email);
             $audit->record('login.failed', null, $guard, ['email' => $email]);
 

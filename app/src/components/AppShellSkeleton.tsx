@@ -1,15 +1,15 @@
-import { CardSkeleton } from "@/components/CardSkeleton";
-import { TableSkeleton } from "@/components/TableSkeleton";
+import { DataListSkeleton } from "@/components/DataList";
+import { StatCardGrid, StatCardSkeleton } from "@/components/StatCard";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const SIDEBAR_ITEM_COUNT = 7;
 
 export function AppShellSkeleton() {
   return (
-    <div className="flex min-h-svh w-full bg-background" aria-busy="true" aria-label="Loading">
-      <aside className="hidden w-64 shrink-0 flex-col gap-2 border-r border-sidebar-border bg-sidebar p-2 md:flex">
-        <div className="flex items-center gap-2 py-1">
-          <Skeleton className="size-8 bg-sidebar-accent" />
+    <div className="flex min-h-dvh w-full bg-background" aria-busy="true" aria-label="Loading">
+      <aside className="hidden w-[13.75rem] shrink-0 flex-col gap-2 border-r border-sidebar-border bg-sidebar p-2 md:flex">
+        <div className="flex h-11 items-center gap-2.5 pl-1">
+          <Skeleton className="size-7 bg-sidebar-accent" />
           <Skeleton className="h-4 w-24 bg-sidebar-accent" />
         </div>
         <div className="mt-2 flex flex-col gap-2">
@@ -20,21 +20,20 @@ export function AppShellSkeleton() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-4">
+        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card px-4 md:px-5">
           <Skeleton className="h-4 w-40" />
           <div className="flex-1" />
-          <Skeleton className="size-7" />
-          <Skeleton className="hidden h-4 w-24 sm:block" />
+          <Skeleton className="size-8 md:size-7" />
         </header>
 
         <main className="flex flex-1 flex-col gap-4 p-4 md:p-6">
           <Skeleton className="h-6 w-56" />
-          <div className="grid gap-4 sm:grid-cols-3">
-            <CardSkeleton />
-            <CardSkeleton />
-            <CardSkeleton />
-          </div>
-          <TableSkeleton rows={6} columns={4} />
+          <StatCardGrid>
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+          </StatCardGrid>
+          <DataListSkeleton columns={4} rows={6} />
         </main>
       </div>
     </div>

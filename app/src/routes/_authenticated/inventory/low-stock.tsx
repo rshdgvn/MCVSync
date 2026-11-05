@@ -1,94 +1,78 @@
 import { useState } from "react";
-import { Link, createFileRoute } from "@tanstack/react-router";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { EmptyState } from "@/components/EmptyState";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { DataList, type DataListColumn } from "@/components/DataList";
+import { PageHeader } from "@/components/PageHeader";
 import { Pagination } from "@/components/Pagination";
-import { RefreshingRegion } from "@/components/RefreshingRegion";
-import { RouteErrorFallback } from "@/components/RouteErrorFallback";
-import { TableSkeleton } from "@/components/TableSkeleton";
-import { useLowStockAlertsQuery } from "@/hooks/useInventory";
+import { StockLevelBar } from "@/components/StockLevelBar";
+import { itemQueryOptions, useLowStockAlertsQuery } from "@/hooks/useInventory";
 import { useInventoryChannels, usePurchasingOwnBranchIds } from "@/hooks/useInventoryChannels";
-import { getErrorMessage } from "@/lib/errors";
+import { formatNumber } from "@/lib/format";
 import { requireRole } from "@/lib/rbac";
+import type { LowStockItem } from "@/types/inventory";
 
 export const Route = createFileRoute("/_authenticated/inventory/low-stock")({
   beforeLoad: requireRole("purchasing", "admin", "super_admin"),
-  component: LowStockItemsPage,
-  errorComponent: RouteErrorFallback,
+  component: LowStockPage,
 });
 
-function LowStockItemsPage() {
+const COLUMNS: DataListColumn<LowStockItem>[] = [
+  {
+    key: "item",
+    header: "Item",
+    mobile: "title",
+    cell: (row) => <span className="font-medium">{row.item_name}</span>,
+  },
+  {
+    key: "sku",
+    header: "SKU",
+    mobile: "subtitle",
+    cell: (row) => <span className="font-mono text-xs text-muted-foreground">{row.sku}</span>,
+  },
+  { key: "branch", header: "Branch", cell: (row) => row.branch_name },
+  {
+    key: "reorder",
+    header: "Reorder Point",
+    align: "right",
+    cell: (row) => <span className="font-mono tabular-nums">{formatNumber(row.reorder_point)}</span>,
+  },
+  {
+    key: "available",
+    header: "Available",
+    className: "w-44",
+    cell: (row) => <StockLevelBar available={row.available} reorderPoint={row.reorder_point} />,
+  },
+];
+
+function LowStockPage() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const alertsQuery = useLowStockAlertsQuery({ page });
   useInventoryChannels(usePurchasingOwnBranchIds());
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-lg font-semibold text-foreground">Low Stock</h1>
-        <p className="text-sm text-muted-foreground">
-          Items whose available stock has dropped to or below their reorder point.
-        </p>
-      </div>
+      <PageHeader
+        title="Low Stock"
+        description="Items whose available stock is at or below their reorder point."
+      />
 
-      {alertsQuery.isPending && <TableSkeleton rows={8} columns={4} />}
-
-      {alertsQuery.isError && (
-        <EmptyState
-          title="Couldn't load low stock items"
-          description={getErrorMessage(alertsQuery.error)}
-          action={
-            <Button variant="outline" size="sm" onClick={() => alertsQuery.refetch()}>
-              Retry
-            </Button>
-          }
-        />
-      )}
-
-      {alertsQuery.data && alertsQuery.data.data.length === 0 && (
-        <EmptyState title="Nothing low on stock" description="Every item is above its reorder point." />
-      )}
-
-      {alertsQuery.data && alertsQuery.data.data.length > 0 && (
-        <RefreshingRegion isRefreshing={alertsQuery.isFetching && alertsQuery.isPlaceholderData}>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Item</TableHead>
-                <TableHead>Branch</TableHead>
-                <TableHead>Available</TableHead>
-                <TableHead>Reorder Point</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {alertsQuery.data.data.map((row) => (
-                <TableRow key={`${row.item_id}-${row.branch_id}`}>
-                  <TableCell className="font-medium text-foreground">
-                    <Link to="/items/$itemId" params={{ itemId: String(row.item_id) }} className="hover:underline">
-                      {row.item_name}
-                    </Link>
-                  </TableCell>
-                  <TableCell>{row.branch_name}</TableCell>
-                  <TableCell>
-                    <Badge variant="destructive">{row.available}</Badge>
-                  </TableCell>
-                  <TableCell>{row.reorder_point}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <Pagination meta={alertsQuery.data.meta} onPageChange={setPage} />
-        </RefreshingRegion>
-      )}
+      <DataList
+        label="Low stock items"
+        columns={COLUMNS}
+        rows={alertsQuery.data?.data}
+        rowKey={(row) => `${row.item_id}-${row.branch_id}`}
+        isPending={alertsQuery.isPending}
+        error={alertsQuery.error}
+        onRetry={() => void alertsQuery.refetch()}
+        isRefreshing={alertsQuery.isFetching && alertsQuery.isPlaceholderData}
+        skeletonRows={8}
+        empty={{ title: "Nothing is low on stock", description: "Every item is above its reorder point." }}
+        onRowClick={(row) => void navigate({ to: "/items/$itemId", params: { itemId: String(row.item_id) } })}
+        onRowIntent={(row) => void queryClient.prefetchQuery(itemQueryOptions(row.item_id))}
+        footer={alertsQuery.data && <Pagination meta={alertsQuery.data.meta} onPageChange={setPage} />}
+      />
     </div>
   );
 }

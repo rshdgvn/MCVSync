@@ -1,29 +1,33 @@
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
-import { AlertCircle } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+import type { ItemPayload } from "@/api/inventory";
+import { FormError } from "@/components/FormError";
+import { FormField, fieldA11yProps } from "@/components/FormField";
 import { LoadingButton } from "@/components/LoadingButton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SectionTitle } from "@/components/SectionTitle";
+import { StickyActionBar } from "@/components/StickyActionBar";
+import { SubmitForm } from "@/components/SubmitForm";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { SelectField } from "@/components/SelectField";
 import { useCategoriesQuery, useUnitsQuery } from "@/hooks/useInventory";
-import { getErrorMessage, getFieldErrors } from "@/lib/errors";
-import type { ItemPayload } from "@/api/inventory";
+import type { SubmitHandler } from "@/hooks/useSubmitOnce";
+import { getFieldErrors, getGeneralError } from "@/lib/errors";
 import type { Item } from "@/types/inventory";
 
 interface ItemFormProps {
   initialItem?: Item;
-  onSubmit: (payload: ItemPayload) => void;
+  onSubmit: (payload: ItemPayload) => ReturnType<SubmitHandler>;
   isPending: boolean;
   submitError?: unknown;
+}
+
+function toOptionalNumber(value: string): number | null {
+  return value === "" ? null : Number(value);
+}
+
+function toInputValue(value: number | null | undefined): string {
+  return value === null || value === undefined ? "" : String(value);
 }
 
 export function ItemForm({ initialItem, onSubmit, isPending, submitError }: ItemFormProps) {
@@ -34,29 +38,17 @@ export function ItemForm({ initialItem, onSubmit, isPending, submitError }: Item
   const [name, setName] = useState(initialItem?.name ?? "");
   const [sku, setSku] = useState(initialItem?.sku ?? "");
   const [barcode, setBarcode] = useState(initialItem?.barcode ?? "");
-  const [categoryId, setCategoryId] = useState(
-    initialItem?.category ? String(initialItem.category.id) : "",
-  );
+  const [categoryId, setCategoryId] = useState(initialItem?.category ? String(initialItem.category.id) : "");
   const [unitId, setUnitId] = useState(initialItem?.unit ? String(initialItem.unit.id) : "");
   const [description, setDescription] = useState(initialItem?.description ?? "");
   const [hasExpiry, setHasExpiry] = useState(initialItem?.has_expiry ?? true);
-  const [thresholdDays, setThresholdDays] = useState(
-    initialItem?.expiry_alert_threshold_days != null
-      ? String(initialItem.expiry_alert_threshold_days)
-      : "",
-  );
-  const [reorderPoint, setReorderPoint] = useState(
-    initialItem?.reorder_point != null ? String(initialItem.reorder_point) : "",
-  );
-  const [reorderQuantity, setReorderQuantity] = useState(
-    initialItem?.reorder_quantity != null ? String(initialItem.reorder_quantity) : "",
-  );
+  const [thresholdDays, setThresholdDays] = useState(toInputValue(initialItem?.expiry_alert_threshold_days));
+  const [reorderPoint, setReorderPoint] = useState(toInputValue(initialItem?.reorder_point));
+  const [reorderQuantity, setReorderQuantity] = useState(toInputValue(initialItem?.reorder_quantity));
   const [isActive, setIsActive] = useState(initialItem?.is_active ?? true);
 
-  function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-
-    onSubmit({
+  function handleSubmit() {
+    return onSubmit({
       name,
       sku,
       barcode: barcode.trim() || null,
@@ -64,196 +56,156 @@ export function ItemForm({ initialItem, onSubmit, isPending, submitError }: Item
       unit_id: Number(unitId),
       description: description.trim() || null,
       has_expiry: hasExpiry,
-      expiry_alert_threshold_days: thresholdDays === "" ? null : Number(thresholdDays),
-      reorder_point: reorderPoint === "" ? null : Number(reorderPoint),
-      reorder_quantity: reorderQuantity === "" ? null : Number(reorderQuantity),
+      expiry_alert_threshold_days: hasExpiry ? toOptionalNumber(thresholdDays) : null,
+      reorder_point: toOptionalNumber(reorderPoint),
+      reorder_quantity: toOptionalNumber(reorderQuantity),
       is_active: isActive,
     });
   }
 
-  return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      {!!submitError && !Object.keys(fieldErrors).length && (
-        <Alert variant="destructive">
-          <AlertCircle />
-          <AlertDescription>{getErrorMessage(submitError)}</AlertDescription>
-        </Alert>
-      )}
+  const submitLabel = initialItem ? "Save Changes" : "Create Item";
+  const generalError = getGeneralError(submitError);
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="item-name">Name</Label>
+  const submitButton = (
+    <LoadingButton type="submit" isPending={isPending} pendingText="Saving…">
+      {submitLabel}
+    </LoadingButton>
+  );
+
+  return (
+    <SubmitForm onSubmit={handleSubmit} className="border border-border bg-card px-4 pb-5 md:px-6">
+      <FormError message={generalError} />
+
+      <SectionTitle>Details</SectionTitle>
+      <div className="flex flex-col gap-4 md:gap-3.5">
+        <FormField label="Item Name" htmlFor="item-name" required error={fieldErrors.name}>
           <Input
-            id="item-name"
+            {...fieldA11yProps("item-name", fieldErrors.name)}
             required
             value={name}
             onChange={(event) => setName(event.target.value)}
-            aria-invalid={!!fieldErrors.name}
           />
-          {fieldErrors.name && <p className="text-xs text-destructive">{fieldErrors.name}</p>}
-        </div>
+        </FormField>
 
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="item-sku">SKU</Label>
+        <FormField label="SKU" htmlFor="item-sku" required error={fieldErrors.sku}>
           <Input
-            id="item-sku"
+            {...fieldA11yProps("item-sku", fieldErrors.sku)}
             required
+            autoCapitalize="characters"
+            className="font-mono"
             value={sku}
             onChange={(event) => setSku(event.target.value)}
-            aria-invalid={!!fieldErrors.sku}
           />
-          {fieldErrors.sku && <p className="text-xs text-destructive">{fieldErrors.sku}</p>}
-        </div>
+        </FormField>
 
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="item-barcode">Barcode (optional)</Label>
+        <FormField label="Barcode" htmlFor="item-barcode" hint="Optional. Scan or type the code printed on the packaging." error={fieldErrors.barcode}>
           <Input
-            id="item-barcode"
+            {...fieldA11yProps("item-barcode", fieldErrors.barcode, true)}
+            className="font-mono"
             value={barcode ?? ""}
             onChange={(event) => setBarcode(event.target.value)}
-            aria-invalid={!!fieldErrors.barcode}
           />
-          {fieldErrors.barcode && (
-            <p className="text-xs text-destructive">{fieldErrors.barcode}</p>
-          )}
-        </div>
+        </FormField>
 
-        <div />
-
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="item-category">Category</Label>
-            <Link
-              to="/items/categories"
-              className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-            >
-              Manage categories
-            </Link>
-          </div>
-          <Select value={categoryId} onValueChange={(value) => setCategoryId(value ?? "")}>
-            <SelectTrigger id="item-category" aria-invalid={!!fieldErrors.category_id}>
-              <SelectValue placeholder="Select a category" />
-            </SelectTrigger>
-            <SelectContent>
-              {categoriesQuery.data?.map((category) => (
-                <SelectItem key={category.id} value={String(category.id)}>
-                  {category.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {fieldErrors.category_id && (
-            <p className="text-xs text-destructive">{fieldErrors.category_id}</p>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="item-unit">Unit</Label>
-            <Link
-              to="/items/units"
-              className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-            >
-              Manage units
-            </Link>
-          </div>
-          <Select value={unitId} onValueChange={(value) => setUnitId(value ?? "")}>
-            <SelectTrigger id="item-unit" aria-invalid={!!fieldErrors.unit_id}>
-              <SelectValue placeholder="Select a unit" />
-            </SelectTrigger>
-            <SelectContent>
-              {unitsQuery.data?.map((unit) => (
-                <SelectItem key={unit.id} value={String(unit.id)}>
-                  {unit.name} ({unit.code})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {fieldErrors.unit_id && (
-            <p className="text-xs text-destructive">{fieldErrors.unit_id}</p>
-          )}
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="item-description">Description (optional)</Label>
-        <Textarea
-          id="item-description"
-          value={description ?? ""}
-          onChange={(event) => setDescription(event.target.value)}
-        />
-      </div>
-
-      <div className="flex items-center justify-between border border-border p-3">
-        <div>
-          <Label htmlFor="item-has-expiry">Has expiry</Label>
-          <p className="text-xs text-muted-foreground">
-            Off for durable items like equipment — their batches won't track an expiry date.
-          </p>
-        </div>
-        <Switch id="item-has-expiry" checked={hasExpiry} onCheckedChange={setHasExpiry} />
-      </div>
-
-      {hasExpiry && (
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="item-threshold">Expiry alert threshold (days, optional)</Label>
-          <Input
-            id="item-threshold"
-            type="number"
-            min={0}
-            placeholder="Falls back to the system default if left blank"
-            value={thresholdDays}
-            onChange={(event) => setThresholdDays(event.target.value)}
-            aria-invalid={!!fieldErrors.expiry_alert_threshold_days}
+        <FormField label="Category" htmlFor="item-category" required error={fieldErrors.category_id}>
+          <SelectField
+            value={categoryId}
+            onChange={setCategoryId}
+            placeholder="Select a category"
+            triggerProps={fieldA11yProps("item-category", fieldErrors.category_id)}
+            options={(categoriesQuery.data ?? []).map((category) => ({ value: String(category.id), label: category.name }))}
           />
-          {fieldErrors.expiry_alert_threshold_days && (
-            <p className="text-xs text-destructive">{fieldErrors.expiry_alert_threshold_days}</p>
-          )}
-        </div>
-      )}
+        </FormField>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="item-reorder-point">Reorder point (optional)</Label>
+        <FormField label="Unit" htmlFor="item-unit" required error={fieldErrors.unit_id}>
+          <SelectField
+            value={unitId}
+            onChange={setUnitId}
+            placeholder="Select a unit"
+            triggerProps={fieldA11yProps("item-unit", fieldErrors.unit_id)}
+            options={(unitsQuery.data ?? []).map((unit) => ({ value: String(unit.id), label: `${unit.name} (${unit.code})` }))}
+          />
+        </FormField>
+
+        <FormField label="Description" htmlFor="item-description" hint="Optional." error={fieldErrors.description}>
+          <Textarea
+            {...fieldA11yProps("item-description", fieldErrors.description)}
+            value={description ?? ""}
+            onChange={(event) => setDescription(event.target.value)}
+          />
+        </FormField>
+      </div>
+
+      <SectionTitle>Expiry</SectionTitle>
+      <div className="flex flex-col gap-4 md:gap-3.5">
+        <FormField
+          label="Tracks Expiry"
+          htmlFor="item-has-expiry"
+          hint="Turn off for durable items like equipment. Their batches won't carry an expiry date."
+        >
+          <div className="flex min-h-11 items-center md:min-h-8">
+            <Switch id="item-has-expiry" checked={hasExpiry} onCheckedChange={setHasExpiry} />
+          </div>
+        </FormField>
+
+        {hasExpiry && (
+          <FormField
+            label="Expiry Alert"
+            htmlFor="item-threshold"
+            hint="Days before expiry to flag a batch. Leave blank to use the system default."
+            error={fieldErrors.expiry_alert_threshold_days}
+          >
+            <Input
+              {...fieldA11yProps("item-threshold", fieldErrors.expiry_alert_threshold_days, true)}
+              inputMode="numeric"
+              pattern="[0-9]*"
+              className="md:w-40"
+              value={thresholdDays}
+              onChange={(event) => setThresholdDays(event.target.value.replace(/[^0-9]/g, ""))}
+            />
+          </FormField>
+        )}
+      </div>
+
+      <SectionTitle>Reordering</SectionTitle>
+      <div className="flex flex-col gap-4 md:gap-3.5">
+        <FormField
+          label="Reorder Point"
+          htmlFor="item-reorder-point"
+          hint="Flag this item as low stock when available stock falls to this number."
+          error={fieldErrors.reorder_point}
+        >
           <Input
-            id="item-reorder-point"
-            type="number"
-            min={0}
+            {...fieldA11yProps("item-reorder-point", fieldErrors.reorder_point, true)}
+            inputMode="numeric"
+            pattern="[0-9]*"
+            className="md:w-40"
             value={reorderPoint}
-            onChange={(event) => setReorderPoint(event.target.value)}
-            aria-invalid={!!fieldErrors.reorder_point}
+            onChange={(event) => setReorderPoint(event.target.value.replace(/[^0-9]/g, ""))}
           />
-          {fieldErrors.reorder_point && (
-            <p className="text-xs text-destructive">{fieldErrors.reorder_point}</p>
-          )}
-        </div>
+        </FormField>
 
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="item-reorder-quantity">Reorder quantity (optional)</Label>
+        <FormField label="Reorder Quantity" htmlFor="item-reorder-quantity" hint="Optional." error={fieldErrors.reorder_quantity}>
           <Input
-            id="item-reorder-quantity"
-            type="number"
-            min={0}
+            {...fieldA11yProps("item-reorder-quantity", fieldErrors.reorder_quantity, true)}
+            inputMode="numeric"
+            pattern="[0-9]*"
+            className="md:w-40"
             value={reorderQuantity}
-            onChange={(event) => setReorderQuantity(event.target.value)}
-            aria-invalid={!!fieldErrors.reorder_quantity}
+            onChange={(event) => setReorderQuantity(event.target.value.replace(/[^0-9]/g, ""))}
           />
-          {fieldErrors.reorder_quantity && (
-            <p className="text-xs text-destructive">{fieldErrors.reorder_quantity}</p>
-          )}
+        </FormField>
+      </div>
+
+      <SectionTitle>Status</SectionTitle>
+      <FormField label="Active" htmlFor="item-active" hint="Inactive items stay on record but can't be ordered.">
+        <div className="flex min-h-11 items-center md:min-h-8">
+          <Switch id="item-active" checked={isActive} onCheckedChange={setIsActive} />
         </div>
-      </div>
+      </FormField>
 
-      <div className="flex items-center justify-between border border-border p-3">
-        <Label htmlFor="item-active">Active</Label>
-        <Switch id="item-active" checked={isActive} onCheckedChange={setIsActive} />
-      </div>
-
-      <div className="flex justify-end gap-2">
-        <LoadingButton type="submit" isPending={isPending} pendingText="Saving...">
-          {initialItem ? "Save Changes" : "Create Item"}
-        </LoadingButton>
-      </div>
-    </form>
+      <div className="mt-6 hidden justify-end border-t border-border-subtle pt-4 md:flex">{submitButton}</div>
+      <StickyActionBar>{submitButton}</StickyActionBar>
+    </SubmitForm>
   );
 }

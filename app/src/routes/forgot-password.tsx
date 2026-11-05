@@ -1,83 +1,67 @@
-import { useState, type FormEvent } from "react";
-import { Link, createFileRoute } from "@tanstack/react-router";
-import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { CheckCircle2 } from "lucide-react";
+import { AuthCard } from "@/components/AuthCard";
+import { FormError } from "@/components/FormError";
+import { FormField, fieldA11yProps } from "@/components/FormField";
 import { LoadingButton } from "@/components/LoadingButton";
-import { RouteErrorFallback } from "@/components/RouteErrorFallback";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { SubmitForm } from "@/components/SubmitForm";
 import { useForgotPasswordMutation } from "@/hooks/useAuth";
-import { getErrorMessage } from "@/lib/errors";
+import { getFieldErrors, getGeneralError } from "@/lib/errors";
 
 export const Route = createFileRoute("/forgot-password")({
   component: ForgotPasswordPage,
-  errorComponent: RouteErrorFallback,
 });
 
 function ForgotPasswordPage() {
   const forgotPasswordMutation = useForgotPasswordMutation();
   const [email, setEmail] = useState("");
+  const fieldErrors = getFieldErrors(forgotPasswordMutation.error);
 
-  function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    forgotPasswordMutation.mutate({ email });
+  function handleSubmit() {
+    return forgotPasswordMutation.mutateAsync({ email });
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle className="text-lg">Reset your password</CardTitle>
-          <CardDescription>Enter your email and we'll send you a reset link.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          {forgotPasswordMutation.isSuccess ? (
-            <Alert>
-              <CheckCircle2 />
-              <AlertDescription>
-                If that account exists, a reset link has been sent.
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              {forgotPasswordMutation.isError && (
-                <Alert variant="destructive">
-                  <AlertCircle />
-                  <AlertDescription>
-                    {getErrorMessage(forgotPasswordMutation.error)}
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  required
-                  autoComplete="username"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                />
-              </div>
-
-              <LoadingButton
-                type="submit"
-                className="w-full"
-                isPending={forgotPasswordMutation.isPending}
-                pendingText="Sending..."
-              >
-                Send reset link
-              </LoadingButton>
-            </form>
-          )}
-
-          <Link to="/login" className="text-center text-sm text-muted-foreground hover:text-foreground">
-            Back to sign in
-          </Link>
-        </CardContent>
-      </Card>
-    </div>
+    <AuthCard
+      title="Reset Your Password"
+      description="Enter your work email and we'll send you a reset link."
+      footer={
+        <Link to="/login" className="text-sm font-medium text-primary hover:underline md:text-xs">
+          Back to Sign In
+        </Link>
+      }
+    >
+      {forgotPasswordMutation.isSuccess ? (
+        <p role="status" className="flex items-start gap-2 bg-success-muted px-3 py-2.5 text-sm text-success md:text-xs">
+          <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+          If that account exists, a reset link is on its way.
+        </p>
+      ) : (
+        <SubmitForm onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <FormError message={getGeneralError(forgotPasswordMutation.error)} />
+          <FormField label="Email Address" htmlFor="email" layout="stacked" error={fieldErrors.email}>
+            <Input
+              {...fieldA11yProps("email", fieldErrors.email)}
+              type="email"
+              inputMode="email"
+              required
+              autoComplete="username"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          </FormField>
+          <LoadingButton
+            type="submit"
+            className="w-full"
+            isPending={forgotPasswordMutation.isPending}
+            pendingText="Sending…"
+          >
+            Send Reset Link
+          </LoadingButton>
+        </SubmitForm>
+      )}
+    </AuthCard>
   );
 }

@@ -33,3 +33,19 @@ export async function markFailed(id: number, errorReason: string): Promise<void>
 export async function removeMutation(id: number): Promise<void> {
   await db.pending_mutations.delete(id);
 }
+
+export async function retryMutation(
+  mutation: PendingMutation,
+  send: (mutation: PendingMutation) => Promise<unknown>,
+  describeError: (error: unknown) => string,
+): Promise<boolean> {
+  await markSyncing(mutation.id);
+  try {
+    await send(mutation);
+    await removeMutation(mutation.id);
+    return true;
+  } catch (error) {
+    await markFailed(mutation.id, describeError(error));
+    return false;
+  }
+}

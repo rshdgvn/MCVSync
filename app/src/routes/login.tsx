@@ -1,58 +1,48 @@
-import { useState, type FormEvent } from "react";
-import { Link, createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
+import { Link, Navigate, createFileRoute } from "@tanstack/react-router";
 import { AlertCircle, Eye, EyeOff } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
 import { LoadingButton } from "@/components/LoadingButton";
-import { RouteErrorFallback } from "@/components/RouteErrorFallback";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { meQueryOptions, useLoginMutation } from "@/hooks/useAuth";
+import { SubmitForm } from "@/components/SubmitForm";
+import { useLoginMutation, useMeQuery } from "@/hooks/useAuth";
 import { getErrorMessage } from "@/lib/errors";
 
 const FEATURE_PILLS = ["Real-time Tracking", "Expiry Alerts", "Auto Reorder"];
 
 export const Route = createFileRoute("/login")({
-  beforeLoad: async ({ context }) => {
-    try {
-      await context.queryClient.ensureQueryData(meQueryOptions);
-    } catch {
-      return;
-    }
-
-    throw redirect({ to: "/" });
-  },
   component: LoginPage,
-  errorComponent: RouteErrorFallback,
 });
 
 function LoginPage() {
-  const navigate = useNavigate();
+  const meQuery = useMeQuery();
   const loginMutation = useLoginMutation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
-  function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    loginMutation.mutate(
-      { email, password },
-      { onSuccess: () => navigate({ to: "/" }) },
-    );
+  if (meQuery.data) {
+    return <Navigate to="/" replace />;
+  }
+
+  function handleSubmit() {
+    return loginMutation.mutateAsync({ email, password, remember: rememberMe });
   }
 
   return (
-    <div className="flex min-h-screen">
-      <div className="relative hidden flex-col justify-between overflow-hidden bg-[#0B1739] p-12 text-white lg:flex lg:w-[45%]">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(31,79,224,0.35),transparent_60%)]" />
+    <div className="flex min-h-dvh">
+      <div className="relative hidden flex-col justify-between overflow-hidden bg-sidebar p-12 text-primary-foreground lg:flex lg:w-[45%]">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,var(--sidebar-accent),transparent_60%)]" />
 
         <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-4 text-center">
-          <BrandMark className="size-24 text-white/90" />
+          <BrandMark className="size-24 text-primary-foreground/90" />
           <div>
             <p className="text-2xl font-bold tracking-tight">MCVSYNC</p>
-            <p className="text-xs tracking-[0.2em] text-slate-400">
+            <p className="text-xs tracking-[0.2em] text-sidebar-foreground">
               CENTRALIZE INVENTORY MANAGEMENT SYSTEM
             </p>
           </div>
@@ -62,9 +52,9 @@ function LoginPage() {
           <h1 className="text-3xl leading-tight font-bold">
             Helping Doctors,
             <br />
-            <span className="text-[#5B8DEF]">Help their Patients.</span>
+            <span className="text-sidebar-icon-active">Help their Patients.</span>
           </h1>
-          <p className="text-sm text-slate-300">
+          <p className="text-sm text-sidebar-hover-foreground">
             A centralized system for tracking medical inventory — medicines, equipment, and
             machines — so healthcare providers can focus on what matters most.
           </p>
@@ -72,7 +62,7 @@ function LoginPage() {
             {FEATURE_PILLS.map((feature) => (
               <span
                 key={feature}
-                className="border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium"
+                className="border border-primary-foreground/15 bg-primary-foreground/5 px-3 py-1 text-xs font-medium"
               >
                 {feature}
               </span>
@@ -88,7 +78,7 @@ function LoginPage() {
             Sign in to your MCVSync account to continue.
           </p>
 
-          <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
+          <SubmitForm onSubmit={handleSubmit} noValidate={false} className="mt-8 flex flex-col gap-4">
             {loginMutation.isError && (
               <Alert variant="destructive">
                 <AlertCircle />
@@ -97,7 +87,7 @@ function LoginPage() {
             )}
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="email">Email address</Label>
+              <Label htmlFor="email">Email Address</Label>
               <Input
                 id="email"
                 type="email"
@@ -128,12 +118,12 @@ function LoginPage() {
                   placeholder="Enter your password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  className="pr-9"
+                  className="pr-11 md:pr-9"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((current) => !current)}
-                  className="absolute inset-y-0 right-0 flex items-center px-2.5 text-muted-foreground hover:text-foreground"
+                  className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-muted-foreground hover:text-foreground md:w-9"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
@@ -141,7 +131,7 @@ function LoginPage() {
               </div>
             </div>
 
-            <label className="flex items-center gap-2 text-sm text-foreground">
+            <label className="flex min-h-11 items-center gap-2 text-sm text-foreground md:min-h-0">
               <Checkbox
                 checked={rememberMe}
                 onCheckedChange={(checked) => setRememberMe(checked === true)}
@@ -157,7 +147,7 @@ function LoginPage() {
             >
               Log In
             </LoadingButton>
-          </form>
+          </SubmitForm>
 
           <p className="mt-8 text-center text-xs text-muted-foreground">
             MCVSync © {new Date().getFullYear()} · Medical Inventory Management

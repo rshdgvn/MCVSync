@@ -1,94 +1,75 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { AlertCircle } from "lucide-react";
-import { CardSkeleton } from "@/components/CardSkeleton";
 import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
 import { LoadingButton } from "@/components/LoadingButton";
-import { RouteErrorFallback } from "@/components/RouteErrorFallback";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/PageHeader";
+import { StickyActionBar } from "@/components/StickyActionBar";
+import { TabBar } from "@/components/TabBar";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  usePermissionsQuery,
-  useRolesQuery,
-  useUpdateRolePermissionsMutation,
-} from "@/hooks/useStaff";
+import { Skeleton } from "@/components/ui/skeleton";
+import { usePermissionsQuery, useRolesQuery, useUpdateRolePermissionsMutation } from "@/hooks/useStaff";
 import { getErrorMessage } from "@/lib/errors";
 import { requireRole } from "@/lib/rbac";
-import { ROLE_LABELS, ROLES, type Role } from "@/types/user";
+import { toast } from "@/stores/toast.store";
 import type { Permission } from "@/types/staff";
+import { ROLE_LABELS, ROLES, type Role } from "@/types/user";
 
 export const Route = createFileRoute("/_authenticated/admin/role-permissions")({
   beforeLoad: requireRole("admin"),
   component: RolePermissionsPage,
-  errorComponent: RouteErrorFallback,
 });
 
 function RolePermissionsPage() {
   const rolesQuery = useRolesQuery();
   const permissionsQuery = usePermissionsQuery();
+  const [role, setRole] = useState<Role>(ROLES[0]);
   const loadError = rolesQuery.error ?? permissionsQuery.error;
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-lg font-semibold text-foreground">Roles &amp; Permissions</h1>
-        <p className="text-sm text-muted-foreground">
-          Toggle which permissions each role includes. Changes take effect immediately, no
-          deploy required.
-        </p>
-      </div>
+      <PageHeader
+        title="Roles & Permissions"
+        description="Choose which permissions each role includes. Changes take effect immediately."
+      />
+
+      <TabBar
+        ariaLabel="Roles"
+        value={role}
+        onChange={setRole}
+        tabs={ROLES.map((option) => ({ value: option, label: ROLE_LABELS[option] }))}
+      />
 
       {(rolesQuery.isPending || permissionsQuery.isPending) && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <CardSkeleton />
-          <CardSkeleton />
+        <div className="grid gap-2 border border-border bg-card p-4 md:grid-cols-2" aria-busy="true">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <Skeleton key={index} className="h-8" />
+          ))}
         </div>
       )}
 
-      {(rolesQuery.isError || permissionsQuery.isError) && (
-        <EmptyState
-          title="Couldn't load roles and permissions"
-          description={getErrorMessage(loadError)}
-          action={
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                rolesQuery.refetch();
-                permissionsQuery.refetch();
-              }}
-            >
-              Retry
-            </Button>
-          }
-        />
+      {loadError && (
+        <div className="border border-border bg-card">
+          <ErrorState
+            title="Roles and permissions couldn't be loaded"
+            message={getErrorMessage(loadError)}
+            onRetry={() => {
+              void rolesQuery.refetch();
+              void permissionsQuery.refetch();
+            }}
+          />
+        </div>
       )}
 
       {rolesQuery.data && permissionsQuery.data && (
-        <Tabs defaultValue={ROLES[0]}>
-          <TabsList>
-            {ROLES.map((role) => (
-              <TabsTrigger key={role} value={role}>
-                {ROLE_LABELS[role]}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-          {ROLES.map((role) => (
-            <TabsContent key={role} value={role}>
-              <RolePermissionsPanel
-                role={role}
-                allPermissions={permissionsQuery.data ?? []}
-                initialPermissionIds={
-                  rolesQuery.data
-                    ?.find((entry) => entry.name === role)
-                    ?.permissions.map((permission) => permission.id) ?? []
-                }
-              />
-            </TabsContent>
-          ))}
-        </Tabs>
+        <RolePermissionsPanel
+          key={role}
+          role={role}
+          allPermissions={permissionsQuery.data}
+          initialPermissionIds={
+            rolesQuery.data.find((entry) => entry.name === role)?.permissions.map((permission) => permission.id) ?? []
+          }
+        />
       )}
     </div>
   );
@@ -100,11 +81,7 @@ interface RolePermissionsPanelProps {
   initialPermissionIds: number[];
 }
 
-function RolePermissionsPanel({
-  role,
-  allPermissions,
-  initialPermissionIds,
-}: RolePermissionsPanelProps) {
+function RolePermissionsPanel({ role, allPermissions, initialPermissionIds }: RolePermissionsPanelProps) {
   const [selected, setSelected] = useState<Set<number>>(() => new Set(initialPermissionIds));
   const updateMutation = useUpdateRolePermissionsMutation();
 
@@ -121,49 +98,47 @@ function RolePermissionsPanel({
   }
 
   function handleSave() {
-    updateMutation.mutate({ role, permissionIds: Array.from(selected) });
+    return updateMutation.mutateAsync(
+      { role, permissionIds: Array.from(selected) },
+      {
+        onSuccess: () => toast.success(`${ROLE_LABELS[role]} permissions saved.`),
+        onError: (error) => toast.error(getErrorMessage(error)),
+      },
+    );
+  }
+
+  const saveButton = (
+    <LoadingButton onClick={handleSave} isPending={updateMutation.isPending} pendingText="Saving…">
+      Save Changes
+    </LoadingButton>
+  );
+
+  if (allPermissions.length === 0) {
+    return (
+      <div className="border border-border bg-card">
+        <EmptyState title="No permissions defined yet" />
+      </div>
+    );
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-border p-4">
-      {updateMutation.isError && (
-        <Alert variant="destructive">
-          <AlertCircle />
-          <AlertDescription>{getErrorMessage(updateMutation.error)}</AlertDescription>
-        </Alert>
-      )}
-
-      {updateMutation.isSuccess && (
-        <Alert>
-          <AlertDescription>Permissions updated.</AlertDescription>
-        </Alert>
-      )}
-
-      {allPermissions.length === 0 ? (
-        <EmptyState title="No permissions defined yet" />
-      ) : (
-        <div className="grid gap-2 sm:grid-cols-2">
-          {allPermissions.map((permission) => (
-            <label key={permission.id} className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={selected.has(permission.id)}
-                onCheckedChange={(checked) => toggle(permission.id, checked === true)}
-              />
-              {permission.name}
-            </label>
-          ))}
-        </div>
-      )}
-
-      <div>
-        <LoadingButton
-          onClick={handleSave}
-          isPending={updateMutation.isPending}
-          pendingText="Saving..."
-        >
-          Save Changes
-        </LoadingButton>
+    <div className="border border-border bg-card">
+      <div className="grid gap-x-6 px-4 py-2 md:grid-cols-2 md:py-3">
+        {allPermissions.map((permission) => (
+          <label
+            key={permission.id}
+            className="flex min-h-11 cursor-pointer items-center gap-3 border-b border-border-subtle text-sm text-foreground last:border-b-0 md:min-h-8 md:border-b-0 md:text-ui"
+          >
+            <Checkbox
+              checked={selected.has(permission.id)}
+              onCheckedChange={(checked) => toggle(permission.id, checked === true)}
+            />
+            <span className="font-mono text-xs">{permission.name}</span>
+          </label>
+        ))}
       </div>
+      <div className="hidden justify-end border-t border-border-subtle px-4 py-3 md:flex">{saveButton}</div>
+      <StickyActionBar>{saveButton}</StickyActionBar>
     </div>
   );
 }

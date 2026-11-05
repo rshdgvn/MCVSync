@@ -19,9 +19,14 @@ class ItemResource extends JsonResource
             'description' => $this->description,
             'has_expiry' => $this->has_expiry,
             'expiry_alert_threshold_days' => $this->expiry_alert_threshold_days,
+            'effective_expiry_alert_threshold_days' => $this->expiry_alert_threshold_days ?? (int) config('inventory.default_expiry_alert_threshold_days'),
             'reorder_point' => $this->reorder_point,
             'reorder_quantity' => $this->reorder_quantity,
             'is_active' => $this->is_active,
+            'available' => $this->when(
+                array_key_exists('on_hand', $this->resource->getAttributes()),
+                fn () => (int) $this->on_hand - (int) $this->reserved,
+            ),
         ];
     }
 }

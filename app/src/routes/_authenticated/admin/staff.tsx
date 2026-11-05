@@ -1,38 +1,20 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { AlertCircle, Ban, CheckCircle2, Pencil, Plus } from "lucide-react";
-import { EmptyState } from "@/components/EmptyState";
+import { Ban, CheckCircle2, Pencil, Plus } from "lucide-react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { DataList, type DataListColumn } from "@/components/DataList";
+import { FilterBar } from "@/components/FilterBar";
+import { FilterTabs } from "@/components/FilterTabs";
+import { FormError } from "@/components/FormError";
+import { FormField, fieldA11yProps } from "@/components/FormField";
 import { LoadingButton } from "@/components/LoadingButton";
-import { RouteErrorFallback } from "@/components/RouteErrorFallback";
-import { TableSkeleton } from "@/components/TableSkeleton";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/PageHeader";
+import { ResponsiveDialog } from "@/components/ResponsiveDialog";
+import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { SelectField } from "@/components/SelectField";
+import { SubmitForm } from "@/components/SubmitForm";
 import {
   useActivateEmployeeMutation,
   useBranchesQuery,
@@ -41,275 +23,299 @@ import {
   useEmployeesQuery,
   useUpdateEmployeeMutation,
 } from "@/hooks/useStaff";
-import { getErrorMessage } from "@/lib/errors";
+import { getErrorMessage, getFieldErrors, getGeneralError } from "@/lib/errors";
 import { requireRole } from "@/lib/rbac";
+import { toast } from "@/stores/toast.store";
 import type { Employee } from "@/types/staff";
+import { ROLE_LABELS } from "@/types/user";
 
 export const Route = createFileRoute("/_authenticated/admin/staff")({
   beforeLoad: requireRole("admin", "super_admin"),
   component: StaffAccountsPage,
-  errorComponent: RouteErrorFallback,
 });
 
-type DialogState = "new" | Employee | null;
+type StatusFilter = "all" | "active" | "inactive";
+type DialogState = { mode: "create" } | { mode: "edit"; employee: Employee } | null;
+
+const NO_BRANCH = "none";
+
+const COLUMNS: DataListColumn<Employee>[] = [
+  {
+    key: "name",
+    header: "Name",
+    mobile: "title",
+    cell: (employee) => <span className="font-medium">{employee.name}</span>,
+  },
+  {
+    key: "email",
+    header: "Email",
+    mobile: "subtitle",
+    cell: (employee) => <span className="text-muted-foreground">{employee.email}</span>,
+  },
+  { key: "position", header: "Position", cell: (employee) => employee.position },
+  { key: "role", header: "Role", cell: (employee) => (employee.role ? ROLE_LABELS[employee.role] : "None") },
+  { key: "branch", header: "Branch", cell: (employee) => employee.branch?.name ?? "All branches" },
+  {
+    key: "status",
+    header: "Status",
+    mobile: "badge",
+    cell: (employee) => <StatusBadge status={employee.is_active ? "active" : "inactive"} />,
+  },
+];
+
+function matchesSearch(employee: Employee, search: string): boolean {
+  const needle = search.trim().toLowerCase();
+  return !needle || employee.name.toLowerCase().includes(needle) || employee.email.toLowerCase().includes(needle);
+}
 
 function StaffAccountsPage() {
   const employeesQuery = useEmployeesQuery();
   const deactivateMutation = useDeactivateEmployeeMutation();
   const activateMutation = useActivateEmployeeMutation();
-  const [dialogState, setDialogState] = useState<DialogState>(null);
+  const [status, setStatus] = useState<StatusFilter>("all");
+  const [search, setSearch] = useState("");
+  const [dialog, setDialog] = useState<DialogState>(null);
+  const [deactivating, setDeactivating] = useState<Employee | null>(null);
+
+  const searched = useMemo(
+    () => employeesQuery.data?.filter((employee) => matchesSearch(employee, search)),
+    [employeesQuery.data, search],
+  );
+
+  const counts = useMemo(() => {
+    const rows = searched ?? [];
+    const active = rows.filter((employee) => employee.is_active).length;
+    return { all: rows.length, active, inactive: rows.length - active };
+  }, [searched]);
+
+  const rows = useMemo(
+    () =>
+      searched?.filter((employee) => (status === "all" ? true : employee.is_active === (status === "active"))),
+    [searched, status],
+  );
+
+  function activate(employee: Employee) {
+    activateMutation.mutate(employee.id, {
+      onSuccess: () => toast.success(`${employee.name} can sign in again.`),
+      onError: (error) => toast.error(getErrorMessage(error)),
+    });
+  }
+
+  function confirmDeactivate() {
+    if (!deactivating) {
+      return;
+    }
+    return deactivateMutation.mutateAsync(deactivating.id, {
+      onSuccess: () => {
+        toast.success(`${deactivating.name} was deactivated.`);
+        setDeactivating(null);
+      },
+    });
+  }
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-semibold text-foreground">Staff Accounts</h1>
-          <p className="text-sm text-muted-foreground">
-            Create, edit, and deactivate staff accounts. Role assignment is Super Admin's
-            authority.
-          </p>
-        </div>
-        <Button size="sm" onClick={() => setDialogState("new")}>
-          <Plus />
-          New Staff
-        </Button>
-      </div>
+      <PageHeader
+        title="Staff Accounts"
+        description="Create, edit, and deactivate staff accounts. Role assignment is the Super Admin's authority."
+        primaryAction={
+          <Button onClick={() => setDialog({ mode: "create" })}>
+            <Plus />
+            Add Staff
+          </Button>
+        }
+      />
 
-      {employeesQuery.isPending && <TableSkeleton rows={6} columns={6} />}
+      <FilterTabs
+        ariaLabel="Filter staff by status"
+        value={status}
+        onChange={setStatus}
+        tabs={[
+          { value: "all", label: "All Staff", count: employeesQuery.data ? counts.all : undefined },
+          { value: "active", label: "Active", count: employeesQuery.data ? counts.active : undefined },
+          { value: "inactive", label: "Inactive", count: employeesQuery.data ? counts.inactive : undefined },
+        ]}
+      />
 
-      {employeesQuery.isError && (
-        <EmptyState
-          title="Couldn't load staff accounts"
-          description={getErrorMessage(employeesQuery.error)}
-          action={
-            <Button variant="outline" size="sm" onClick={() => employeesQuery.refetch()}>
-              Retry
-            </Button>
-          }
+      <FilterBar search={search} onSearchChange={setSearch} searchPlaceholder="Search by name or email" />
+
+      <DataList
+        label="Staff accounts"
+        columns={COLUMNS}
+        rows={rows}
+        rowKey={(employee) => employee.id}
+        isPending={employeesQuery.isPending}
+        error={employeesQuery.error}
+        onRetry={() => void employeesQuery.refetch()}
+        empty={{
+          title: search ? "No staff match this search" : "No staff accounts here",
+          description: search ? "Try a different name or email." : "Add a staff account to get started.",
+        }}
+        rowActions={(employee) => [
+          { label: "Edit", icon: Pencil, onClick: () => setDialog({ mode: "edit", employee }) },
+          employee.is_active
+            ? {
+                label: "Deactivate",
+                icon: Ban,
+                destructive: true,
+                onClick: () => {
+                  deactivateMutation.reset();
+                  setDeactivating(employee);
+                },
+              }
+            : {
+                label: "Activate",
+                icon: CheckCircle2,
+                disabled: activateMutation.isPending && activateMutation.variables === employee.id,
+                onClick: () => activate(employee),
+              },
+        ]}
+      />
+
+      {dialog && (
+        <EmployeeDialog
+          key={dialog.mode === "edit" ? dialog.employee.id : "create"}
+          employee={dialog.mode === "edit" ? dialog.employee : undefined}
+          onClose={() => setDialog(null)}
         />
       )}
 
-      {employeesQuery.data && employeesQuery.data.length === 0 && (
-        <EmptyState
-          title="No staff accounts yet"
-          description="Create the first staff account to get started."
-        />
-      )}
-
-      {employeesQuery.data && employeesQuery.data.length > 0 && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Position</TableHead>
-              <TableHead>Branch</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {employeesQuery.data.map((employee) => (
-              <TableRow key={employee.id}>
-                <TableCell>{employee.name}</TableCell>
-                <TableCell>{employee.email}</TableCell>
-                <TableCell>{employee.position}</TableCell>
-                <TableCell>{employee.branch?.name ?? "—"}</TableCell>
-                <TableCell>
-                  <Badge variant={employee.is_active ? "default" : "outline"}>
-                    {employee.is_active ? "Active" : "Inactive"}
-                  </Badge>
-                </TableCell>
-                <TableCell className="flex justify-end gap-2 text-right">
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => setDialogState(employee)}
-                  >
-                    <Pencil />
-                    <span className="sr-only">Edit</span>
-                  </Button>
-                  {employee.is_active ? (
-                    <LoadingButton
-                      variant="ghost"
-                      size="icon-sm"
-                      isPending={
-                        deactivateMutation.isPending &&
-                        deactivateMutation.variables === employee.id
-                      }
-                      onClick={() => deactivateMutation.mutate(employee.id)}
-                    >
-                      <Ban />
-                      <span className="sr-only">Deactivate</span>
-                    </LoadingButton>
-                  ) : (
-                    <LoadingButton
-                      variant="ghost"
-                      size="icon-sm"
-                      isPending={
-                        activateMutation.isPending && activateMutation.variables === employee.id
-                      }
-                      onClick={() => activateMutation.mutate(employee.id)}
-                    >
-                      <CheckCircle2 />
-                      <span className="sr-only">Activate</span>
-                    </LoadingButton>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-
-      <EmployeeFormDialog state={dialogState} onClose={() => setDialogState(null)} />
+      <ConfirmDialog
+        open={deactivating !== null}
+        onOpenChange={(open) => !open && setDeactivating(null)}
+        title="Deactivate Staff Account?"
+        description={
+          <>
+            <span className="font-semibold">{deactivating?.name}</span> will be signed out and can't sign in until the
+            account is activated again. Their history is kept.
+          </>
+        }
+        confirmLabel="Deactivate"
+        destructive
+        isPending={deactivateMutation.isPending}
+        error={deactivateMutation.isError ? getErrorMessage(deactivateMutation.error) : null}
+        onConfirm={confirmDeactivate}
+      />
     </div>
   );
 }
 
-function EmployeeFormDialog({
-  state,
-  onClose,
-}: {
-  state: DialogState;
+interface EmployeeDialogProps {
+  employee?: Employee;
   onClose: () => void;
-}) {
-  const isEdit = state !== null && state !== "new";
+}
+
+function EmployeeDialog({ employee, onClose }: EmployeeDialogProps) {
   const branchesQuery = useBranchesQuery();
   const createMutation = useCreateEmployeeMutation();
   const updateMutation = useUpdateEmployeeMutation();
-
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [name, setName] = useState(employee?.name ?? "");
+  const [email, setEmail] = useState(employee?.email ?? "");
   const [password, setPassword] = useState("");
-  const [position, setPosition] = useState("");
-  const [branchId, setBranchId] = useState<string>("");
+  const [position, setPosition] = useState(employee?.position ?? "");
+  const [branchId, setBranchId] = useState(employee?.branch ? String(employee.branch.id) : NO_BRANCH);
+  const mutation = employee ? updateMutation : createMutation;
+  const fieldErrors = getFieldErrors(mutation.error);
 
-  useEffect(() => {
-    if (isEdit) {
-      setName(state.name);
-      setEmail(state.email);
-      setPassword("");
-      setPosition(state.position);
-      setBranchId(state.branch ? String(state.branch.id) : "");
-    } else if (state === "new") {
-      setName("");
-      setEmail("");
-      setPassword("");
-      setPosition("");
-      setBranchId("");
-    }
-  }, [state, isEdit]);
+  function handleSubmit() {
+    const branch_id = branchId === NO_BRANCH ? null : Number(branchId);
+    const onSuccess = () => {
+      toast.success(employee ? "Staff account updated." : `${name} added.`);
+      onClose();
+    };
 
-  const mutation = isEdit ? updateMutation : createMutation;
-
-  function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-
-    const parsedBranchId = branchId ? Number(branchId) : null;
-
-    if (isEdit) {
-      updateMutation.mutate(
-        { id: state.id, payload: { name, email, position, branch_id: parsedBranchId } },
-        { onSuccess: onClose },
-      );
+    if (employee) {
+      return updateMutation.mutateAsync({ id: employee.id, payload: { name, email, position, branch_id } }, { onSuccess });
     } else {
-      createMutation.mutate(
-        { name, email, password, position, branch_id: parsedBranchId },
-        { onSuccess: onClose },
-      );
+      return createMutation.mutateAsync({ name, email, password, position, branch_id }, { onSuccess });
     }
   }
 
   return (
-    <Dialog open={state !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Staff Account" : "New Staff Account"}</DialogTitle>
-          <DialogDescription>
-            Branch assignment applies to Sales, Purchasing, Accounting, and Logistics roles.
-          </DialogDescription>
-        </DialogHeader>
+    <ResponsiveDialog
+      open
+      onOpenChange={(open) => !open && !mutation.isPending && onClose()}
+      title={employee ? "Edit Staff Account" : "Add Staff Account"}
+      description="A branch is required for Sales, Purchasing, Accounting, and Logistics staff."
+      footer={
+        <>
+          <Button variant="outline" disabled={mutation.isPending} onClick={onClose}>
+            Cancel
+          </Button>
+          <LoadingButton type="submit" form="employee-form" isPending={mutation.isPending} pendingText="Saving…">
+            {employee ? "Save Changes" : "Add Staff"}
+          </LoadingButton>
+        </>
+      }
+    >
+      <SubmitForm id="employee-form" onSubmit={handleSubmit} className="flex flex-col gap-4 md:gap-3.5">
+        <FormError message={getGeneralError(mutation.error)} />
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {mutation.isError && (
-            <Alert variant="destructive">
-              <AlertCircle />
-              <AlertDescription>{getErrorMessage(mutation.error)}</AlertDescription>
-            </Alert>
-          )}
+        <FormField label="Full Name" htmlFor="employee-name" required error={fieldErrors.name}>
+          <Input
+            {...fieldA11yProps("employee-name", fieldErrors.name)}
+            autoFocus
+            required
+            autoComplete="name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
+        </FormField>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="employee-name">Name</Label>
+        <FormField label="Email" htmlFor="employee-email" required error={fieldErrors.email}>
+          <Input
+            {...fieldA11yProps("employee-email", fieldErrors.email)}
+            type="email"
+            required
+            autoComplete="email"
+            inputMode="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+        </FormField>
+
+        <FormField label="Position" htmlFor="employee-position" required error={fieldErrors.position}>
+          <Input
+            {...fieldA11yProps("employee-position", fieldErrors.position)}
+            required
+            placeholder="e.g. Purchasing Manager"
+            value={position}
+            onChange={(event) => setPosition(event.target.value)}
+          />
+        </FormField>
+
+        {!employee && (
+          <FormField
+            label="Temporary Password"
+            htmlFor="employee-password"
+            required
+            hint="At least 8 characters. Share it privately; the employee can reset it after signing in."
+            error={fieldErrors.password}
+          >
             <Input
-              id="employee-name"
+              {...fieldA11yProps("employee-password", fieldErrors.password, true)}
+              type="password"
               required
-              value={name}
-              onChange={(event) => setName(event.target.value)}
+              autoComplete="new-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
             />
-          </div>
+          </FormField>
+        )}
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="employee-email">Email</Label>
-            <Input
-              id="employee-email"
-              type="email"
-              required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="employee-position">Position</Label>
-            <Input
-              id="employee-position"
-              required
-              placeholder="e.g. Purchasing Manager"
-              value={position}
-              onChange={(event) => setPosition(event.target.value)}
-            />
-          </div>
-
-          {!isEdit && (
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="employee-password">Temporary password</Label>
-              <Input
-                id="employee-password"
-                type="password"
-                required
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
-            </div>
-          )}
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="employee-branch">Branch</Label>
-            <Select value={branchId} onValueChange={(value) => setBranchId(value ?? "")}>
-              <SelectTrigger id="employee-branch">
-                <SelectValue placeholder="Select a branch" />
-              </SelectTrigger>
-              <SelectContent>
-                {branchesQuery.data?.map((branch) => (
-                  <SelectItem key={branch.id} value={String(branch.id)}>
-                    {branch.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <LoadingButton type="submit" isPending={mutation.isPending} pendingText="Saving...">
-              Save
-            </LoadingButton>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        <FormField label="Branch" htmlFor="employee-branch" error={fieldErrors.branch_id}>
+          <SelectField
+            value={branchId}
+            onChange={(value) => setBranchId(value || NO_BRANCH)}
+            placeholder="Select a branch"
+            triggerProps={fieldA11yProps("employee-branch", fieldErrors.branch_id)}
+            options={[
+              { value: NO_BRANCH, label: "No branch (Admin and Super Admin)" },
+              ...(branchesQuery.data ?? []).map((branch) => ({ value: String(branch.id), label: branch.name })),
+            ]}
+          />
+        </FormField>
+      </SubmitForm>
+    </ResponsiveDialog>
   );
 }

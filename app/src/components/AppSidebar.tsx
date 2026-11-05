@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { ChevronRight } from "lucide-react";
+import { BrandMark } from "@/components/BrandMark";
 import {
   Sidebar,
   SidebarContent,
@@ -18,14 +19,15 @@ import {
   SidebarMenuSubItem,
   SidebarRail,
   SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar";
-import { NAVIGATION, findActiveKeys, type NavItem } from "@/config/navigation";
-import { useMotionTransition } from "@/lib/motion";
+import { NAVIGATION, findActiveKeys, type ActiveNavKeys, type NavItem } from "@/config/navigation";
+import { FAST_TRANSITION } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/types/user";
 
 const COLLAPSIBLE_FADE =
-  "transition-[opacity,visibility] duration-300 ease-out group-data-[collapsible=icon]:invisible group-data-[collapsible=icon]:opacity-0";
+  "transition-[opacity,visibility] duration-200 ease-standard group-data-[collapsible=icon]:invisible group-data-[collapsible=icon]:opacity-0";
 
 interface AppSidebarProps {
   role: Role;
@@ -34,10 +36,11 @@ interface AppSidebarProps {
 
 export function AppSidebar({ role, badges = {} }: AppSidebarProps) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const { setOpenMobile } = useSidebar();
   const items = NAVIGATION[role];
-  const { parentKey } = findActiveKeys(items, pathname);
+  const activeKeys = findActiveKeys(items, pathname);
+  const { parentKey } = activeKeys;
   const [expandedKey, setExpandedKey] = useState<string | null>(parentKey ?? null);
-  const transition = useMotionTransition();
 
   useEffect(() => {
     if (parentKey) {
@@ -45,19 +48,23 @@ export function AppSidebar({ role, badges = {} }: AppSidebarProps) {
     }
   }, [parentKey]);
 
+  useEffect(() => {
+    setOpenMobile(false);
+  }, [pathname, setOpenMobile]);
+
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader>
-        <div className="flex items-center gap-2 overflow-hidden py-1">
-          <div className="flex size-8 shrink-0 items-center justify-center bg-primary text-sm font-semibold text-primary-foreground">
-            M
+      <SidebarHeader className="border-b border-sidebar-border">
+        <div className="flex h-11 items-center gap-2.5 overflow-hidden pl-1">
+          <div className="flex size-7 shrink-0 items-center justify-center bg-primary text-primary-foreground">
+            <BrandMark className="size-4" />
           </div>
-          <span className={cn("min-w-0 flex-1 truncate text-sm font-semibold text-sidebar-foreground", COLLAPSIBLE_FADE)}>
+          <span className={cn("min-w-0 flex-1 truncate text-[15px] font-extrabold tracking-tight text-sidebar-primary-foreground", COLLAPSIBLE_FADE)}>
             MCVSync
           </span>
           <SidebarTrigger
             className={cn(
-              "hidden shrink-0 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:inline-flex",
+              "hidden shrink-0 text-sidebar-icon hover:bg-sidebar-hover hover:text-sidebar-hover-foreground md:inline-flex",
               COLLAPSIBLE_FADE,
             )}
           />
@@ -65,20 +72,19 @@ export function AppSidebar({ role, badges = {} }: AppSidebarProps) {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
+        <SidebarGroup className="px-0">
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-0">
               {items.map((item) => (
                 <NavEntry
                   key={item.key}
                   item={item}
-                  pathname={pathname}
+                  activeKeys={activeKeys}
                   badges={badges}
                   expanded={expandedKey === item.key}
                   onToggle={() =>
                     setExpandedKey((current) => (current === item.key ? null : item.key))
                   }
-                  transition={transition}
                 />
               ))}
             </SidebarMenu>
@@ -99,25 +105,24 @@ export function AppSidebar({ role, badges = {} }: AppSidebarProps) {
 
 interface NavEntryProps {
   item: NavItem;
-  pathname: string;
+  activeKeys: ActiveNavKeys;
   badges: Record<string, number>;
   expanded: boolean;
   onToggle: () => void;
-  transition: ReturnType<typeof useMotionTransition>;
 }
 
-function NavEntry({ item, pathname, badges, expanded, onToggle, transition }: NavEntryProps) {
+function NavEntry({ item, activeKeys, badges, expanded, onToggle }: NavEntryProps) {
   const badgeCount = item.badgeKey ? badges[item.badgeKey] : undefined;
 
   if (!item.children) {
     return (
       <SidebarMenuItem>
         <SidebarMenuButton
-          isActive={item.to === pathname}
+          isActive={activeKeys.parentKey === item.key && !activeKeys.childKey}
           tooltip={item.label}
           render={<Link to={item.to ?? "/"} />}
         >
-          <item.icon className="size-4 shrink-0" />
+          <item.icon />
           <span className={cn("min-w-0 truncate", COLLAPSIBLE_FADE)}>{item.label}</span>
         </SidebarMenuButton>
         {!!badgeCount && <SidebarMenuBadge>{badgeCount}</SidebarMenuBadge>}
@@ -127,46 +132,35 @@ function NavEntry({ item, pathname, badges, expanded, onToggle, transition }: Na
 
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton onClick={onToggle} tooltip={item.label}>
-        <item.icon className="size-4 shrink-0" />
+      <SidebarMenuButton onClick={onToggle} tooltip={item.label} aria-expanded={expanded}>
+        <item.icon />
         <span className={cn("min-w-0 truncate", COLLAPSIBLE_FADE)}>{item.label}</span>
         <ChevronRight
           className={cn(
-            "ml-auto size-4 shrink-0 transition-[transform,opacity,visibility] duration-300 ease-out group-data-[collapsible=icon]:invisible group-data-[collapsible=icon]:opacity-0",
+            "ml-auto size-3.5 shrink-0 transition-[transform,opacity,visibility] duration-150 ease-standard group-data-[collapsible=icon]:invisible group-data-[collapsible=icon]:opacity-0",
             expanded && "rotate-90",
           )}
         />
       </SidebarMenuButton>
 
-      <AnimatePresence initial={false}>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={transition}
-            style={{ overflow: "hidden" }}
-          >
-            <SidebarMenuSub>
-              {item.children.map((child) => {
-                const childBadge = child.badgeKey ? badges[child.badgeKey] : undefined;
+      {expanded && (
+        <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} transition={FAST_TRANSITION}>
+          <SidebarMenuSub>
+            {item.children.map((child) => {
+              const childBadge = child.badgeKey ? badges[child.badgeKey] : undefined;
 
-                return (
-                  <SidebarMenuSubItem key={child.key}>
-                    <SidebarMenuSubButton
-                      isActive={child.to === pathname}
-                      render={<Link to={child.to ?? "/"} />}
-                    >
-                      <span className="min-w-0 truncate">{child.label}</span>
-                    </SidebarMenuSubButton>
-                    {!!childBadge && <SidebarMenuBadge>{childBadge}</SidebarMenuBadge>}
-                  </SidebarMenuSubItem>
-                );
-              })}
-            </SidebarMenuSub>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              return (
+                <SidebarMenuSubItem key={child.key}>
+                  <SidebarMenuSubButton isActive={activeKeys.parentKey === item.key && activeKeys.childKey === child.key} render={<Link to={child.to ?? "/"} />}>
+                    <span className="min-w-0 truncate">{child.label}</span>
+                  </SidebarMenuSubButton>
+                  {!!childBadge && <SidebarMenuBadge>{childBadge}</SidebarMenuBadge>}
+                </SidebarMenuSubItem>
+              );
+            })}
+          </SidebarMenuSub>
+        </motion.div>
+      )}
     </SidebarMenuItem>
   );
 }

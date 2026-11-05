@@ -1,14 +1,14 @@
-import { useState, type FormEvent } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { AlertCircle } from "lucide-react";
+import { useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { AuthCard } from "@/components/AuthCard";
+import { FormError } from "@/components/FormError";
+import { FormField, fieldA11yProps } from "@/components/FormField";
 import { LoadingButton } from "@/components/LoadingButton";
-import { RouteErrorFallback } from "@/components/RouteErrorFallback";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { SubmitForm } from "@/components/SubmitForm";
 import { useResetPasswordMutation } from "@/hooks/useAuth";
-import { getErrorMessage } from "@/lib/errors";
+import { getFieldErrors, getGeneralError } from "@/lib/errors";
+import { toast } from "@/stores/toast.store";
 
 export const Route = createFileRoute("/reset-password")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -16,7 +16,6 @@ export const Route = createFileRoute("/reset-password")({
     email: String(search.email ?? ""),
   }),
   component: ResetPasswordPage,
-  errorComponent: RouteErrorFallback,
 });
 
 function ResetPasswordPage() {
@@ -25,65 +24,67 @@ function ResetPasswordPage() {
   const resetPasswordMutation = useResetPasswordMutation();
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
+  const fieldErrors = getFieldErrors(resetPasswordMutation.error);
 
-  function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    resetPasswordMutation.mutate(
+  function handleSubmit() {
+    return resetPasswordMutation.mutateAsync(
       { token, email, password, password_confirmation: passwordConfirmation },
-      { onSuccess: () => navigate({ to: "/login" }) },
+      {
+        onSuccess: () => {
+          toast.success("Password updated. Sign in with your new password.");
+          void navigate({ to: "/login" });
+        },
+      },
     );
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle className="text-lg">Set a new password</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            {resetPasswordMutation.isError && (
-              <Alert variant="destructive">
-                <AlertCircle />
-                <AlertDescription>{getErrorMessage(resetPasswordMutation.error)}</AlertDescription>
-              </Alert>
-            )}
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="password">New password</Label>
-              <Input
-                id="password"
-                type="password"
-                required
-                autoComplete="new-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="password_confirmation">Confirm password</Label>
-              <Input
-                id="password_confirmation"
-                type="password"
-                required
-                autoComplete="new-password"
-                value={passwordConfirmation}
-                onChange={(event) => setPasswordConfirmation(event.target.value)}
-              />
-            </div>
-
-            <LoadingButton
-              type="submit"
-              className="w-full"
-              isPending={resetPasswordMutation.isPending}
-              pendingText="Saving..."
-            >
-              Save new password
-            </LoadingButton>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+    <AuthCard
+      title="Set a New Password"
+      description={email ? `For ${email}` : undefined}
+      footer={
+        <Link to="/login" className="text-sm font-medium text-primary hover:underline md:text-xs">
+          Back to Sign In
+        </Link>
+      }
+    >
+      <SubmitForm onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <FormError message={getGeneralError(resetPasswordMutation.error) ?? fieldErrors.email ?? fieldErrors.token} />
+        <FormField
+          label="New Password"
+          htmlFor="password"
+          layout="stacked"
+          hint="At least 8 characters."
+          error={fieldErrors.password}
+        >
+          <Input
+            {...fieldA11yProps("password", fieldErrors.password, true)}
+            type="password"
+            required
+            autoComplete="new-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+        </FormField>
+        <FormField label="Confirm Password" htmlFor="password_confirmation" layout="stacked">
+          <Input
+            id="password_confirmation"
+            type="password"
+            required
+            autoComplete="new-password"
+            value={passwordConfirmation}
+            onChange={(event) => setPasswordConfirmation(event.target.value)}
+          />
+        </FormField>
+        <LoadingButton
+          type="submit"
+          className="w-full"
+          isPending={resetPasswordMutation.isPending}
+          pendingText="Saving…"
+        >
+          Save New Password
+        </LoadingButton>
+      </SubmitForm>
+    </AuthCard>
   );
 }

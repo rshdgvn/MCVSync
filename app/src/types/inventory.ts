@@ -21,9 +21,11 @@ export interface Item {
   description: string | null;
   has_expiry: boolean;
   expiry_alert_threshold_days: number | null;
+  effective_expiry_alert_threshold_days: number;
   reorder_point: number | null;
   reorder_quantity: number | null;
   is_active: boolean;
+  available?: number;
 }
 
 export type BatchStatus = "active" | "expired" | "depleted";
@@ -91,4 +93,14 @@ export interface PaginationMeta {
 export interface Paginated<T> {
   data: T[];
   meta: PaginationMeta;
+}
+
+export interface ActiveStatusCounts {
+  all: number;
+  active: number;
+  inactive: number;
+}
+
+export interface ItemListResponse extends Paginated<Item> {
+  counts: ActiveStatusCounts;
 }

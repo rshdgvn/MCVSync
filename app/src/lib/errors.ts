@@ -13,6 +13,12 @@ export function getErrorMessage(error: unknown): string {
     if (error.response?.data?.message) {
       return error.response.data.message;
     }
+
+    if (!error.response) {
+      return navigator.onLine
+        ? "Can't reach the server. Check your connection and try again."
+        : "You're offline. Reconnect and try again.";
+    }
   }
 
   return "Something went wrong. Please try again.";
@@ -37,4 +43,11 @@ export function getFieldErrors(error: unknown): Record<string, string> {
       .filter(([, messages]) => messages?.[0])
       .map(([field, messages]) => [field, messages[0]]),
   );
+}
+
+export function getGeneralError(error: unknown): string | null {
+  if (!error) {
+    return null;
+  }
+  return Object.keys(getFieldErrors(error)).length === 0 ? getErrorMessage(error) : null;
 }

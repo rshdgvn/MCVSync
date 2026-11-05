@@ -19,7 +19,7 @@ export function AppShell({ role, children }: AppShellProps) {
       <AppSidebar role={effectiveRole} />
       <SidebarInset>
         <Topbar />
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6">{children}</div>
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 has-[[data-sticky-action-bar]]:pb-[calc(6rem+env(safe-area-inset-bottom))] md:has-[[data-sticky-action-bar]]:pb-6">{children}</div>
       </SidebarInset>
     </SidebarProvider>
   );

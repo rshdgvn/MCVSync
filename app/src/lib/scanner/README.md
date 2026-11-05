@@ -9,21 +9,21 @@ that all belongs in the feature that consumes a scan, not here.
 
 ```tsx
 import { useCallback } from "react";
-import { BarcodeScannerPanel } from "@/components/scanner/BarcodeScannerPanel";
+import { ScanInput } from "@/components/ScanInput";
 
 function ReceiveStockPanel() {
-  const handleScan = useCallback(async (barcode: string) => {
-    await api.post("/staff/stock/receive", { barcode });
+  const handleScan = useCallback(async ({ value }: { value: string }) => {
+    await api.post("/staff/stock/receive", { barcode: value });
   }, []);
 
-  return <BarcodeScannerPanel onScan={handleScan} />;
+  return <ScanInput onScan={handleScan} />;
 }
 ```
 
 `onScan` may be sync or return a `Promise`. While it's pending, `isProcessing` is `true` and new
 scans are dropped rather than queued — one scan is handled at a time.
 
-Need the raw hook instead of the prebuilt panel (custom UI, multiple subscribers, etc.)?
+Need the raw hook instead of the prebuilt ScanInput (custom UI, multiple subscribers, etc.)?
 
 ```tsx
 import { useEffect } from "react";
@@ -97,7 +97,7 @@ module once you know the real format you're expecting (SKU pattern, checksum, et
 
 ## Adding scanning to a new module
 
-1. Call `useBarcodeScanner()` (or drop in `<BarcodeScannerPanel />` if the default UI is enough)
+1. Call `useBarcodeScanner()` (or drop in `<ScanInput />` if the default UI is enough)
    where you need a scan.
 2. Pass a `validate` function once your module knows what a valid code looks like for that
    screen — don't loosen the shared default, override it locally.

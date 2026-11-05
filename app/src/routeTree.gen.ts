@@ -14,6 +14,7 @@ import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedSyncIssuesRouteImport } from './routes/_authenticated/sync-issues'
 import { Route as AuthenticatedUnauthorizedRouteImport } from './routes/_authenticated/unauthorized'
 import { Route as AuthenticatedAccountingClientPricingRouteImport } from './routes/_authenticated/accounting/client-pricing'
 import { Route as AuthenticatedAccountingItemsRouteImport } from './routes/_authenticated/accounting/items'
@@ -27,7 +28,6 @@ import { Route as AuthenticatedAdminClientsRouteImport } from './routes/_authent
 import { Route as AuthenticatedAdminRolePermissionsRouteImport } from './routes/_authenticated/admin/role-permissions'
 import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin/settings'
 import { Route as AuthenticatedAdminStaffRouteImport } from './routes/_authenticated/admin/staff'
-import { Route as AuthenticatedAdminSuppliersRouteImport } from './routes/_authenticated/admin/suppliers'
 import { Route as AuthenticatedInventoryExpiringRouteImport } from './routes/_authenticated/inventory/expiring'
 import { Route as AuthenticatedInventoryLowStockRouteImport } from './routes/_authenticated/inventory/low-stock'
 import { Route as AuthenticatedItemsIndexRouteImport } from './routes/_authenticated/items/index'
@@ -39,7 +39,6 @@ import { Route as AuthenticatedLogisticsIncomingOrdersRouteImport } from './rout
 import { Route as AuthenticatedLogisticsReadyToDeliverRouteImport } from './routes/_authenticated/logistics/ready-to-deliver'
 import { Route as AuthenticatedPurchasingPurchaseOrdersRouteImport } from './routes/_authenticated/purchasing/purchase-orders'
 import { Route as AuthenticatedPurchasingStockReceivingRouteImport } from './routes/_authenticated/purchasing/stock-receiving'
-import { Route as AuthenticatedPurchasingSuppliersRouteImport } from './routes/_authenticated/purchasing/suppliers'
 import { Route as AuthenticatedSalesClientsRouteImport } from './routes/_authenticated/sales/clients'
 import { Route as AuthenticatedSalesClientsAnalyticsRouteImport } from './routes/_authenticated/sales/clients-analytics'
 import { Route as AuthenticatedSalesCofsRouteImport } from './routes/_authenticated/sales/cofs'
@@ -56,8 +55,12 @@ import { Route as AuthenticatedSuperAdminCompareBranchesRouteImport } from './ro
 import { Route as AuthenticatedSuperAdminPurchasesOverviewRouteImport } from './routes/_authenticated/super-admin/purchases-overview'
 import { Route as AuthenticatedSuperAdminRoleAssignmentRouteImport } from './routes/_authenticated/super-admin/role-assignment'
 import { Route as AuthenticatedSuperAdminSalesOverviewRouteImport } from './routes/_authenticated/super-admin/sales-overview'
+import { Route as AuthenticatedAdminSuppliersIndexRouteImport } from './routes/_authenticated/admin/suppliers/index'
+import { Route as AuthenticatedAdminSuppliersSupplierIdRouteImport } from './routes/_authenticated/admin/suppliers/$supplierId'
 import { Route as AuthenticatedItemsItemIdIndexRouteImport } from './routes/_authenticated/items/$itemId/index'
 import { Route as AuthenticatedItemsItemIdEditRouteImport } from './routes/_authenticated/items/$itemId/edit'
+import { Route as AuthenticatedPurchasingSuppliersIndexRouteImport } from './routes/_authenticated/purchasing/suppliers/index'
+import { Route as AuthenticatedPurchasingSuppliersSupplierIdRouteImport } from './routes/_authenticated/purchasing/suppliers/$supplierId'
 
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
@@ -81,6 +84,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
 const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedSyncIssuesRoute = AuthenticatedSyncIssuesRouteImport.update({
+  id: '/sync-issues',
+  path: '/sync-issues',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedUnauthorizedRoute =
@@ -160,12 +168,6 @@ const AuthenticatedAdminStaffRoute = AuthenticatedAdminStaffRouteImport.update({
   path: '/admin/staff',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedAdminSuppliersRoute =
-  AuthenticatedAdminSuppliersRouteImport.update({
-    id: '/admin/suppliers',
-    path: '/admin/suppliers',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
 const AuthenticatedInventoryExpiringRoute =
   AuthenticatedInventoryExpiringRouteImport.update({
     id: '/inventory/expiring',
@@ -227,12 +229,6 @@ const AuthenticatedPurchasingStockReceivingRoute =
   AuthenticatedPurchasingStockReceivingRouteImport.update({
     id: '/purchasing/stock-receiving',
     path: '/purchasing/stock-receiving',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
-const AuthenticatedPurchasingSuppliersRoute =
-  AuthenticatedPurchasingSuppliersRouteImport.update({
-    id: '/purchasing/suppliers',
-    path: '/purchasing/suppliers',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedSalesClientsRoute =
@@ -329,6 +325,18 @@ const AuthenticatedSuperAdminSalesOverviewRoute =
     path: '/super-admin/sales-overview',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminSuppliersIndexRoute =
+  AuthenticatedAdminSuppliersIndexRouteImport.update({
+    id: '/admin/suppliers/',
+    path: '/admin/suppliers/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedAdminSuppliersSupplierIdRoute =
+  AuthenticatedAdminSuppliersSupplierIdRouteImport.update({
+    id: '/admin/suppliers/$supplierId',
+    path: '/admin/suppliers/$supplierId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedItemsItemIdIndexRoute =
   AuthenticatedItemsItemIdIndexRouteImport.update({
     id: '/items/$itemId/',
@@ -341,12 +349,25 @@ const AuthenticatedItemsItemIdEditRoute =
     path: '/items/$itemId/edit',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedPurchasingSuppliersIndexRoute =
+  AuthenticatedPurchasingSuppliersIndexRouteImport.update({
+    id: '/purchasing/suppliers/',
+    path: '/purchasing/suppliers/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedPurchasingSuppliersSupplierIdRoute =
+  AuthenticatedPurchasingSuppliersSupplierIdRouteImport.update({
+    id: '/purchasing/suppliers/$supplierId',
+    path: '/purchasing/suppliers/$supplierId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/sync-issues': typeof AuthenticatedSyncIssuesRoute
   '/unauthorized': typeof AuthenticatedUnauthorizedRoute
   '/accounting/client-pricing': typeof AuthenticatedAccountingClientPricingRoute
   '/accounting/items': typeof AuthenticatedAccountingItemsRoute
@@ -360,7 +381,6 @@ export interface FileRoutesByFullPath {
   '/admin/role-permissions': typeof AuthenticatedAdminRolePermissionsRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/staff': typeof AuthenticatedAdminStaffRoute
-  '/admin/suppliers': typeof AuthenticatedAdminSuppliersRoute
   '/inventory/expiring': typeof AuthenticatedInventoryExpiringRoute
   '/inventory/low-stock': typeof AuthenticatedInventoryLowStockRoute
   '/items/categories': typeof AuthenticatedItemsCategoriesRoute
@@ -371,7 +391,6 @@ export interface FileRoutesByFullPath {
   '/logistics/ready-to-deliver': typeof AuthenticatedLogisticsReadyToDeliverRoute
   '/purchasing/purchase-orders': typeof AuthenticatedPurchasingPurchaseOrdersRoute
   '/purchasing/stock-receiving': typeof AuthenticatedPurchasingStockReceivingRoute
-  '/purchasing/suppliers': typeof AuthenticatedPurchasingSuppliersRoute
   '/sales/clients': typeof AuthenticatedSalesClientsRoute
   '/sales/clients-analytics': typeof AuthenticatedSalesClientsAnalyticsRoute
   '/sales/cofs': typeof AuthenticatedSalesCofsRoute
@@ -389,13 +408,18 @@ export interface FileRoutesByFullPath {
   '/super-admin/role-assignment': typeof AuthenticatedSuperAdminRoleAssignmentRoute
   '/super-admin/sales-overview': typeof AuthenticatedSuperAdminSalesOverviewRoute
   '/items/': typeof AuthenticatedItemsIndexRoute
+  '/admin/suppliers/$supplierId': typeof AuthenticatedAdminSuppliersSupplierIdRoute
   '/items/$itemId/edit': typeof AuthenticatedItemsItemIdEditRoute
+  '/purchasing/suppliers/$supplierId': typeof AuthenticatedPurchasingSuppliersSupplierIdRoute
+  '/admin/suppliers/': typeof AuthenticatedAdminSuppliersIndexRoute
   '/items/$itemId/': typeof AuthenticatedItemsItemIdIndexRoute
+  '/purchasing/suppliers/': typeof AuthenticatedPurchasingSuppliersIndexRoute
 }
 export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/sync-issues': typeof AuthenticatedSyncIssuesRoute
   '/unauthorized': typeof AuthenticatedUnauthorizedRoute
   '/': typeof AuthenticatedIndexRoute
   '/accounting/client-pricing': typeof AuthenticatedAccountingClientPricingRoute
@@ -410,7 +434,6 @@ export interface FileRoutesByTo {
   '/admin/role-permissions': typeof AuthenticatedAdminRolePermissionsRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/admin/staff': typeof AuthenticatedAdminStaffRoute
-  '/admin/suppliers': typeof AuthenticatedAdminSuppliersRoute
   '/inventory/expiring': typeof AuthenticatedInventoryExpiringRoute
   '/inventory/low-stock': typeof AuthenticatedInventoryLowStockRoute
   '/items/categories': typeof AuthenticatedItemsCategoriesRoute
@@ -421,7 +444,6 @@ export interface FileRoutesByTo {
   '/logistics/ready-to-deliver': typeof AuthenticatedLogisticsReadyToDeliverRoute
   '/purchasing/purchase-orders': typeof AuthenticatedPurchasingPurchaseOrdersRoute
   '/purchasing/stock-receiving': typeof AuthenticatedPurchasingStockReceivingRoute
-  '/purchasing/suppliers': typeof AuthenticatedPurchasingSuppliersRoute
   '/sales/clients': typeof AuthenticatedSalesClientsRoute
   '/sales/clients-analytics': typeof AuthenticatedSalesClientsAnalyticsRoute
   '/sales/cofs': typeof AuthenticatedSalesCofsRoute
@@ -439,8 +461,12 @@ export interface FileRoutesByTo {
   '/super-admin/role-assignment': typeof AuthenticatedSuperAdminRoleAssignmentRoute
   '/super-admin/sales-overview': typeof AuthenticatedSuperAdminSalesOverviewRoute
   '/items': typeof AuthenticatedItemsIndexRoute
+  '/admin/suppliers/$supplierId': typeof AuthenticatedAdminSuppliersSupplierIdRoute
   '/items/$itemId/edit': typeof AuthenticatedItemsItemIdEditRoute
+  '/purchasing/suppliers/$supplierId': typeof AuthenticatedPurchasingSuppliersSupplierIdRoute
+  '/admin/suppliers': typeof AuthenticatedAdminSuppliersIndexRoute
   '/items/$itemId': typeof AuthenticatedItemsItemIdIndexRoute
+  '/purchasing/suppliers': typeof AuthenticatedPurchasingSuppliersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -448,6 +474,7 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/sync-issues': typeof AuthenticatedSyncIssuesRoute
   '/_authenticated/unauthorized': typeof AuthenticatedUnauthorizedRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/accounting/client-pricing': typeof AuthenticatedAccountingClientPricingRoute
@@ -462,7 +489,6 @@ export interface FileRoutesById {
   '/_authenticated/admin/role-permissions': typeof AuthenticatedAdminRolePermissionsRoute
   '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/_authenticated/admin/staff': typeof AuthenticatedAdminStaffRoute
-  '/_authenticated/admin/suppliers': typeof AuthenticatedAdminSuppliersRoute
   '/_authenticated/inventory/expiring': typeof AuthenticatedInventoryExpiringRoute
   '/_authenticated/inventory/low-stock': typeof AuthenticatedInventoryLowStockRoute
   '/_authenticated/items/categories': typeof AuthenticatedItemsCategoriesRoute
@@ -473,7 +499,6 @@ export interface FileRoutesById {
   '/_authenticated/logistics/ready-to-deliver': typeof AuthenticatedLogisticsReadyToDeliverRoute
   '/_authenticated/purchasing/purchase-orders': typeof AuthenticatedPurchasingPurchaseOrdersRoute
   '/_authenticated/purchasing/stock-receiving': typeof AuthenticatedPurchasingStockReceivingRoute
-  '/_authenticated/purchasing/suppliers': typeof AuthenticatedPurchasingSuppliersRoute
   '/_authenticated/sales/clients': typeof AuthenticatedSalesClientsRoute
   '/_authenticated/sales/clients-analytics': typeof AuthenticatedSalesClientsAnalyticsRoute
   '/_authenticated/sales/cofs': typeof AuthenticatedSalesCofsRoute
@@ -491,8 +516,12 @@ export interface FileRoutesById {
   '/_authenticated/super-admin/role-assignment': typeof AuthenticatedSuperAdminRoleAssignmentRoute
   '/_authenticated/super-admin/sales-overview': typeof AuthenticatedSuperAdminSalesOverviewRoute
   '/_authenticated/items/': typeof AuthenticatedItemsIndexRoute
+  '/_authenticated/admin/suppliers/$supplierId': typeof AuthenticatedAdminSuppliersSupplierIdRoute
   '/_authenticated/items/$itemId/edit': typeof AuthenticatedItemsItemIdEditRoute
+  '/_authenticated/purchasing/suppliers/$supplierId': typeof AuthenticatedPurchasingSuppliersSupplierIdRoute
+  '/_authenticated/admin/suppliers/': typeof AuthenticatedAdminSuppliersIndexRoute
   '/_authenticated/items/$itemId/': typeof AuthenticatedItemsItemIdIndexRoute
+  '/_authenticated/purchasing/suppliers/': typeof AuthenticatedPurchasingSuppliersIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -501,6 +530,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/reset-password'
+    | '/sync-issues'
     | '/unauthorized'
     | '/accounting/client-pricing'
     | '/accounting/items'
@@ -514,7 +544,6 @@ export interface FileRouteTypes {
     | '/admin/role-permissions'
     | '/admin/settings'
     | '/admin/staff'
-    | '/admin/suppliers'
     | '/inventory/expiring'
     | '/inventory/low-stock'
     | '/items/categories'
@@ -525,7 +554,6 @@ export interface FileRouteTypes {
     | '/logistics/ready-to-deliver'
     | '/purchasing/purchase-orders'
     | '/purchasing/stock-receiving'
-    | '/purchasing/suppliers'
     | '/sales/clients'
     | '/sales/clients-analytics'
     | '/sales/cofs'
@@ -543,13 +571,18 @@ export interface FileRouteTypes {
     | '/super-admin/role-assignment'
     | '/super-admin/sales-overview'
     | '/items/'
+    | '/admin/suppliers/$supplierId'
     | '/items/$itemId/edit'
+    | '/purchasing/suppliers/$supplierId'
+    | '/admin/suppliers/'
     | '/items/$itemId/'
+    | '/purchasing/suppliers/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/forgot-password'
     | '/login'
     | '/reset-password'
+    | '/sync-issues'
     | '/unauthorized'
     | '/'
     | '/accounting/client-pricing'
@@ -564,7 +597,6 @@ export interface FileRouteTypes {
     | '/admin/role-permissions'
     | '/admin/settings'
     | '/admin/staff'
-    | '/admin/suppliers'
     | '/inventory/expiring'
     | '/inventory/low-stock'
     | '/items/categories'
@@ -575,7 +607,6 @@ export interface FileRouteTypes {
     | '/logistics/ready-to-deliver'
     | '/purchasing/purchase-orders'
     | '/purchasing/stock-receiving'
-    | '/purchasing/suppliers'
     | '/sales/clients'
     | '/sales/clients-analytics'
     | '/sales/cofs'
@@ -593,14 +624,19 @@ export interface FileRouteTypes {
     | '/super-admin/role-assignment'
     | '/super-admin/sales-overview'
     | '/items'
+    | '/admin/suppliers/$supplierId'
     | '/items/$itemId/edit'
+    | '/purchasing/suppliers/$supplierId'
+    | '/admin/suppliers'
     | '/items/$itemId'
+    | '/purchasing/suppliers'
   id:
     | '__root__'
     | '/_authenticated'
     | '/forgot-password'
     | '/login'
     | '/reset-password'
+    | '/_authenticated/sync-issues'
     | '/_authenticated/unauthorized'
     | '/_authenticated/'
     | '/_authenticated/accounting/client-pricing'
@@ -615,7 +651,6 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/role-permissions'
     | '/_authenticated/admin/settings'
     | '/_authenticated/admin/staff'
-    | '/_authenticated/admin/suppliers'
     | '/_authenticated/inventory/expiring'
     | '/_authenticated/inventory/low-stock'
     | '/_authenticated/items/categories'
@@ -626,7 +661,6 @@ export interface FileRouteTypes {
     | '/_authenticated/logistics/ready-to-deliver'
     | '/_authenticated/purchasing/purchase-orders'
     | '/_authenticated/purchasing/stock-receiving'
-    | '/_authenticated/purchasing/suppliers'
     | '/_authenticated/sales/clients'
     | '/_authenticated/sales/clients-analytics'
     | '/_authenticated/sales/cofs'
@@ -644,8 +678,12 @@ export interface FileRouteTypes {
     | '/_authenticated/super-admin/role-assignment'
     | '/_authenticated/super-admin/sales-overview'
     | '/_authenticated/items/'
+    | '/_authenticated/admin/suppliers/$supplierId'
     | '/_authenticated/items/$itemId/edit'
+    | '/_authenticated/purchasing/suppliers/$supplierId'
+    | '/_authenticated/admin/suppliers/'
     | '/_authenticated/items/$itemId/'
+    | '/_authenticated/purchasing/suppliers/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -690,6 +728,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/sync-issues': {
+      id: '/_authenticated/sync-issues'
+      path: '/sync-issues'
+      fullPath: '/sync-issues'
+      preLoaderRoute: typeof AuthenticatedSyncIssuesRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/unauthorized': {
@@ -783,13 +828,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminStaffRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/admin/suppliers': {
-      id: '/_authenticated/admin/suppliers'
-      path: '/admin/suppliers'
-      fullPath: '/admin/suppliers'
-      preLoaderRoute: typeof AuthenticatedAdminSuppliersRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
     '/_authenticated/inventory/expiring': {
       id: '/_authenticated/inventory/expiring'
       path: '/inventory/expiring'
@@ -865,13 +903,6 @@ declare module '@tanstack/react-router' {
       path: '/purchasing/stock-receiving'
       fullPath: '/purchasing/stock-receiving'
       preLoaderRoute: typeof AuthenticatedPurchasingStockReceivingRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/purchasing/suppliers': {
-      id: '/_authenticated/purchasing/suppliers'
-      path: '/purchasing/suppliers'
-      fullPath: '/purchasing/suppliers'
-      preLoaderRoute: typeof AuthenticatedPurchasingSuppliersRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/sales/clients': {
@@ -986,6 +1017,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSuperAdminSalesOverviewRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin/suppliers/': {
+      id: '/_authenticated/admin/suppliers/'
+      path: '/admin/suppliers'
+      fullPath: '/admin/suppliers/'
+      preLoaderRoute: typeof AuthenticatedAdminSuppliersIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/admin/suppliers/$supplierId': {
+      id: '/_authenticated/admin/suppliers/$supplierId'
+      path: '/admin/suppliers/$supplierId'
+      fullPath: '/admin/suppliers/$supplierId'
+      preLoaderRoute: typeof AuthenticatedAdminSuppliersSupplierIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/items/$itemId/': {
       id: '/_authenticated/items/$itemId/'
       path: '/items/$itemId'
@@ -1000,10 +1045,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedItemsItemIdEditRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/purchasing/suppliers/': {
+      id: '/_authenticated/purchasing/suppliers/'
+      path: '/purchasing/suppliers'
+      fullPath: '/purchasing/suppliers/'
+      preLoaderRoute: typeof AuthenticatedPurchasingSuppliersIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/purchasing/suppliers/$supplierId': {
+      id: '/_authenticated/purchasing/suppliers/$supplierId'
+      path: '/purchasing/suppliers/$supplierId'
+      fullPath: '/purchasing/suppliers/$supplierId'
+      preLoaderRoute: typeof AuthenticatedPurchasingSuppliersSupplierIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
   }
 }
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedSyncIssuesRoute: typeof AuthenticatedSyncIssuesRoute
   AuthenticatedUnauthorizedRoute: typeof AuthenticatedUnauthorizedRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedAccountingClientPricingRoute: typeof AuthenticatedAccountingClientPricingRoute
@@ -1018,7 +1078,6 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminRolePermissionsRoute: typeof AuthenticatedAdminRolePermissionsRoute
   AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
   AuthenticatedAdminStaffRoute: typeof AuthenticatedAdminStaffRoute
-  AuthenticatedAdminSuppliersRoute: typeof AuthenticatedAdminSuppliersRoute
   AuthenticatedInventoryExpiringRoute: typeof AuthenticatedInventoryExpiringRoute
   AuthenticatedInventoryLowStockRoute: typeof AuthenticatedInventoryLowStockRoute
   AuthenticatedItemsCategoriesRoute: typeof AuthenticatedItemsCategoriesRoute
@@ -1029,7 +1088,6 @@ interface AuthenticatedRouteChildren {
   AuthenticatedLogisticsReadyToDeliverRoute: typeof AuthenticatedLogisticsReadyToDeliverRoute
   AuthenticatedPurchasingPurchaseOrdersRoute: typeof AuthenticatedPurchasingPurchaseOrdersRoute
   AuthenticatedPurchasingStockReceivingRoute: typeof AuthenticatedPurchasingStockReceivingRoute
-  AuthenticatedPurchasingSuppliersRoute: typeof AuthenticatedPurchasingSuppliersRoute
   AuthenticatedSalesClientsRoute: typeof AuthenticatedSalesClientsRoute
   AuthenticatedSalesClientsAnalyticsRoute: typeof AuthenticatedSalesClientsAnalyticsRoute
   AuthenticatedSalesCofsRoute: typeof AuthenticatedSalesCofsRoute
@@ -1047,11 +1105,16 @@ interface AuthenticatedRouteChildren {
   AuthenticatedSuperAdminRoleAssignmentRoute: typeof AuthenticatedSuperAdminRoleAssignmentRoute
   AuthenticatedSuperAdminSalesOverviewRoute: typeof AuthenticatedSuperAdminSalesOverviewRoute
   AuthenticatedItemsIndexRoute: typeof AuthenticatedItemsIndexRoute
+  AuthenticatedAdminSuppliersSupplierIdRoute: typeof AuthenticatedAdminSuppliersSupplierIdRoute
   AuthenticatedItemsItemIdEditRoute: typeof AuthenticatedItemsItemIdEditRoute
+  AuthenticatedPurchasingSuppliersSupplierIdRoute: typeof AuthenticatedPurchasingSuppliersSupplierIdRoute
+  AuthenticatedAdminSuppliersIndexRoute: typeof AuthenticatedAdminSuppliersIndexRoute
   AuthenticatedItemsItemIdIndexRoute: typeof AuthenticatedItemsItemIdIndexRoute
+  AuthenticatedPurchasingSuppliersIndexRoute: typeof AuthenticatedPurchasingSuppliersIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedSyncIssuesRoute: AuthenticatedSyncIssuesRoute,
   AuthenticatedUnauthorizedRoute: AuthenticatedUnauthorizedRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedAccountingClientPricingRoute:
@@ -1071,7 +1134,6 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedAdminRolePermissionsRoute,
   AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
   AuthenticatedAdminStaffRoute: AuthenticatedAdminStaffRoute,
-  AuthenticatedAdminSuppliersRoute: AuthenticatedAdminSuppliersRoute,
   AuthenticatedInventoryExpiringRoute: AuthenticatedInventoryExpiringRoute,
   AuthenticatedInventoryLowStockRoute: AuthenticatedInventoryLowStockRoute,
   AuthenticatedItemsCategoriesRoute: AuthenticatedItemsCategoriesRoute,
@@ -1087,7 +1149,6 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedPurchasingPurchaseOrdersRoute,
   AuthenticatedPurchasingStockReceivingRoute:
     AuthenticatedPurchasingStockReceivingRoute,
-  AuthenticatedPurchasingSuppliersRoute: AuthenticatedPurchasingSuppliersRoute,
   AuthenticatedSalesClientsRoute: AuthenticatedSalesClientsRoute,
   AuthenticatedSalesClientsAnalyticsRoute:
     AuthenticatedSalesClientsAnalyticsRoute,
@@ -1112,8 +1173,15 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedSuperAdminSalesOverviewRoute:
     AuthenticatedSuperAdminSalesOverviewRoute,
   AuthenticatedItemsIndexRoute: AuthenticatedItemsIndexRoute,
+  AuthenticatedAdminSuppliersSupplierIdRoute:
+    AuthenticatedAdminSuppliersSupplierIdRoute,
   AuthenticatedItemsItemIdEditRoute: AuthenticatedItemsItemIdEditRoute,
+  AuthenticatedPurchasingSuppliersSupplierIdRoute:
+    AuthenticatedPurchasingSuppliersSupplierIdRoute,
+  AuthenticatedAdminSuppliersIndexRoute: AuthenticatedAdminSuppliersIndexRoute,
   AuthenticatedItemsItemIdIndexRoute: AuthenticatedItemsItemIdIndexRoute,
+  AuthenticatedPurchasingSuppliersIndexRoute:
+    AuthenticatedPurchasingSuppliersIndexRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(

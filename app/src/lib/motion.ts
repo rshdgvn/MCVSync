@@ -1,33 +1,15 @@
-import { useEffect, useState } from "react";
 import type { Transition } from "framer-motion";
 
-export const TRANSITION: Transition = {
-  duration: 0.2,
-  ease: [0.4, 0, 0.2, 1],
-};
+export const DURATION = {
+  fast: 0.15,
+  base: 0.2,
+  slow: 0.25,
+} as const;
 
-export const FAST_TRANSITION: Transition = {
-  duration: 0.15,
-  ease: [0.4, 0, 0.2, 1],
-};
+export const EASE_STANDARD: [number, number, number, number] = [0.2, 0, 0, 1];
 
-export function usePrefersReducedMotion(): boolean {
-  const [prefersReduced, setPrefersReduced] = useState(
-    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-  );
+export const FAST_TRANSITION: Transition = { duration: DURATION.fast, ease: EASE_STANDARD };
 
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const handleChange = () => setPrefersReduced(mediaQuery.matches);
+export const BASE_TRANSITION: Transition = { duration: DURATION.base, ease: EASE_STANDARD };
 
-    mediaQuery.addEventListener("change", handleChange);
-    return () => mediaQuery.removeEventListener("change", handleChange);
-  }, []);
-
-  return prefersReduced;
-}
-
-export function useMotionTransition(transition: Transition = TRANSITION): Transition {
-  const prefersReducedMotion = usePrefersReducedMotion();
-  return prefersReducedMotion ? { duration: 0 } : transition;
-}
+export const SLOW_TRANSITION: Transition = { duration: DURATION.slow, ease: EASE_STANDARD };

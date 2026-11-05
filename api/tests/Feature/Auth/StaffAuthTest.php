@@ -82,3 +82,28 @@ test('staff login returns the same profile as me so the client can skip a round 
     $login->assertOk()->assertJsonPath('user.email', $user->email)->assertJsonPath('user.role', 'purchasing');
     expect($login->json('user'))->toEqual($this->getJson('/api/staff/auth/me')->json());
 });
+
+test('remember me sets a long-lived recaller cookie only when requested', function () {
+    $user = makeStaffUser();
+    $recaller = auth()->guard('staff')->getRecallerName();
+
+    $this->postJson('/api/staff/auth/login', ['email' => $user->email, 'password' => 'password', 'remember' => true])
+        ->assertOk()
+        ->assertCookie($recaller);
+
+    expect($user->fresh()->remember_token)->not->toBeNull();
+
+    auth()->guard('staff')->logout();
+
+    $this->postJson('/api/staff/auth/login', ['email' => $user->email, 'password' => 'password'])
+        ->assertOk()
+        ->assertCookieMissing($recaller);
+});
+
+test('remember must be a boolean', function () {
+    $user = makeStaffUser();
+
+    $this->postJson('/api/staff/auth/login', ['email' => $user->email, 'password' => 'password', 'remember' => 'yes please'])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('remember');
+});

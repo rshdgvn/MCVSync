@@ -105,3 +105,54 @@ test('creating a supplier without a name is rejected', function () {
     $response->assertUnprocessable();
     $response->assertJsonValidationErrors('name');
 });
+
+test('suppliers list filters by active status and returns status counts that follow the search', function () {
+    $user = makeStaffUser();
+    assignStaffRole($user, 'purchasing');
+
+    $activeAcme = Supplier::factory()->create(['name' => 'Acme Active', 'is_active' => true]);
+    $inactiveAcme = Supplier::factory()->create(['name' => 'Acme Inactive', 'is_active' => false]);
+    Supplier::factory()->create(['name' => 'Globex Active', 'is_active' => true]);
+
+    $inactive = $this->actingAs($user, 'staff')->getJson('/api/staff/suppliers?is_active=0');
+    $inactive->assertOk();
+    expect(collect($inactive->json('data'))->pluck('id')->all())->toBe([$inactiveAcme->id]);
+    $inactive->assertJsonPath('counts', ['all' => 3, 'active' => 2, 'inactive' => 1]);
+
+    $searched = $this->actingAs($user, 'staff')->getJson('/api/staff/suppliers?search=Acme&is_active=1');
+    $searched->assertOk();
+    expect(collect($searched->json('data'))->pluck('id')->all())->toBe([$activeAcme->id]);
+    $searched->assertJsonPath('counts', ['all' => 2, 'active' => 1, 'inactive' => 1]);
+});
+
+test('a single supplier can be fetched by id, including an inactive one', function () {
+    $user = makeStaffUser();
+    assignStaffRole($user, 'purchasing');
+
+    $supplier = Supplier::factory()->create(['name' => 'Acme Medical Supplies', 'is_active' => false]);
+
+    $response = $this->actingAs($user, 'staff')->getJson("/api/staff/suppliers/{$supplier->id}");
+
+    $response->assertOk();
+    $response->assertJsonPath('id', $supplier->id);
+    $response->assertJsonPath('name', 'Acme Medical Supplies');
+    $response->assertJsonPath('is_active', false);
+});
+
+test('fetching a supplier that does not exist returns not found', function () {
+    $user = makeStaffUser();
+    assignStaffRole($user, 'purchasing');
+
+    $this->actingAs($user, 'staff')->getJson('/api/staff/suppliers/999999')->assertNotFound();
+});
+
+test('sales, accounting, and logistics cannot fetch a single supplier', function () {
+    $supplier = Supplier::factory()->create();
+
+    foreach (['sales', 'accounting', 'logistics'] as $role) {
+        $user = makeStaffUser();
+        assignStaffRole($user, $role);
+
+        $this->actingAs($user, 'staff')->getJson("/api/staff/suppliers/{$supplier->id}")->assertForbidden();
+    }
+});
