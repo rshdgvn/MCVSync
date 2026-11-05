@@ -20,6 +20,9 @@ interface ComboboxProps {
   placeholder?: string;
   disabled?: boolean;
   invalid?: boolean;
+  valueLabel?: string;
+  onQueryChange?: (query: string) => void;
+  isLoading?: boolean;
 }
 
 function filterOptions(options: ComboboxOption[], query: string): ComboboxOption[] {
@@ -36,6 +39,9 @@ export function Combobox({
   placeholder = "Select…",
   disabled = false,
   invalid = false,
+  valueLabel,
+  onQueryChange,
+  isLoading = false,
 }: ComboboxProps) {
   const isMobile = useIsMobile();
   const listId = useId();
@@ -43,8 +49,17 @@ export function Combobox({
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
-  const filtered = useMemo(() => filterOptions(options, query), [options, query]);
-  const selectedLabel = options.find((option) => option.value === value)?.label;
+  const filtered = useMemo(
+    () => (onQueryChange ? options : filterOptions(options, query)),
+    [onQueryChange, options, query],
+  );
+  const selectedLabel = options.find((option) => option.value === value)?.label ?? valueLabel;
+
+  function changeQuery(next: string) {
+    setQuery(next);
+    setActiveIndex(0);
+    onQueryChange?.(next);
+  }
 
   useEffect(() => {
     if (!open || isMobile) {
@@ -60,8 +75,7 @@ export function Combobox({
   }, [open, isMobile]);
 
   function openList() {
-    setQuery("");
-    setActiveIndex(0);
+    changeQuery("");
     setOpen(true);
   }
 
@@ -95,10 +109,7 @@ export function Combobox({
         aria-label={`Search ${label}`}
         aria-controls={listId}
         value={query}
-        onChange={(event) => {
-          setQuery(event.target.value);
-          setActiveIndex(0);
-        }}
+        onChange={(event) => changeQuery(event.target.value)}
         onKeyDown={handleSearchKeys}
         placeholder="Search…"
         className="h-11 min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-faint md:h-9 md:text-xs"
@@ -108,7 +119,9 @@ export function Combobox({
 
   const optionList = (
     <ul id={listId} role="listbox" aria-label={label} className="min-h-0 flex-1 overflow-y-auto py-1">
-      {filtered.length === 0 && <li className="px-3 py-2.5 text-sm text-faint md:text-xs">No results</li>}
+      {filtered.length === 0 && (
+        <li className="px-3 py-2.5 text-sm text-faint md:text-xs">{isLoading ? "Searching…" : "No results"}</li>
+      )}
       {filtered.map((option, index) => {
         const isSelected = option.value === value;
 

@@ -7,6 +7,7 @@ import {
   Clock3,
   Contact,
   FileText,
+  FileWarning,
   GitCompareArrows,
   History,
   Home,
@@ -303,6 +304,7 @@ export const NAVIGATION: Record<Role, NavItem[]> = {
       icon: Warehouse,
       to: "/purchasing/stock-receiving",
     },
+    { key: "discrepancies", label: "Discrepancies", icon: FileWarning, to: "/purchasing/discrepancies" },
     { key: "suppliers", label: "Suppliers", icon: Truck, to: "/purchasing/suppliers" },
   ],
 };

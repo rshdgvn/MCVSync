@@ -120,6 +120,7 @@ Route::prefix('staff/purchase-orders')
 Route::prefix('staff/discrepancies')
     ->middleware(['auth:staff', 'ensure-active-account', 'scope-to-branch'])
     ->group(function () {
+        Route::get('/', [DiscrepancyController::class, 'list']);
         Route::post('/{discrepancy}/resolve', [DiscrepancyController::class, 'resolve']);
     });
 

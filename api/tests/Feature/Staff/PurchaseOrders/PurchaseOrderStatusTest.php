@@ -76,6 +76,7 @@ test('line items can be added, edited, and removed while open', function () {
     assignStaffRole($user, 'purchasing');
 
     $po = PurchaseOrder::factory()->create(['branch_id' => $user->employee->branch_id, 'status' => 'open']);
+    $po->items()->create(['item_id' => Item::factory()->create()->id, 'quantity_ordered' => 1, 'unit_cost' => 1, 'discount' => 0, 'total' => 1]);
     $item = Item::factory()->create();
 
     $add = $this->actingAs($user, 'staff')->postJson("/api/staff/purchase-orders/{$po->id}/items", [
@@ -100,7 +101,7 @@ test('line items can be added, edited, and removed while open', function () {
         ->deleteJson("/api/staff/purchase-orders/{$po->id}/items/{$lineId}")
         ->assertNoContent();
 
-    expect($po->items()->count())->toBe(0);
+    expect($po->items()->count())->toBe(1);
 });
 
 test('line items cannot be added, edited, or removed once ready_for_delivery', function () {

@@ -6,9 +6,9 @@ import { Input } from "@/components/ui/input";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
 interface FilterBarProps {
-  search: string;
-  onSearchChange: (search: string) => void;
-  searchPlaceholder: string;
+  search?: string;
+  onSearchChange?: (search: string) => void;
+  searchPlaceholder?: string;
   children?: ReactNode;
   activeFilterCount?: number;
   onClearFilters?: () => void;
@@ -22,34 +22,36 @@ export function FilterBar({
   activeFilterCount = 0,
   onClearFilters,
 }: FilterBarProps) {
-  const [draft, setDraft] = useState(search);
+  const [draft, setDraft] = useState(search ?? "");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const debouncedDraft = useDebouncedValue(draft);
 
   useEffect(() => {
-    setDraft(search);
+    setDraft(search ?? "");
   }, [search]);
 
   useEffect(() => {
-    if (debouncedDraft !== search) {
+    if (onSearchChange && debouncedDraft !== (search ?? "")) {
       onSearchChange(debouncedDraft);
     }
   }, [debouncedDraft, search, onSearchChange]);
 
   return (
     <div className="flex items-center gap-2 md:flex-wrap md:gap-2.5">
-      <div className="relative min-w-0 flex-1 md:w-64 md:flex-none">
-        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-faint md:left-2.5 md:size-3.5" />
-        <Input
-          type="search"
-          enterKeyHint="search"
-          aria-label={searchPlaceholder}
-          placeholder={searchPlaceholder}
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          className="pl-9 md:pl-8"
-        />
-      </div>
+      {onSearchChange && (
+        <div className="relative min-w-0 flex-1 md:w-64 md:flex-none">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-faint md:left-2.5 md:size-3.5" />
+          <Input
+            type="search"
+            enterKeyHint="search"
+            aria-label={searchPlaceholder}
+            placeholder={searchPlaceholder}
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            className="pl-9 md:pl-8"
+          />
+        </div>
+      )}
 
       {children && (
         <>

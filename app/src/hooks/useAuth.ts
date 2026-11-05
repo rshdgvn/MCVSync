@@ -12,6 +12,8 @@ import {
   resetPassword,
 } from "@/api/auth";
 import { purgeUserData } from "@/pwa/userCache";
+import { useActingAsStore } from "@/stores/actingAs.store";
+import type { Role } from "@/types/user";
 
 export const meQueryKey = ["auth", "me"] as const;
 
@@ -23,6 +25,12 @@ export const meQueryOptions = queryOptions({
 
 export function useMeQuery() {
   return useQuery(meQueryOptions);
+}
+
+export function useEffectiveRole(): Role | null {
+  const role = useMeQuery().data?.role ?? null;
+  const actingAs = useActingAsStore((state) => state.actingAs);
+  return actingAs ?? role;
 }
 
 export function useLoginMutation() {

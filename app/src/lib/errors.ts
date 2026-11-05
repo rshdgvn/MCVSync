@@ -45,9 +45,15 @@ export function getFieldErrors(error: unknown): Record<string, string> {
   );
 }
 
-export function getGeneralError(error: unknown): string | null {
+export function getGeneralError(error: unknown, formFields?: readonly string[]): string | null {
   if (!error) {
     return null;
   }
-  return Object.keys(getFieldErrors(error)).length === 0 ? getErrorMessage(error) : null;
+  const fieldErrors = getFieldErrors(error);
+  const fields = Object.keys(fieldErrors);
+  if (fields.length === 0) {
+    return getErrorMessage(error);
+  }
+  const unrendered = formFields && fields.find((field) => !formFields.includes(field));
+  return unrendered ? fieldErrors[unrendered] : null;
 }

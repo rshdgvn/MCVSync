@@ -94,4 +94,9 @@ class PurchaseOrder extends Model implements ReceivableDocument
     {
         return $this->branch_id === $branchId;
     }
+
+    public function documentNumber(): string
+    {
+        return $this->po_number;
+    }
 }

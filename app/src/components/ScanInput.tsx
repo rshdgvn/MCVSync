@@ -8,6 +8,8 @@ import type { ScannerMode, UseBarcodeScannerOptions } from "@/lib/scanner/types"
 import { cn } from "@/lib/utils";
 import { useScanSessionStore } from "@/stores/scanSession.store";
 
+export type ScanOutcome = boolean | void;
+
 export interface ScanEvent {
   value: string;
   mode: ScannerMode;
@@ -16,7 +18,7 @@ export interface ScanEvent {
 type Flash = "success" | "error" | null;
 
 interface ScanInputProps {
-  onScan: (scan: ScanEvent) => void | Promise<void>;
+  onScan: (scan: ScanEvent) => ScanOutcome | Promise<ScanOutcome>;
   options?: UseBarcodeScannerOptions;
   placeholder?: string;
 }
@@ -52,7 +54,9 @@ export function ScanInput({ onScan, options, placeholder = "Scan or type a barco
     return subscribe(async (code) => {
       setManualCode("");
       showFlash("success");
-      await onScan({ value: code, mode });
+      if ((await onScan({ value: code, mode })) === false) {
+        showFlash("error");
+      }
     });
   }, [subscribe, onScan, mode]);
 
@@ -78,7 +82,11 @@ export function ScanInput({ onScan, options, placeholder = "Scan or type a barco
     }
     setManualCode("");
     showFlash("success");
-    void onScan({ value, mode: "usb" });
+    void Promise.resolve(onScan({ value, mode: "usb" })).then((outcome) => {
+      if (outcome === false) {
+        showFlash("error");
+      }
+    });
   }
 
   function toggleMode(next: ScannerMode) {
