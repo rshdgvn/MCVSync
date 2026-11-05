@@ -5,6 +5,7 @@ import { DetailHeader } from "@/components/DetailHeader";
 import { DetailLoadError } from "@/components/DetailLoadError";
 import { StatusBadge } from "@/components/StatusBadge";
 import { SupplierDialog } from "@/components/suppliers/SupplierDialog";
+import { SupplierPurchaseOrders } from "@/components/suppliers/SupplierPurchaseOrders";
 import { SupplierStatusDialog } from "@/components/suppliers/SupplierStatusDialog";
 import { SUPPLIER_ROUTES, type SupplierSection } from "@/components/suppliers/supplierRoutes";
 import { Button } from "@/components/ui/button";
@@ -82,6 +83,8 @@ export function SupplierDetailPage({ section, supplierId }: SupplierDetailPagePr
         </DetailField>
         <DetailField label="Address">{supplier.address}</DetailField>
       </DetailCard>
+
+      <SupplierPurchaseOrders supplier={supplier} section={section} />
 
       {editing && <SupplierDialog supplier={supplier} onClose={() => setEditing(false)} />}
       <SupplierStatusDialog supplier={statusTarget} onClose={() => setStatusTarget(null)} />
