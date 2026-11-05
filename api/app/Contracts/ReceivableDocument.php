@@ -26,4 +26,6 @@ interface ReceivableDocument
     public function markFullyReceived(): void;
 
     public function involvesBranch(int $branchId): bool;
+
+    public function documentNumber(): string;
 }

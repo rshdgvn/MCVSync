@@ -114,4 +114,9 @@ class TransferRequest extends Model implements FulfillableDocument, ReceivableDo
     {
         return $this->requesting_branch_id === $branchId || $this->fulfilling_branch_id === $branchId;
     }
+
+    public function documentNumber(): string
+    {
+        return $this->transfer_number;
+    }
 }
