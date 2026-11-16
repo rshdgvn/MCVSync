@@ -78,3 +78,39 @@ test('low stock alert flags items at or below their reorder point', function () 
         ->not->toContain($healthy->id)
         ->not->toContain($noThreshold->id);
 });
+
+test('low stock summary counts every matching item, not just the current page', function () {
+    $branch = Branch::firstOrCreate(['code' => 'APALIT'], ['name' => 'Apalit', 'address' => 'Apalit', 'is_main' => true]);
+    $user = makeStaffUser([], 'APALIT');
+    assignStaffRole($user, 'purchasing');
+
+    foreach ([3, 7, 0] as $quantity) {
+        $item = Item::factory()->create(['reorder_point' => 10]);
+        Batch::factory()->create(['item_id' => $item->id, 'branch_id' => $branch->id, 'quantity' => $quantity, 'status' => 'active']);
+    }
+    Item::factory()->create(['reorder_point' => 10]);
+    $healthy = Item::factory()->create(['reorder_point' => 10]);
+    Batch::factory()->create(['item_id' => $healthy->id, 'branch_id' => $branch->id, 'quantity' => 50, 'status' => 'active']);
+
+    $this->actingAs($user, 'staff')->getJson('/api/staff/inventory/alerts/low-stock?per_page=1')
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('summary.low_stock', 4)
+        ->assertJsonPath('summary.out_of_stock', 2);
+});
+
+test('low stock summary is scoped to the user branch', function () {
+    $apalit = Branch::firstOrCreate(['code' => 'APALIT'], ['name' => 'Apalit', 'address' => 'Apalit', 'is_main' => true]);
+    $cebu = Branch::firstOrCreate(['code' => 'CEBU'], ['name' => 'Cebu', 'address' => 'Cebu', 'is_main' => false]);
+    $user = makeStaffUser([], 'APALIT');
+    assignStaffRole($user, 'purchasing');
+
+    $item = Item::factory()->create(['reorder_point' => 10]);
+    Batch::factory()->create(['item_id' => $item->id, 'branch_id' => $apalit->id, 'quantity' => 50, 'status' => 'active']);
+    Batch::factory()->create(['item_id' => $item->id, 'branch_id' => $cebu->id, 'quantity' => 2, 'status' => 'active']);
+
+    $this->actingAs($user, 'staff')->getJson('/api/staff/inventory/alerts/low-stock')
+        ->assertOk()
+        ->assertJsonPath('summary.low_stock', 0)
+        ->assertJsonPath('summary.out_of_stock', 0);
+});

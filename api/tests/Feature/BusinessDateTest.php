@@ -109,3 +109,14 @@ test('the business timezone is configurable', function () {
 
     expect(BusinessDate::todayString())->toBe('2026-11-16');
 });
+
+test('a payment due yesterday in Manila is counted overdue in the pending summary', function () {
+    $user = assignStaffRole(makeStaffUser(), 'accounting');
+    Payment::factory()->create(['status' => 'payment_due', 'expected_payment_date' => '2026-11-16']);
+    Payment::factory()->create(['status' => 'payment_due', 'expected_payment_date' => '2026-11-17']);
+
+    $this->actingAs($user, 'staff')->getJson('/api/staff/payments/pending')
+        ->assertOk()
+        ->assertJsonPath('summary.overdue', 1)
+        ->assertJsonPath('summary.within_terms', 1);
+});

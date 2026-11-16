@@ -25,8 +25,9 @@ class AlertController extends Controller
     {
         $this->authorize('viewAny', Item::class);
 
-        return LowStockItemResource::collection(
-            $alerts->lowStockItems($this->currentBranchId(), $this->perPage($request)),
-        );
+        $branchId = $this->currentBranchId();
+
+        return LowStockItemResource::collection($alerts->lowStockItems($branchId, $this->perPage($request)))
+            ->additional(['summary' => $alerts->lowStockSummary($branchId)]);
     }
 }

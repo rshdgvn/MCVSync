@@ -105,3 +105,27 @@ test('sales and purchasing have no access to payments at all', function () {
         $this->actingAs($user, 'staff')->getJson('/api/staff/payments/pending')->assertForbidden();
     }
 });
+
+test('pending summary counts every pending payment, not just the current page', function () {
+    $user = assignStaffRole(makeStaffUser(), 'accounting');
+
+    Payment::factory()->count(2)->create(['status' => 'payment_due', 'expected_payment_date' => BusinessDate::today()->subDay()->toDateString()]);
+    Payment::factory()->create(['status' => 'payment_due', 'expected_payment_date' => BusinessDate::todayString()]);
+    Payment::factory()->create(['status' => 'payment_due', 'expected_payment_date' => BusinessDate::today()->addDays(10)->toDateString()]);
+    Payment::factory()->create(['status' => 'paid', 'expected_payment_date' => BusinessDate::today()->subDays(30)->toDateString()]);
+
+    $this->actingAs($user, 'staff')->getJson('/api/staff/payments/pending?per_page=1')
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('summary.total', 4)
+        ->assertJsonPath('summary.overdue', 2)
+        ->assertJsonPath('summary.within_terms', 2);
+});
+
+test('pending summary is all zeros when nothing is pending', function () {
+    $user = assignStaffRole(makeStaffUser(), 'accounting');
+
+    $this->actingAs($user, 'staff')->getJson('/api/staff/payments/pending')
+        ->assertOk()
+        ->assertJsonPath('summary', ['total' => 0, 'overdue' => 0, 'within_terms' => 0]);
+});

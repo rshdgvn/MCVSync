@@ -58,6 +58,23 @@ class PaymentService
         });
     }
 
+    public function pendingSummary(): array
+    {
+        $totals = Payment::query()
+            ->where('status', 'payment_due')
+            ->toBase()
+            ->selectRaw(
+                'COUNT(*) as total, SUM(CASE WHEN expected_payment_date < ? THEN 1 ELSE 0 END) as overdue',
+                [BusinessDate::todayString()],
+            )
+            ->first();
+
+        $total = (int) $totals->total;
+        $overdue = (int) $totals->overdue;
+
+        return ['total' => $total, 'overdue' => $overdue, 'within_terms' => $total - $overdue];
+    }
+
     public function daysOverdue(Payment $payment): ?int
     {
         if (! $payment->expected_payment_date) {

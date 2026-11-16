@@ -6,6 +6,7 @@ use App\Models\Batch;
 use App\Models\Scopes\BranchScope;
 use App\Support\BusinessDate;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -57,6 +58,23 @@ class AlertService
      */
     public function lowStockItems(?int $branchId, int $perPage = 15): LengthAwarePaginator
     {
+        return $this->lowStockQuery($branchId)
+            ->orderByRaw('(COALESCE(batch_sums.qty, 0) - COALESCE(reservation_sums.qty, 0)) ASC')
+            ->paginate($perPage);
+    }
+
+    public function lowStockSummary(?int $branchId): array
+    {
+        $totals = DB::query()
+            ->fromSub($this->lowStockQuery($branchId), 'low_stock')
+            ->selectRaw('COUNT(*) as low_stock, SUM(CASE WHEN available <= 0 THEN 1 ELSE 0 END) as out_of_stock')
+            ->first();
+
+        return ['low_stock' => (int) $totals->low_stock, 'out_of_stock' => (int) $totals->out_of_stock];
+    }
+
+    private function lowStockQuery(?int $branchId): Builder
+    {
         $batchSums = DB::table('batches')
             ->select('item_id', 'branch_id', DB::raw('SUM(quantity) as qty'))
             ->where('status', 'active')
@@ -85,8 +103,6 @@ class AlertService
                 'items.id as item_id, items.name as item_name, items.sku, items.reorder_point, '.
                 'branches.id as branch_id, branches.name as branch_name, '.
                 '(COALESCE(batch_sums.qty, 0) - COALESCE(reservation_sums.qty, 0)) as available',
-            )
-            ->orderByRaw('(COALESCE(batch_sums.qty, 0) - COALESCE(reservation_sums.qty, 0)) ASC')
-            ->paginate($perPage);
+            );
     }
 }
