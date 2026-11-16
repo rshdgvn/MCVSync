@@ -18,8 +18,17 @@ interface DiscrepancyListProps {
 
 function DocumentLink({ discrepancy }: { discrepancy: Discrepancy }) {
   const label = <span className="font-mono text-xs font-semibold">{discrepancy.reference_number ?? "—"}</span>;
-  if (discrepancy.reference_type !== "purchase_order") {
-    return label;
+  if (discrepancy.reference_type === "transfer_request") {
+    return (
+      <Link
+        to="/purchasing/transfers/$transferId"
+        params={{ transferId: String(discrepancy.reference_id) }}
+        onClick={(event) => event.stopPropagation()}
+        className="text-primary-hover hover:underline"
+      >
+        {label}
+      </Link>
+    );
   }
   return (
     <Link
