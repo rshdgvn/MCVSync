@@ -32,6 +32,7 @@ export function handleStockLevelChanged(payload: StockLevelChangedPayload) {
     predicate: (query) => transferHasItem(query.state.data, payload.item_id),
   });
   void queryClient.invalidateQueries({ queryKey: ["inventory", "items", payload.item_id, "batches"] });
+  void queryClient.invalidateQueries({ queryKey: ["inventory", "alerts", "expiring"] });
 
   queryClient.setQueryData<ItemStockBreakdown[]>(itemStockQueryKey(payload.item_id), (old) => {
     if (!old) {

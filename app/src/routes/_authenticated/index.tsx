@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/PageHeader";
 import { StatCard, StatCardGrid } from "@/components/StatCard";
-import { useMeQuery } from "@/hooks/useAuth";
+import { PurchasingHome } from "@/components/home/PurchasingHome";
+import { useEffectiveRole, useMeQuery } from "@/hooks/useAuth";
 import { ROLE_LABELS } from "@/types/user";
 
 export const Route = createFileRoute("/_authenticated/")({
@@ -11,9 +12,14 @@ export const Route = createFileRoute("/_authenticated/")({
 function HomePage() {
   const meQuery = useMeQuery();
   const user = meQuery.data;
+  const effectiveRole = useEffectiveRole();
 
   if (!user) {
     return null;
+  }
+
+  if (effectiveRole === "purchasing") {
+    return <PurchasingHome user={user} />;
   }
 
   return (
