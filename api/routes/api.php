@@ -114,7 +114,6 @@ Route::prefix('staff/purchase-orders')
         Route::post('/{purchaseOrder}/receive/discrepancy', [ReceivingController::class, 'discrepancy']);
         Route::post('/{purchaseOrder}/receive/complete', [ReceivingController::class, 'complete']);
 
-        Route::get('/{purchaseOrder}/discrepancies', [DiscrepancyController::class, 'index']);
     });
 
 Route::prefix('staff/discrepancies')

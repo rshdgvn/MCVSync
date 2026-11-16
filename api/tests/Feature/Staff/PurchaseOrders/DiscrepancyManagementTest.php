@@ -50,18 +50,6 @@ test('logging a short or over discrepancy requires a purchase_order_item_id', fu
     $response->assertJsonValidationErrors('purchase_order_item_id');
 });
 
-test('discrepancies for a purchase order can be listed', function () {
-    $user = makeStaffUser([], 'APALIT');
-    assignStaffRole($user, 'purchasing');
-    $po = PurchaseOrder::factory()->create(['branch_id' => $user->employee->branch_id, 'status' => 'open']);
-    Discrepancy::factory()->count(2)->create(['reference_id' => $po->id]);
-
-    $response = $this->actingAs($user, 'staff')->getJson("/api/staff/purchase-orders/{$po->id}/discrepancies");
-
-    $response->assertOk();
-    expect($response->json())->toHaveCount(2);
-});
-
 test('resolving a discrepancy records who and when', function () {
     $user = makeStaffUser([], 'APALIT');
     assignStaffRole($user, 'purchasing');
