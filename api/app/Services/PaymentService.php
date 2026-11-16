@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Employee;
 use App\Models\Payment;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class PaymentService
@@ -34,22 +35,26 @@ class PaymentService
 
     public function approve(Payment $payment, array $data, Employee $approvedBy): Payment
     {
-        if ($payment->status === 'paid') {
-            throw ValidationException::withMessages([
-                'status' => 'This payment has already been approved.',
+        return DB::transaction(function () use ($payment, $data, $approvedBy) {
+            $locked = Payment::query()->lockForUpdate()->findOrFail($payment->id);
+
+            if ($locked->status === 'paid') {
+                throw ValidationException::withMessages([
+                    'status' => 'This payment has already been approved.',
+                ]);
+            }
+
+            $locked->update([
+                'status' => 'paid',
+                'method' => $data['method'],
+                'date_received' => $data['date_received'],
+                'reference_note' => $data['reference_note'] ?? null,
+                'approved_by' => $approvedBy->id,
+                'approved_at' => now(),
             ]);
-        }
 
-        $payment->update([
-            'status' => 'paid',
-            'method' => $data['method'],
-            'date_received' => $data['date_received'],
-            'reference_note' => $data['reference_note'] ?? null,
-            'approved_by' => $approvedBy->id,
-            'approved_at' => now(),
-        ]);
-
-        return $payment;
+            return $locked;
+        });
     }
 
     public function daysOverdue(Payment $payment): ?int

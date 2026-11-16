@@ -11,8 +11,15 @@ class ApprovePaymentRequest extends FormRequest
     {
         return [
             'method' => ['required', Rule::in(['bank_transfer', 'check', 'cash', 'other'])],
-            'date_received' => ['required', 'date'],
+            'date_received' => ['required', 'date', 'before_or_equal:today'],
             'reference_note' => ['nullable', 'string', 'max:255'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'date_received.before_or_equal' => "The date received can't be in the future.",
         ];
     }
 }
