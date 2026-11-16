@@ -154,6 +154,7 @@ Route::prefix('staff/pricing')
     ->middleware(['auth:staff', 'ensure-active-account'])
     ->group(function () {
         Route::get('/items', [PricingController::class, 'items']);
+        Route::get('/clients', [PricingController::class, 'clients']);
         Route::get('/client-item-prices', [PricingController::class, 'index']);
         Route::get('/client-item-prices/history', [PricingController::class, 'history']);
         Route::get('/client-item-prices/zone-average', [PricingController::class, 'zoneAverage']);
