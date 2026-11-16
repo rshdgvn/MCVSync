@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Payment;
+use Database\Seeders\DemoPaymentSeeder;
 
 test('a payment cannot be approved with a future date received', function () {
     $user = assignStaffRole(makeStaffUser(), 'accounting');
@@ -47,4 +48,17 @@ test('a second approval of the same payment keeps the first approval', function 
     $fresh = $payment->fresh();
     expect($fresh->reference_note)->toBe('FIRST');
     expect($fresh->approved_by)->toBe($first->employee->id);
+});
+
+test('the demo payment seeder only creates payments in a local environment', function () {
+    $this->seed(DemoPaymentSeeder::class);
+    expect(Payment::count())->toBe(0);
+
+    app()->detectEnvironment(fn () => 'local');
+    $this->seed(DemoPaymentSeeder::class);
+    expect(Payment::count())->toBe(4);
+    expect(Payment::where('status', 'payment_due')->count())->toBe(4);
+
+    $this->seed(DemoPaymentSeeder::class);
+    expect(Payment::count())->toBe(4);
 });
