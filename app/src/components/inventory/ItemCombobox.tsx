@@ -1,8 +1,11 @@
-import { useMemo, useState } from "react";
-import { Combobox } from "@/components/Combobox";
-import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import { useItemsQuery } from "@/hooks/useInventory";
+import { listItems } from "@/api/inventory";
+import { listPricedItems } from "@/api/pricing";
+import { SearchCombobox, type SearchQuery } from "@/components/SearchCombobox";
+import { itemsQueryKey } from "@/hooks/useInventory";
+import { pricingKeys } from "@/hooks/usePricing";
 import type { Item } from "@/types/inventory";
+
+export type ItemSource = "inventory" | "pricing";
 
 interface ItemComboboxProps {
   id?: string;
@@ -10,37 +13,43 @@ interface ItemComboboxProps {
   onChange: (item: Item) => void;
   invalid?: boolean;
   disabled?: boolean;
+  source?: ItemSource;
+  placeholder?: string;
 }
 
-function itemLabel(item: Item): string {
-  return `${item.name} · ${item.sku}`;
+const itemId = (item: Item) => item.id;
+const itemLabel = (item: Item) => `${item.name} · ${item.sku}`;
+
+function itemSearch(source: ItemSource, term: string): SearchQuery<Item> {
+  if (source === "pricing") {
+    const params = { search: term || undefined };
+    return { queryKey: pricingKeys.items(params), queryFn: () => listPricedItems(params) };
+  }
+  const params = { search: term || undefined, is_active: true };
+  return { queryKey: itemsQueryKey(params), queryFn: () => listItems(params) };
 }
 
-export function ItemCombobox({ id, value, onChange, invalid, disabled }: ItemComboboxProps) {
-  const [query, setQuery] = useState("");
-  const search = useDebouncedValue(query.trim());
-  const itemsQuery = useItemsQuery({ search: search || undefined, is_active: true });
-  const items = itemsQuery.data?.data;
-  const byId = useMemo(() => new Map((items ?? []).map((item) => [String(item.id), item])), [items]);
-
+export function ItemCombobox({
+  id,
+  value,
+  onChange,
+  invalid,
+  disabled,
+  source = "inventory",
+  placeholder = "Search by name or SKU",
+}: ItemComboboxProps) {
   return (
-    <Combobox
+    <SearchCombobox
       id={id}
       label="Item"
-      value={value ? String(value.id) : ""}
-      valueLabel={value ? itemLabel(value) : undefined}
-      placeholder="Search by name or SKU"
+      placeholder={placeholder}
       invalid={invalid}
       disabled={disabled}
-      isLoading={itemsQuery.isFetching}
-      onQueryChange={setQuery}
-      options={(items ?? []).map((item) => ({ value: String(item.id), label: itemLabel(item) }))}
-      onChange={(next) => {
-        const item = byId.get(next);
-        if (item) {
-          onChange(item);
-        }
-      }}
+      value={value}
+      onChange={onChange}
+      getId={itemId}
+      getLabel={itemLabel}
+      search={(term) => itemSearch(source, term)}
     />
   );
 }

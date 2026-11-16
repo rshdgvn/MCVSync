@@ -1,7 +1,6 @@
-import { useMemo, useState } from "react";
-import { Combobox } from "@/components/Combobox";
-import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import { useSuppliersQuery } from "@/hooks/useSuppliers";
+import { listSuppliers } from "@/api/suppliers";
+import { SearchCombobox } from "@/components/SearchCombobox";
+import { supplierKeys } from "@/hooks/useSuppliers";
 import type { Supplier } from "@/types/supplier";
 
 interface SupplierComboboxProps {
@@ -13,6 +12,9 @@ interface SupplierComboboxProps {
   activeOnly?: boolean;
 }
 
+const supplierId = (supplier: Supplier) => supplier.id;
+const supplierName = (supplier: Supplier) => supplier.name;
+
 export function SupplierCombobox({
   id,
   value,
@@ -21,28 +23,19 @@ export function SupplierCombobox({
   invalid,
   activeOnly = true,
 }: SupplierComboboxProps) {
-  const [query, setQuery] = useState("");
-  const search = useDebouncedValue(query.trim());
-  const suppliersQuery = useSuppliersQuery({ search: search || undefined, is_active: activeOnly || undefined });
-  const suppliers = suppliersQuery.data?.data;
-  const byId = useMemo(() => new Map((suppliers ?? []).map((supplier) => [String(supplier.id), supplier])), [suppliers]);
-
   return (
-    <Combobox
+    <SearchCombobox
       id={id}
       label="Supplier"
-      value={value ? String(value.id) : ""}
-      valueLabel={value?.name}
       placeholder={placeholder}
       invalid={invalid}
-      isLoading={suppliersQuery.isFetching}
-      onQueryChange={setQuery}
-      options={(suppliers ?? []).map((supplier) => ({ value: String(supplier.id), label: supplier.name }))}
-      onChange={(next) => {
-        const supplier = byId.get(next);
-        if (supplier) {
-          onChange(supplier);
-        }
+      value={value}
+      onChange={onChange}
+      getId={supplierId}
+      getLabel={supplierName}
+      search={(term) => {
+        const params = { search: term || undefined, is_active: activeOnly || undefined };
+        return { queryKey: supplierKeys.list(params), queryFn: () => listSuppliers(params) };
       }}
     />
   );
