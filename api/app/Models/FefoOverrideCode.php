@@ -36,9 +36,4 @@ class FefoOverrideCode extends Model
     {
         return $this->belongsTo(Employee::class, 'used_by');
     }
-
-    public function isRedeemable(): bool
-    {
-        return ! $this->used && $this->expires_at->isFuture();
-    }
 }

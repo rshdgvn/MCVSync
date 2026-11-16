@@ -8,6 +8,7 @@ import type {
 
 export interface ListDiscrepanciesParams {
   page?: number;
+  per_page?: number;
   resolved?: boolean;
   type?: DiscrepancyType;
   reference_type?: DiscrepancyReferenceType;

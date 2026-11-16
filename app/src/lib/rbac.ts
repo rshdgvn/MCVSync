@@ -12,7 +12,15 @@ export function seesAllBranches(user: User): boolean {
   return user.role !== null && BRANCH_EXEMPT_ROLES.has(user.role);
 }
 
-export const PURCHASE_ORDER_ROLES: readonly Role[] = ["purchasing", "admin", "super_admin"];
+export const INVENTORY_ACCESS_ROLES: readonly Role[] = ["purchasing", "admin", "super_admin"];
+
+export const ACCOUNTING_ROLES: readonly Role[] = ["accounting", "admin", "super_admin"];
+
+const ACCOUNTING_WRITE_ROLES: ReadonlySet<Role> = new Set(["accounting", "super_admin"]);
+
+export function canManageAccounting(user: User): boolean {
+  return user.role !== null && ACCOUNTING_WRITE_ROLES.has(user.role);
+}
 
 export function requireRole(...roles: Role[]) {
   return ({ context }: { context: { user: User } }) => {

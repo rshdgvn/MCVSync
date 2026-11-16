@@ -1,19 +1,19 @@
 import { useMemo, useState } from "react";
 import { ChevronRight, Search } from "lucide-react";
-import type { ReceivingLine } from "@/api/receiving";
 import { EmptyState } from "@/components/EmptyState";
 import { QuantityProgress } from "@/components/QuantityProgress";
 import { ResponsiveDialog } from "@/components/ResponsiveDialog";
 import { Input } from "@/components/ui/input";
-import { remainingQuantity } from "@/components/receiving/receivingLineState";
+import { remainingQuantity, type StockFlowLine } from "@/components/stock-flow/stockFlowLines";
 
 interface ChooseLineDialogProps {
-  lines: ReceivingLine[];
-  onSelect: (line: ReceivingLine) => void;
+  lines: StockFlowLine[];
+  description: string;
+  onSelect: (line: StockFlowLine) => void;
   onClose: () => void;
 }
 
-export function ChooseLineDialog({ lines, onSelect, onClose }: ChooseLineDialogProps) {
+export function ChooseLineDialog({ lines, description, onSelect, onClose }: ChooseLineDialogProps) {
   const [query, setQuery] = useState("");
   const remainingLines = useMemo(() => lines.filter((line) => remainingQuantity(line) > 0), [lines]);
   const needle = query.trim().toLowerCase();
@@ -24,7 +24,7 @@ export function ChooseLineDialog({ lines, onSelect, onClose }: ChooseLineDialogP
     : remainingLines;
 
   return (
-    <ResponsiveDialog open onOpenChange={(open) => !open && onClose()} title="Choose Item" description="Items still expected on this document.">
+    <ResponsiveDialog open onOpenChange={(open) => !open && onClose()} title="Choose Item" description={description}>
       <div className="flex flex-col gap-3">
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-faint" />
@@ -42,7 +42,7 @@ export function ChooseLineDialog({ lines, onSelect, onClose }: ChooseLineDialogP
         {matches.length === 0 ? (
           <EmptyState
             title={remainingLines.length === 0 ? "Everything has been received" : "No matching items"}
-            description={remainingLines.length === 0 ? "Every line on this document is fully received." : "Try a different name or SKU."}
+            description={remainingLines.length === 0 ? "Every line on this document is done." : "Try a different name or SKU."}
           />
         ) : (
           <ul className="divide-y divide-border-subtle border border-border">
@@ -56,7 +56,7 @@ export function ChooseLineDialog({ lines, onSelect, onClose }: ChooseLineDialogP
                   <span className="flex min-w-0 flex-1 flex-col gap-1">
                     <span className="truncate text-sm font-medium md:text-ui">{line.item.name}</span>
                     <span className="font-mono text-xs text-muted-foreground">{line.item.sku}</span>
-                    <QuantityProgress value={line.received} total={line.expected} className="max-w-48" />
+                    <QuantityProgress value={line.done} total={line.target} className="max-w-48" />
                   </span>
                   <ChevronRight className="size-4 shrink-0 text-faint" />
                 </button>

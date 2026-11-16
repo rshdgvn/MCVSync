@@ -36,12 +36,12 @@ import {
 } from "@/hooks/usePurchaseOrders";
 import { getErrorMessage } from "@/lib/errors";
 import { formatDate, formatMoney } from "@/lib/format";
-import { PURCHASE_ORDER_ROLES, requireRole } from "@/lib/rbac";
+import { INVENTORY_ACCESS_ROLES, requireRole } from "@/lib/rbac";
 import { toast } from "@/stores/toast.store";
 import type { PurchaseOrderDetail, PurchaseOrderLine } from "@/types/purchaseOrder";
 
 export const Route = createFileRoute("/_authenticated/purchasing/purchase-orders/$purchaseOrderId")({
-  beforeLoad: requireRole(...PURCHASE_ORDER_ROLES),
+  beforeLoad: requireRole(...INVENTORY_ACCESS_ROLES),
   component: PurchaseOrderDetailRoute,
 });
 

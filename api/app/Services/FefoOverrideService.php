@@ -29,11 +29,7 @@ class FefoOverrideService
             ->lockForUpdate()
             ->first();
 
-        if (! $override?->isRedeemable()) {
-            throw ValidationException::withMessages([
-                'override_code' => 'This override code is invalid, expired, or already used.',
-            ]);
-        }
+        $this->assertRedeemable($override);
 
         $override->update([
             'used' => true,
@@ -42,6 +38,20 @@ class FefoOverrideService
         ]);
 
         return $override;
+    }
+
+    private function assertRedeemable(?FefoOverrideCode $override): void
+    {
+        $problem = match (true) {
+            $override === null => 'This override code does not exist. Check the 8 characters and try again.',
+            $override->used => 'This override code was already used. Ask the Super Admin for a new one.',
+            ! $override->expires_at->isFuture() => 'This override code has expired. Ask the Super Admin for a new one.',
+            default => null,
+        };
+
+        if ($problem !== null) {
+            throw ValidationException::withMessages(['override_code' => $problem]);
+        }
     }
 
     private function uniqueCode(): string

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { TriangleAlert } from "lucide-react";
-import type { ReceiveLinePayload, ReceivingLine } from "@/api/receiving";
+import type { ReceiveLinePayload } from "@/api/receiving";
 import { FormError } from "@/components/FormError";
 import { FormField, fieldA11yProps } from "@/components/FormField";
 import { LoadingButton } from "@/components/LoadingButton";
@@ -11,6 +11,7 @@ import { SubmitForm } from "@/components/SubmitForm";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import type { StockFlowLine } from "@/components/stock-flow/stockFlowLines";
 import type { SubmitHandler } from "@/hooks/useSubmitOnce";
 import { getFieldErrors, getGeneralError } from "@/lib/errors";
 import { formatQuantity } from "@/lib/format";
@@ -22,8 +23,9 @@ type ReceiveField = (typeof RECEIVE_FIELDS)[number];
 const BATCH_MAX_LENGTH = 255;
 
 interface ReceiveLineDialogProps {
-  line: ReceivingLine;
+  line: StockFlowLine;
   remaining: number;
+  targetLabel: string;
   isPending: boolean;
   serverError: unknown;
   onSubmit: (payload: ReceiveLinePayload) => ReturnType<SubmitHandler>;
@@ -35,7 +37,7 @@ function blankToNull(value: string): string | null {
   return trimmed === "" ? null : trimmed;
 }
 
-export function ReceiveLineDialog({ line, remaining, isPending, serverError, onSubmit, onClose }: ReceiveLineDialogProps) {
+export function ReceiveLineDialog({ line, remaining, targetLabel, isPending, serverError, onSubmit, onClose }: ReceiveLineDialogProps) {
   const unit = line.item.unit?.code;
   const [quantity, setQuantity] = useState(Math.max(remaining, 1));
   const [batchNumber, setBatchNumber] = useState("");
@@ -95,8 +97,8 @@ export function ReceiveLineDialog({ line, remaining, isPending, serverError, onS
         <FormError message={getGeneralError(serverError, RECEIVE_FIELDS)} />
         <dl className="grid grid-cols-3 gap-2 border border-border-subtle bg-subtle px-3 py-2.5">
           {[
-            { label: "Ordered", value: line.expected },
-            { label: "Received So Far", value: line.received },
+            { label: targetLabel, value: line.target },
+            { label: "Received So Far", value: line.done },
             { label: "Remaining", value: remaining },
           ].map((stat) => (
             <div key={stat.label} className="grid gap-0.5">

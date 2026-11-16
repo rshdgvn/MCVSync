@@ -11,6 +11,7 @@ class ListTransfersRequest extends FormRequest
     {
         return [
             'status' => ['nullable', Rule::in(['pending', 'shipped', 'closed', 'cancelled'])],
+            'search' => ['nullable', 'string', 'max:100'],
             'requesting_branch_id' => ['nullable', 'integer'],
             'fulfilling_branch_id' => ['nullable', 'integer'],
             'per_page' => ['nullable', 'integer', 'min:1'],
@@ -22,6 +23,7 @@ class ListTransfersRequest extends FormRequest
     {
         return [
             'status' => $this->validated('status'),
+            'search' => $this->filled('search') ? (string) $this->string('search') : null,
             'requesting_branch_id' => $this->filled('requesting_branch_id') ? $this->integer('requesting_branch_id') : null,
             'fulfilling_branch_id' => $this->filled('fulfilling_branch_id') ? $this->integer('fulfilling_branch_id') : null,
         ];

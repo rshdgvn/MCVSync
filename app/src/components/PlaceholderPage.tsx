@@ -4,9 +4,13 @@ import { PageHeader } from "@/components/PageHeader";
 
 interface PlaceholderPageProps {
   title: string;
+  description?: string;
 }
 
-export function PlaceholderPage({ title }: PlaceholderPageProps) {
+export function PlaceholderPage({
+  title,
+  description = "This page is scaffolded and will be filled in during a future build pass.",
+}: PlaceholderPageProps) {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader title={title} />
@@ -14,7 +18,7 @@ export function PlaceholderPage({ title }: PlaceholderPageProps) {
         <EmptyState
           icon={Construction}
           title="Not yet built"
-          description="This page is scaffolded and will be filled in during a future build pass."
+          description={description}
         />
       </div>
     </div>

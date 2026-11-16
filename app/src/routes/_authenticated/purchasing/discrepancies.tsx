@@ -6,12 +6,12 @@ import { FilterTabs } from "@/components/FilterTabs";
 import { PageHeader } from "@/components/PageHeader";
 import { SelectField } from "@/components/SelectField";
 import { useDiscrepanciesQuery } from "@/hooks/useDiscrepancies";
-import { PURCHASE_ORDER_ROLES, requireRole } from "@/lib/rbac";
+import { INVENTORY_ACCESS_ROLES, requireRole } from "@/lib/rbac";
 import { statusInfo } from "@/lib/status";
 import type { DiscrepancyReferenceType, DiscrepancyType } from "@/types/discrepancy";
 
 export const Route = createFileRoute("/_authenticated/purchasing/discrepancies")({
-  beforeLoad: requireRole(...PURCHASE_ORDER_ROLES),
+  beforeLoad: requireRole(...INVENTORY_ACCESS_ROLES),
   component: DiscrepanciesPage,
 });
 

@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Staff;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Staff\SetClientItemPriceRequest;
 use App\Http\Resources\ClientItemPriceResource;
+use App\Http\Resources\ClientResource;
 use App\Http\Resources\ItemWithCogsResource;
+use App\Models\Client;
 use App\Models\ClientItemPrice;
 use App\Models\Item;
 use App\Services\PricingService;
@@ -30,6 +32,21 @@ class PricingController extends Controller
         });
 
         return ItemWithCogsResource::collection($items);
+    }
+
+    public function clients(Request $request)
+    {
+        $this->authorize('viewAny', ClientItemPrice::class);
+
+        $clients = Client::query()
+            ->join('users', 'users.id', '=', 'clients.user_id')
+            ->when($request->filled('search'), fn ($query) => $query->whereLike('users.name', '%'.$request->string('search').'%'))
+            ->orderBy('users.name')
+            ->select('clients.*')
+            ->with(['user', 'zone'])
+            ->paginate($this->perPage($request));
+
+        return ClientResource::collection($clients);
     }
 
     public function index(Request $request, PricingService $pricing)

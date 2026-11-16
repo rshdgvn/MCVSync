@@ -15,9 +15,10 @@ class TransferController extends Controller
     {
         $this->authorize('viewAny', TransferRequest::class);
 
-        return TransferRequestResource::collection(
-            $service->query($request->filters())->paginate($this->perPage($request)),
-        );
+        $filters = $request->filters();
+
+        return TransferRequestResource::collection($service->query($filters)->paginate($this->perPage($request)))
+            ->additional(['counts' => $service->statusCounts($filters)]);
     }
 
     public function store(StoreTransferRequest $request, TransferService $service)

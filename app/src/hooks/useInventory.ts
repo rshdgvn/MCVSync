@@ -127,11 +127,12 @@ export function useUpdateItemMutation() {
   });
 }
 
-export function useItemBatchesQuery(id: number, page: number) {
+export function useItemBatchesQuery(id: number, page: number, enabled = true) {
   return useQuery({
     queryKey: itemBatchesQueryKey(id, page),
     queryFn: () => inventoryApi.listItemBatches(id, page),
     placeholderData: keepPreviousData,
+    enabled,
   });
 }
 

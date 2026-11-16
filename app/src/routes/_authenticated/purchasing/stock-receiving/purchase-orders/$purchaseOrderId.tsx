@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { StockFlowSession } from "@/components/receiving/StockFlowSession";
-import { PURCHASE_ORDER_ROLES, requireRole } from "@/lib/rbac";
+import { ReceivingSession } from "@/components/receiving/ReceivingSession";
+import { INVENTORY_ACCESS_ROLES, requireRole } from "@/lib/rbac";
 
 export const Route = createFileRoute("/_authenticated/purchasing/stock-receiving/purchase-orders/$purchaseOrderId")({
-  beforeLoad: requireRole(...PURCHASE_ORDER_ROLES),
+  beforeLoad: requireRole(...INVENTORY_ACCESS_ROLES),
   component: ReceivePurchaseOrderRoute,
 });
 
@@ -11,7 +11,7 @@ function ReceivePurchaseOrderRoute() {
   const { purchaseOrderId } = Route.useParams();
 
   return (
-    <StockFlowSession
+    <ReceivingSession
       key={purchaseOrderId}
       referenceType="purchase_order"
       referenceId={Number(purchaseOrderId)}
