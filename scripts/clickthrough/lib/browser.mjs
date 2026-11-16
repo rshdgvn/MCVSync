@@ -91,3 +91,18 @@ export async function runFlow(label, flow) {
     check(`${label} flow completed`, false, error.message.split("\n")[0]);
   }
 }
+
+export async function rowAction(page, row, mode, label) {
+  if (mode === "mobile") {
+    await row.getByRole("button", { name: "Row actions" }).click();
+    await page.getByRole("menuitem", { name: label }).click();
+    return;
+  }
+  await row.getByRole("button", { name: label }).click();
+}
+
+export async function pickFromCombobox(page, triggerId, searchLabel, search, optionName) {
+  await page.locator(`#${triggerId}`).click();
+  await page.getByLabel(searchLabel).fill(search);
+  await visible(page.getByRole("option", { name: optionName })).locator("button").click();
+}

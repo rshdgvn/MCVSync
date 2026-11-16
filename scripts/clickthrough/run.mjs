@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 import { API_URL, APP_URL, PASSWORD, finish, screenshotter } from "./lib/browser.mjs";
 
-const SUITES = ["receiving", "transfers"];
+const SUITES = ["receiving", "transfers", "accounting", "home"];
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "../..");
 const apiDir = path.join(repoRoot, "api");
