@@ -1,6 +1,7 @@
 import { queryClient } from "@/lib/queryClient";
 import { itemQueryKey, itemStockQueryKey, lowStockAlertsQueryKey } from "@/hooks/useInventory";
 import { receivingKeys, sessionHasItem } from "@/hooks/useReceiving";
+import { transferHasItem, transferKeys } from "@/hooks/useTransfers";
 import { notify } from "@/lib/notifications";
 import type { Item, ItemStockBreakdown, LowStockItem, Paginated } from "@/types/inventory";
 
@@ -26,6 +27,11 @@ export function handleStockLevelChanged(payload: StockLevelChangedPayload) {
     queryKey: receivingKeys.all,
     predicate: (query) => sessionHasItem(query.state.data, payload.item_id),
   });
+  void queryClient.invalidateQueries({
+    queryKey: transferKeys.all,
+    predicate: (query) => transferHasItem(query.state.data, payload.item_id),
+  });
+  void queryClient.invalidateQueries({ queryKey: ["inventory", "items", payload.item_id, "batches"] });
 
   queryClient.setQueryData<ItemStockBreakdown[]>(itemStockQueryKey(payload.item_id), (old) => {
     if (!old) {
