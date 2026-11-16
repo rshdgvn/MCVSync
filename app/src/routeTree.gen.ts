@@ -51,6 +51,7 @@ import { Route as AuthenticatedSuperAdminBranchesRouteImport } from './routes/_a
 import { Route as AuthenticatedSuperAdminClientsRouteImport } from './routes/_authenticated/super-admin/clients'
 import { Route as AuthenticatedSuperAdminCompanyAnalyticsRouteImport } from './routes/_authenticated/super-admin/company-analytics'
 import { Route as AuthenticatedSuperAdminCompareBranchesRouteImport } from './routes/_authenticated/super-admin/compare-branches'
+import { Route as AuthenticatedSuperAdminFefoOverrideRouteImport } from './routes/_authenticated/super-admin/fefo-override'
 import { Route as AuthenticatedSuperAdminPurchasesOverviewRouteImport } from './routes/_authenticated/super-admin/purchases-overview'
 import { Route as AuthenticatedSuperAdminRoleAssignmentRouteImport } from './routes/_authenticated/super-admin/role-assignment'
 import { Route as AuthenticatedSuperAdminSalesOverviewRouteImport } from './routes/_authenticated/super-admin/sales-overview'
@@ -64,7 +65,12 @@ import { Route as AuthenticatedPurchasingPurchaseOrdersNewRouteImport } from './
 import { Route as AuthenticatedPurchasingStockReceivingIndexRouteImport } from './routes/_authenticated/purchasing/stock-receiving/index'
 import { Route as AuthenticatedPurchasingSuppliersIndexRouteImport } from './routes/_authenticated/purchasing/suppliers/index'
 import { Route as AuthenticatedPurchasingSuppliersSupplierIdRouteImport } from './routes/_authenticated/purchasing/suppliers/$supplierId'
+import { Route as AuthenticatedPurchasingTransfersIndexRouteImport } from './routes/_authenticated/purchasing/transfers/index'
+import { Route as AuthenticatedPurchasingTransfersNewRouteImport } from './routes/_authenticated/purchasing/transfers/new'
 import { Route as AuthenticatedPurchasingStockReceivingPurchaseOrdersPurchaseOrderIdRouteImport } from './routes/_authenticated/purchasing/stock-receiving/purchase-orders/$purchaseOrderId'
+import { Route as AuthenticatedPurchasingStockReceivingTransfersTransferIdRouteImport } from './routes/_authenticated/purchasing/stock-receiving/transfers/$transferId'
+import { Route as AuthenticatedPurchasingTransfersTransferIdIndexRouteImport } from './routes/_authenticated/purchasing/transfers/$transferId/index'
+import { Route as AuthenticatedPurchasingTransfersTransferIdPickRouteImport } from './routes/_authenticated/purchasing/transfers/$transferId/pick'
 
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
@@ -305,6 +311,12 @@ const AuthenticatedSuperAdminCompareBranchesRoute =
     path: '/super-admin/compare-branches',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedSuperAdminFefoOverrideRoute =
+  AuthenticatedSuperAdminFefoOverrideRouteImport.update({
+    id: '/super-admin/fefo-override',
+    path: '/super-admin/fefo-override',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedSuperAdminPurchasesOverviewRoute =
   AuthenticatedSuperAdminPurchasesOverviewRouteImport.update({
     id: '/super-admin/purchases-overview',
@@ -383,6 +395,18 @@ const AuthenticatedPurchasingSuppliersSupplierIdRoute =
     path: '/purchasing/suppliers/$supplierId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedPurchasingTransfersIndexRoute =
+  AuthenticatedPurchasingTransfersIndexRouteImport.update({
+    id: '/purchasing/transfers/',
+    path: '/purchasing/transfers/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedPurchasingTransfersNewRoute =
+  AuthenticatedPurchasingTransfersNewRouteImport.update({
+    id: '/purchasing/transfers/new',
+    path: '/purchasing/transfers/new',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedPurchasingStockReceivingPurchaseOrdersPurchaseOrderIdRoute =
   AuthenticatedPurchasingStockReceivingPurchaseOrdersPurchaseOrderIdRouteImport.update(
     {
@@ -391,6 +415,24 @@ const AuthenticatedPurchasingStockReceivingPurchaseOrdersPurchaseOrderIdRoute =
       getParentRoute: () => AuthenticatedRoute,
     } as any,
   )
+const AuthenticatedPurchasingStockReceivingTransfersTransferIdRoute =
+  AuthenticatedPurchasingStockReceivingTransfersTransferIdRouteImport.update({
+    id: '/purchasing/stock-receiving/transfers/$transferId',
+    path: '/purchasing/stock-receiving/transfers/$transferId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedPurchasingTransfersTransferIdIndexRoute =
+  AuthenticatedPurchasingTransfersTransferIdIndexRouteImport.update({
+    id: '/purchasing/transfers/$transferId/',
+    path: '/purchasing/transfers/$transferId/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedPurchasingTransfersTransferIdPickRoute =
+  AuthenticatedPurchasingTransfersTransferIdPickRouteImport.update({
+    id: '/purchasing/transfers/$transferId/pick',
+    path: '/purchasing/transfers/$transferId/pick',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -433,6 +475,7 @@ export interface FileRoutesByFullPath {
   '/super-admin/clients': typeof AuthenticatedSuperAdminClientsRoute
   '/super-admin/company-analytics': typeof AuthenticatedSuperAdminCompanyAnalyticsRoute
   '/super-admin/compare-branches': typeof AuthenticatedSuperAdminCompareBranchesRoute
+  '/super-admin/fefo-override': typeof AuthenticatedSuperAdminFefoOverrideRoute
   '/super-admin/purchases-overview': typeof AuthenticatedSuperAdminPurchasesOverviewRoute
   '/super-admin/role-assignment': typeof AuthenticatedSuperAdminRoleAssignmentRoute
   '/super-admin/sales-overview': typeof AuthenticatedSuperAdminSalesOverviewRoute
@@ -442,12 +485,17 @@ export interface FileRoutesByFullPath {
   '/purchasing/purchase-orders/$purchaseOrderId': typeof AuthenticatedPurchasingPurchaseOrdersPurchaseOrderIdRoute
   '/purchasing/purchase-orders/new': typeof AuthenticatedPurchasingPurchaseOrdersNewRoute
   '/purchasing/suppliers/$supplierId': typeof AuthenticatedPurchasingSuppliersSupplierIdRoute
+  '/purchasing/transfers/new': typeof AuthenticatedPurchasingTransfersNewRoute
   '/admin/suppliers/': typeof AuthenticatedAdminSuppliersIndexRoute
   '/items/$itemId/': typeof AuthenticatedItemsItemIdIndexRoute
   '/purchasing/purchase-orders/': typeof AuthenticatedPurchasingPurchaseOrdersIndexRoute
   '/purchasing/stock-receiving/': typeof AuthenticatedPurchasingStockReceivingIndexRoute
   '/purchasing/suppliers/': typeof AuthenticatedPurchasingSuppliersIndexRoute
+  '/purchasing/transfers/': typeof AuthenticatedPurchasingTransfersIndexRoute
   '/purchasing/stock-receiving/purchase-orders/$purchaseOrderId': typeof AuthenticatedPurchasingStockReceivingPurchaseOrdersPurchaseOrderIdRoute
+  '/purchasing/stock-receiving/transfers/$transferId': typeof AuthenticatedPurchasingStockReceivingTransfersTransferIdRoute
+  '/purchasing/transfers/$transferId/pick': typeof AuthenticatedPurchasingTransfersTransferIdPickRoute
+  '/purchasing/transfers/$transferId/': typeof AuthenticatedPurchasingTransfersTransferIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
@@ -490,6 +538,7 @@ export interface FileRoutesByTo {
   '/super-admin/clients': typeof AuthenticatedSuperAdminClientsRoute
   '/super-admin/company-analytics': typeof AuthenticatedSuperAdminCompanyAnalyticsRoute
   '/super-admin/compare-branches': typeof AuthenticatedSuperAdminCompareBranchesRoute
+  '/super-admin/fefo-override': typeof AuthenticatedSuperAdminFefoOverrideRoute
   '/super-admin/purchases-overview': typeof AuthenticatedSuperAdminPurchasesOverviewRoute
   '/super-admin/role-assignment': typeof AuthenticatedSuperAdminRoleAssignmentRoute
   '/super-admin/sales-overview': typeof AuthenticatedSuperAdminSalesOverviewRoute
@@ -499,12 +548,17 @@ export interface FileRoutesByTo {
   '/purchasing/purchase-orders/$purchaseOrderId': typeof AuthenticatedPurchasingPurchaseOrdersPurchaseOrderIdRoute
   '/purchasing/purchase-orders/new': typeof AuthenticatedPurchasingPurchaseOrdersNewRoute
   '/purchasing/suppliers/$supplierId': typeof AuthenticatedPurchasingSuppliersSupplierIdRoute
+  '/purchasing/transfers/new': typeof AuthenticatedPurchasingTransfersNewRoute
   '/admin/suppliers': typeof AuthenticatedAdminSuppliersIndexRoute
   '/items/$itemId': typeof AuthenticatedItemsItemIdIndexRoute
   '/purchasing/purchase-orders': typeof AuthenticatedPurchasingPurchaseOrdersIndexRoute
   '/purchasing/stock-receiving': typeof AuthenticatedPurchasingStockReceivingIndexRoute
   '/purchasing/suppliers': typeof AuthenticatedPurchasingSuppliersIndexRoute
+  '/purchasing/transfers': typeof AuthenticatedPurchasingTransfersIndexRoute
   '/purchasing/stock-receiving/purchase-orders/$purchaseOrderId': typeof AuthenticatedPurchasingStockReceivingPurchaseOrdersPurchaseOrderIdRoute
+  '/purchasing/stock-receiving/transfers/$transferId': typeof AuthenticatedPurchasingStockReceivingTransfersTransferIdRoute
+  '/purchasing/transfers/$transferId/pick': typeof AuthenticatedPurchasingTransfersTransferIdPickRoute
+  '/purchasing/transfers/$transferId': typeof AuthenticatedPurchasingTransfersTransferIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -549,6 +603,7 @@ export interface FileRoutesById {
   '/_authenticated/super-admin/clients': typeof AuthenticatedSuperAdminClientsRoute
   '/_authenticated/super-admin/company-analytics': typeof AuthenticatedSuperAdminCompanyAnalyticsRoute
   '/_authenticated/super-admin/compare-branches': typeof AuthenticatedSuperAdminCompareBranchesRoute
+  '/_authenticated/super-admin/fefo-override': typeof AuthenticatedSuperAdminFefoOverrideRoute
   '/_authenticated/super-admin/purchases-overview': typeof AuthenticatedSuperAdminPurchasesOverviewRoute
   '/_authenticated/super-admin/role-assignment': typeof AuthenticatedSuperAdminRoleAssignmentRoute
   '/_authenticated/super-admin/sales-overview': typeof AuthenticatedSuperAdminSalesOverviewRoute
@@ -558,12 +613,17 @@ export interface FileRoutesById {
   '/_authenticated/purchasing/purchase-orders/$purchaseOrderId': typeof AuthenticatedPurchasingPurchaseOrdersPurchaseOrderIdRoute
   '/_authenticated/purchasing/purchase-orders/new': typeof AuthenticatedPurchasingPurchaseOrdersNewRoute
   '/_authenticated/purchasing/suppliers/$supplierId': typeof AuthenticatedPurchasingSuppliersSupplierIdRoute
+  '/_authenticated/purchasing/transfers/new': typeof AuthenticatedPurchasingTransfersNewRoute
   '/_authenticated/admin/suppliers/': typeof AuthenticatedAdminSuppliersIndexRoute
   '/_authenticated/items/$itemId/': typeof AuthenticatedItemsItemIdIndexRoute
   '/_authenticated/purchasing/purchase-orders/': typeof AuthenticatedPurchasingPurchaseOrdersIndexRoute
   '/_authenticated/purchasing/stock-receiving/': typeof AuthenticatedPurchasingStockReceivingIndexRoute
   '/_authenticated/purchasing/suppliers/': typeof AuthenticatedPurchasingSuppliersIndexRoute
+  '/_authenticated/purchasing/transfers/': typeof AuthenticatedPurchasingTransfersIndexRoute
   '/_authenticated/purchasing/stock-receiving/purchase-orders/$purchaseOrderId': typeof AuthenticatedPurchasingStockReceivingPurchaseOrdersPurchaseOrderIdRoute
+  '/_authenticated/purchasing/stock-receiving/transfers/$transferId': typeof AuthenticatedPurchasingStockReceivingTransfersTransferIdRoute
+  '/_authenticated/purchasing/transfers/$transferId/pick': typeof AuthenticatedPurchasingTransfersTransferIdPickRoute
+  '/_authenticated/purchasing/transfers/$transferId/': typeof AuthenticatedPurchasingTransfersTransferIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -608,6 +668,7 @@ export interface FileRouteTypes {
     | '/super-admin/clients'
     | '/super-admin/company-analytics'
     | '/super-admin/compare-branches'
+    | '/super-admin/fefo-override'
     | '/super-admin/purchases-overview'
     | '/super-admin/role-assignment'
     | '/super-admin/sales-overview'
@@ -617,12 +678,17 @@ export interface FileRouteTypes {
     | '/purchasing/purchase-orders/$purchaseOrderId'
     | '/purchasing/purchase-orders/new'
     | '/purchasing/suppliers/$supplierId'
+    | '/purchasing/transfers/new'
     | '/admin/suppliers/'
     | '/items/$itemId/'
     | '/purchasing/purchase-orders/'
     | '/purchasing/stock-receiving/'
     | '/purchasing/suppliers/'
+    | '/purchasing/transfers/'
     | '/purchasing/stock-receiving/purchase-orders/$purchaseOrderId'
+    | '/purchasing/stock-receiving/transfers/$transferId'
+    | '/purchasing/transfers/$transferId/pick'
+    | '/purchasing/transfers/$transferId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/forgot-password'
@@ -665,6 +731,7 @@ export interface FileRouteTypes {
     | '/super-admin/clients'
     | '/super-admin/company-analytics'
     | '/super-admin/compare-branches'
+    | '/super-admin/fefo-override'
     | '/super-admin/purchases-overview'
     | '/super-admin/role-assignment'
     | '/super-admin/sales-overview'
@@ -674,12 +741,17 @@ export interface FileRouteTypes {
     | '/purchasing/purchase-orders/$purchaseOrderId'
     | '/purchasing/purchase-orders/new'
     | '/purchasing/suppliers/$supplierId'
+    | '/purchasing/transfers/new'
     | '/admin/suppliers'
     | '/items/$itemId'
     | '/purchasing/purchase-orders'
     | '/purchasing/stock-receiving'
     | '/purchasing/suppliers'
+    | '/purchasing/transfers'
     | '/purchasing/stock-receiving/purchase-orders/$purchaseOrderId'
+    | '/purchasing/stock-receiving/transfers/$transferId'
+    | '/purchasing/transfers/$transferId/pick'
+    | '/purchasing/transfers/$transferId'
   id:
     | '__root__'
     | '/_authenticated'
@@ -723,6 +795,7 @@ export interface FileRouteTypes {
     | '/_authenticated/super-admin/clients'
     | '/_authenticated/super-admin/company-analytics'
     | '/_authenticated/super-admin/compare-branches'
+    | '/_authenticated/super-admin/fefo-override'
     | '/_authenticated/super-admin/purchases-overview'
     | '/_authenticated/super-admin/role-assignment'
     | '/_authenticated/super-admin/sales-overview'
@@ -732,12 +805,17 @@ export interface FileRouteTypes {
     | '/_authenticated/purchasing/purchase-orders/$purchaseOrderId'
     | '/_authenticated/purchasing/purchase-orders/new'
     | '/_authenticated/purchasing/suppliers/$supplierId'
+    | '/_authenticated/purchasing/transfers/new'
     | '/_authenticated/admin/suppliers/'
     | '/_authenticated/items/$itemId/'
     | '/_authenticated/purchasing/purchase-orders/'
     | '/_authenticated/purchasing/stock-receiving/'
     | '/_authenticated/purchasing/suppliers/'
+    | '/_authenticated/purchasing/transfers/'
     | '/_authenticated/purchasing/stock-receiving/purchase-orders/$purchaseOrderId'
+    | '/_authenticated/purchasing/stock-receiving/transfers/$transferId'
+    | '/_authenticated/purchasing/transfers/$transferId/pick'
+    | '/_authenticated/purchasing/transfers/$transferId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1043,6 +1121,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSuperAdminCompareBranchesRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/super-admin/fefo-override': {
+      id: '/_authenticated/super-admin/fefo-override'
+      path: '/super-admin/fefo-override'
+      fullPath: '/super-admin/fefo-override'
+      preLoaderRoute: typeof AuthenticatedSuperAdminFefoOverrideRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/super-admin/purchases-overview': {
       id: '/_authenticated/super-admin/purchases-overview'
       path: '/super-admin/purchases-overview'
@@ -1134,11 +1219,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPurchasingSuppliersSupplierIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/purchasing/transfers/': {
+      id: '/_authenticated/purchasing/transfers/'
+      path: '/purchasing/transfers'
+      fullPath: '/purchasing/transfers/'
+      preLoaderRoute: typeof AuthenticatedPurchasingTransfersIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/purchasing/transfers/new': {
+      id: '/_authenticated/purchasing/transfers/new'
+      path: '/purchasing/transfers/new'
+      fullPath: '/purchasing/transfers/new'
+      preLoaderRoute: typeof AuthenticatedPurchasingTransfersNewRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/purchasing/stock-receiving/purchase-orders/$purchaseOrderId': {
       id: '/_authenticated/purchasing/stock-receiving/purchase-orders/$purchaseOrderId'
       path: '/purchasing/stock-receiving/purchase-orders/$purchaseOrderId'
       fullPath: '/purchasing/stock-receiving/purchase-orders/$purchaseOrderId'
       preLoaderRoute: typeof AuthenticatedPurchasingStockReceivingPurchaseOrdersPurchaseOrderIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/purchasing/stock-receiving/transfers/$transferId': {
+      id: '/_authenticated/purchasing/stock-receiving/transfers/$transferId'
+      path: '/purchasing/stock-receiving/transfers/$transferId'
+      fullPath: '/purchasing/stock-receiving/transfers/$transferId'
+      preLoaderRoute: typeof AuthenticatedPurchasingStockReceivingTransfersTransferIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/purchasing/transfers/$transferId/': {
+      id: '/_authenticated/purchasing/transfers/$transferId/'
+      path: '/purchasing/transfers/$transferId'
+      fullPath: '/purchasing/transfers/$transferId/'
+      preLoaderRoute: typeof AuthenticatedPurchasingTransfersTransferIdIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/purchasing/transfers/$transferId/pick': {
+      id: '/_authenticated/purchasing/transfers/$transferId/pick'
+      path: '/purchasing/transfers/$transferId/pick'
+      fullPath: '/purchasing/transfers/$transferId/pick'
+      preLoaderRoute: typeof AuthenticatedPurchasingTransfersTransferIdPickRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
   }
@@ -1182,6 +1302,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedSuperAdminClientsRoute: typeof AuthenticatedSuperAdminClientsRoute
   AuthenticatedSuperAdminCompanyAnalyticsRoute: typeof AuthenticatedSuperAdminCompanyAnalyticsRoute
   AuthenticatedSuperAdminCompareBranchesRoute: typeof AuthenticatedSuperAdminCompareBranchesRoute
+  AuthenticatedSuperAdminFefoOverrideRoute: typeof AuthenticatedSuperAdminFefoOverrideRoute
   AuthenticatedSuperAdminPurchasesOverviewRoute: typeof AuthenticatedSuperAdminPurchasesOverviewRoute
   AuthenticatedSuperAdminRoleAssignmentRoute: typeof AuthenticatedSuperAdminRoleAssignmentRoute
   AuthenticatedSuperAdminSalesOverviewRoute: typeof AuthenticatedSuperAdminSalesOverviewRoute
@@ -1191,12 +1312,17 @@ interface AuthenticatedRouteChildren {
   AuthenticatedPurchasingPurchaseOrdersPurchaseOrderIdRoute: typeof AuthenticatedPurchasingPurchaseOrdersPurchaseOrderIdRoute
   AuthenticatedPurchasingPurchaseOrdersNewRoute: typeof AuthenticatedPurchasingPurchaseOrdersNewRoute
   AuthenticatedPurchasingSuppliersSupplierIdRoute: typeof AuthenticatedPurchasingSuppliersSupplierIdRoute
+  AuthenticatedPurchasingTransfersNewRoute: typeof AuthenticatedPurchasingTransfersNewRoute
   AuthenticatedAdminSuppliersIndexRoute: typeof AuthenticatedAdminSuppliersIndexRoute
   AuthenticatedItemsItemIdIndexRoute: typeof AuthenticatedItemsItemIdIndexRoute
   AuthenticatedPurchasingPurchaseOrdersIndexRoute: typeof AuthenticatedPurchasingPurchaseOrdersIndexRoute
   AuthenticatedPurchasingStockReceivingIndexRoute: typeof AuthenticatedPurchasingStockReceivingIndexRoute
   AuthenticatedPurchasingSuppliersIndexRoute: typeof AuthenticatedPurchasingSuppliersIndexRoute
+  AuthenticatedPurchasingTransfersIndexRoute: typeof AuthenticatedPurchasingTransfersIndexRoute
   AuthenticatedPurchasingStockReceivingPurchaseOrdersPurchaseOrderIdRoute: typeof AuthenticatedPurchasingStockReceivingPurchaseOrdersPurchaseOrderIdRoute
+  AuthenticatedPurchasingStockReceivingTransfersTransferIdRoute: typeof AuthenticatedPurchasingStockReceivingTransfersTransferIdRoute
+  AuthenticatedPurchasingTransfersTransferIdPickRoute: typeof AuthenticatedPurchasingTransfersTransferIdPickRoute
+  AuthenticatedPurchasingTransfersTransferIdIndexRoute: typeof AuthenticatedPurchasingTransfersTransferIdIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -1250,6 +1376,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedSuperAdminCompanyAnalyticsRoute,
   AuthenticatedSuperAdminCompareBranchesRoute:
     AuthenticatedSuperAdminCompareBranchesRoute,
+  AuthenticatedSuperAdminFefoOverrideRoute:
+    AuthenticatedSuperAdminFefoOverrideRoute,
   AuthenticatedSuperAdminPurchasesOverviewRoute:
     AuthenticatedSuperAdminPurchasesOverviewRoute,
   AuthenticatedSuperAdminRoleAssignmentRoute:
@@ -1266,6 +1394,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedPurchasingPurchaseOrdersNewRoute,
   AuthenticatedPurchasingSuppliersSupplierIdRoute:
     AuthenticatedPurchasingSuppliersSupplierIdRoute,
+  AuthenticatedPurchasingTransfersNewRoute:
+    AuthenticatedPurchasingTransfersNewRoute,
   AuthenticatedAdminSuppliersIndexRoute: AuthenticatedAdminSuppliersIndexRoute,
   AuthenticatedItemsItemIdIndexRoute: AuthenticatedItemsItemIdIndexRoute,
   AuthenticatedPurchasingPurchaseOrdersIndexRoute:
@@ -1274,8 +1404,16 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedPurchasingStockReceivingIndexRoute,
   AuthenticatedPurchasingSuppliersIndexRoute:
     AuthenticatedPurchasingSuppliersIndexRoute,
+  AuthenticatedPurchasingTransfersIndexRoute:
+    AuthenticatedPurchasingTransfersIndexRoute,
   AuthenticatedPurchasingStockReceivingPurchaseOrdersPurchaseOrderIdRoute:
     AuthenticatedPurchasingStockReceivingPurchaseOrdersPurchaseOrderIdRoute,
+  AuthenticatedPurchasingStockReceivingTransfersTransferIdRoute:
+    AuthenticatedPurchasingStockReceivingTransfersTransferIdRoute,
+  AuthenticatedPurchasingTransfersTransferIdPickRoute:
+    AuthenticatedPurchasingTransfersTransferIdPickRoute,
+  AuthenticatedPurchasingTransfersTransferIdIndexRoute:
+    AuthenticatedPurchasingTransfersTransferIdIndexRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
