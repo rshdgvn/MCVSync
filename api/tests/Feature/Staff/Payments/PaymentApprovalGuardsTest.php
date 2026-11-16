@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Payment;
+use App\Support\BusinessDate;
 use Database\Seeders\DemoPaymentSeeder;
 
 test('a payment cannot be approved with a future date received', function () {
@@ -9,7 +10,7 @@ test('a payment cannot be approved with a future date received', function () {
 
     $this->actingAs($user, 'staff')->postJson("/api/staff/payments/{$payment->id}/approve", [
         'method' => 'cash',
-        'date_received' => now()->addDay()->toDateString(),
+        'date_received' => BusinessDate::today()->addDay()->toDateString(),
     ])
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['date_received' => "The date received can't be in the future."]);
@@ -23,7 +24,7 @@ test('a payment received today can be approved', function () {
 
     $this->actingAs($user, 'staff')->postJson("/api/staff/payments/{$payment->id}/approve", [
         'method' => 'check',
-        'date_received' => now()->toDateString(),
+        'date_received' => BusinessDate::todayString(),
         'reference_note' => 'CHK-0042',
     ])->assertOk()->assertJsonPath('reference_note', 'CHK-0042');
 });
@@ -35,13 +36,13 @@ test('a second approval of the same payment keeps the first approval', function 
 
     $this->actingAs($first, 'staff')->postJson("/api/staff/payments/{$payment->id}/approve", [
         'method' => 'bank_transfer',
-        'date_received' => now()->toDateString(),
+        'date_received' => BusinessDate::todayString(),
         'reference_note' => 'FIRST',
     ])->assertOk();
 
     $this->actingAs($second, 'staff')->postJson("/api/staff/payments/{$payment->id}/approve", [
         'method' => 'cash',
-        'date_received' => now()->toDateString(),
+        'date_received' => BusinessDate::todayString(),
         'reference_note' => 'SECOND',
     ])->assertUnprocessable()->assertJsonValidationErrors(['status' => 'This payment has already been approved.']);
 

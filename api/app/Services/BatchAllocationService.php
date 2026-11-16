@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Batch;
 use App\Models\Scopes\BranchScope;
+use App\Support\BusinessDate;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -35,6 +36,7 @@ class BatchAllocationService
             ->where('item_id', $itemId)
             ->where('branch_id', $branchId)
             ->where('status', 'active')
+            ->where(fn (Builder $query) => $query->whereNull('expiry_date')->orWhere('expiry_date', '>=', BusinessDate::todayString()))
             ->lockForUpdate()
             ->first();
     }
@@ -70,6 +72,7 @@ class BatchAllocationService
             ->where('branch_id', $branchId)
             ->where('status', 'active')
             ->where('quantity', '>', 0)
+            ->where(fn (Builder $query) => $query->whereNull('expiry_date')->orWhere('expiry_date', '>=', BusinessDate::todayString()))
             ->orderByRaw('expiry_date IS NULL')
             ->orderBy('expiry_date')
             ->orderBy('received_date')

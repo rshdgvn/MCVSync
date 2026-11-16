@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Employee;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
+use App\Support\BusinessDate;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -68,7 +69,7 @@ class PurchaseOrderService
                 ...$data,
                 'po_number' => $this->numbers->next(PurchaseOrder::class, 'po_number', 'PO'),
                 'status' => 'open',
-                'order_date' => $data['order_date'] ?? now()->toDateString(),
+                'order_date' => $data['order_date'] ?? BusinessDate::todayString(),
                 'prepared_by' => $preparedBy->id,
             ]);
 

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Contracts\ReceivableDocument;
 use App\Models\Batch;
+use App\Support\BusinessDate;
 use App\Models\Discrepancy;
 use App\Models\Employee;
 use App\Models\Item;
@@ -159,7 +160,7 @@ class ReceivingService
                 'mfg_date' => $data['mfg_date'] ?? null,
                 'quantity' => $quantity,
                 'expiry_date' => $submittedExpiry,
-                'received_date' => now()->toDateString(),
+                'received_date' => BusinessDate::todayString(),
             ]);
         }
 

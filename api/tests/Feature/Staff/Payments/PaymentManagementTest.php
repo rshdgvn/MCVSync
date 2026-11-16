@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Payment;
+use App\Support\BusinessDate;
 
 test('accounting can approve a pending payment', function () {
     $user = makeStaffUser();
@@ -54,8 +55,8 @@ test('pending list only shows payment_due rows with days overdue computed', func
     $user = makeStaffUser();
     assignStaffRole($user, 'accounting');
 
-    $overdue = Payment::factory()->create(['status' => 'payment_due', 'expected_payment_date' => now()->subDays(5)->toDateString()]);
-    $notYetDue = Payment::factory()->create(['status' => 'payment_due', 'expected_payment_date' => now()->addDays(3)->toDateString()]);
+    $overdue = Payment::factory()->create(['status' => 'payment_due', 'expected_payment_date' => BusinessDate::today()->subDays(5)->toDateString()]);
+    $notYetDue = Payment::factory()->create(['status' => 'payment_due', 'expected_payment_date' => BusinessDate::today()->addDays(3)->toDateString()]);
     $paid = Payment::factory()->create(['status' => 'paid']);
 
     $response = $this->actingAs($user, 'staff')->getJson('/api/staff/payments/pending');

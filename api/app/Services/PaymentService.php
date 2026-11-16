@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Employee;
 use App\Models\Payment;
+use App\Support\BusinessDate;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -63,12 +64,6 @@ class PaymentService
             return null;
         }
 
-        $today = now()->startOfDay();
-
-        if ($today->lessThanOrEqualTo($payment->expected_payment_date)) {
-            return 0;
-        }
-
-        return (int) $payment->expected_payment_date->diffInDays($today);
+        return max(0, -BusinessDate::daysFromToday($payment->expected_payment_date));
     }
 }

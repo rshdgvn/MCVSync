@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Batch;
 use App\Models\Scopes\BranchScope;
+use App\Support\BusinessDate;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -31,7 +32,7 @@ class AlertService
             ->whereNotNull('batches.expiry_date')
             ->whereRaw(
                 $this->daysUntilExpirySql().' <= COALESCE(items.expiry_alert_threshold_days, ?)',
-                [now()->toDateString(), $defaultThreshold],
+                [BusinessDate::todayString(), $defaultThreshold],
             )
             ->when($branchId !== null, fn ($query) => $query->where('batches.branch_id', $branchId))
             ->orderBy('batches.expiry_date')
