@@ -20,7 +20,7 @@ import { statusInfo } from "@/lib/status";
 import type { User } from "@/types/user";
 
 const QUEUE_PAGE_SIZE = 5;
-const LOW_STOCK_PAGE_SIZE = 100;
+const SUMMARY_ONLY_PAGE_SIZE = 1;
 const NEEDS_ACTION_LIMIT = 8;
 const WAIT_WARN_DAYS = 3;
 const WAIT_DANGER_DAYS = 7;
@@ -52,7 +52,7 @@ export function PurchasingHome({ user }: { user: User }) {
   useInventoryChannels(usePurchasingOwnBranchIds());
 
   const expiring = useExpiringAlertsQuery({ per_page: QUEUE_PAGE_SIZE });
-  const lowStock = useLowStockAlertsQuery({ per_page: LOW_STOCK_PAGE_SIZE });
+  const lowStock = useLowStockAlertsQuery({ per_page: SUMMARY_ONLY_PAGE_SIZE });
   const orders = usePurchaseOrdersQuery({ status: "ready_for_delivery", per_page: QUEUE_PAGE_SIZE });
   const oldestOrders = usePurchaseOrdersQuery({
     status: "ready_for_delivery",
@@ -71,9 +71,6 @@ export function PurchasingHome({ user }: { user: User }) {
     per_page: QUEUE_PAGE_SIZE,
     page: lastPage(discrepancies.data?.meta),
   });
-
-  const outOfStock = lowStock.data?.data.filter((row) => row.available <= 0).length;
-  const outOfStockPartial = (lowStock.data?.meta.total ?? 0) > LOW_STOCK_PAGE_SIZE;
 
   const entries: ActionEntry[] = [
     ...oldestFirst(oldestOrders.data?.data).map((po): ActionEntry => ({
@@ -121,10 +118,10 @@ export function PurchasingHome({ user }: { user: User }) {
         )}
         {lowStock.data ? (
           <>
-            <StatCard label="Low Stock" value={formatNumber(lowStock.data.meta.total)} sub="at or below reorder point" link={{ to: "/inventory/low-stock" }} />
+            <StatCard label="Low Stock" value={formatNumber(lowStock.data.summary.low_stock)} sub="at or below reorder point" link={{ to: "/inventory/low-stock" }} />
             <StatCard
               label="Out of Stock"
-              value={`${formatNumber(outOfStock ?? 0)}${outOfStockPartial ? "+" : ""}`}
+              value={formatNumber(lowStock.data.summary.out_of_stock)}
               sub="nothing available"
               link={{ to: "/inventory/low-stock" }}
             />

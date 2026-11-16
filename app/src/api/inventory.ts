@@ -5,7 +5,7 @@ import type {
   Item,
   ItemListResponse,
   ItemStockBreakdown,
-  LowStockItem,
+  LowStockListResponse,
   Paginated,
   StockTransaction,
   Unit,
@@ -135,8 +135,8 @@ export async function listExpiringAlerts(
 
 export async function listLowStockAlerts(
   params: ListAlertsParams = {},
-): Promise<Paginated<LowStockItem>> {
-  const response = await api.get<Paginated<LowStockItem>>("/staff/inventory/alerts/low-stock", {
+): Promise<LowStockListResponse> {
+  const response = await api.get<LowStockListResponse>("/staff/inventory/alerts/low-stock", {
     params,
   });
   return response.data;

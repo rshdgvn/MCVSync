@@ -83,6 +83,11 @@ export interface LowStockItem {
   available: number;
 }
 
+export interface LowStockSummary {
+  low_stock: number;
+  out_of_stock: number;
+}
+
 export interface PaginationMeta {
   current_page: number;
   last_page: number;
@@ -100,6 +105,10 @@ export interface ActiveStatusCounts {
   all: number;
   active: number;
   inactive: number;
+}
+
+export interface LowStockListResponse extends Paginated<LowStockItem> {
+  summary: LowStockSummary;
 }
 
 export interface ItemListResponse extends Paginated<Item> {

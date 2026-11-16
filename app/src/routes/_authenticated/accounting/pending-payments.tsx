@@ -21,7 +21,6 @@ export const Route = createFileRoute("/_authenticated/accounting/pending-payment
 
 const OVERDUE_WARN_DAYS = 1;
 const OVERDUE_DANGER_DAYS = 31;
-const SUMMARY_PAGE_SIZE = 100;
 
 const COLUMNS: DataListColumn<Payment>[] = [
   {
@@ -59,11 +58,7 @@ function PendingPaymentsPage() {
   const [page, setPage] = useState(1);
   const [approving, setApproving] = useState<Payment | null>(null);
   const query = usePendingPaymentsQuery({ page });
-  const summaryQuery = usePendingPaymentsQuery({ per_page: SUMMARY_PAGE_SIZE });
-  const summaryRows = summaryQuery.data?.data;
-  const total = summaryQuery.data?.meta.total ?? 0;
-  const overdue = summaryRows?.filter((payment) => (payment.days_overdue ?? 0) > 0).length ?? 0;
-  const partial = total > SUMMARY_PAGE_SIZE ? `of the first ${SUMMARY_PAGE_SIZE}` : undefined;
+  const summary = query.data?.summary;
 
   return (
     <div className="flex flex-col gap-4">
@@ -73,11 +68,11 @@ function PendingPaymentsPage() {
       />
 
       <StatCardGrid className="lg:grid-cols-3">
-        {summaryRows ? (
+        {summary ? (
           <>
-            <StatCard label="Total Pending" value={formatNumber(total)} />
-            <StatCard label="Overdue" value={formatNumber(overdue)} sub={partial} />
-            <StatCard label="Within Terms" value={formatNumber((summaryRows.length ?? 0) - overdue)} sub={partial} />
+            <StatCard label="Total Pending" value={formatNumber(summary.total)} />
+            <StatCard label="Overdue" value={formatNumber(summary.overdue)} />
+            <StatCard label="Within Terms" value={formatNumber(summary.within_terms)} />
           </>
         ) : (
           <>
