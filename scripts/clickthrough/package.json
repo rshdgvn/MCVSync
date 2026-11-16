@@ -1,0 +1,12 @@
+{
+  "name": "mcvsync-clickthrough",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "receiving": "node run.mjs receiving",
+    "transfers": "node run.mjs transfers"
+  },
+  "devDependencies": {
+    "playwright-core": "1.56.1"
+  }
+}
