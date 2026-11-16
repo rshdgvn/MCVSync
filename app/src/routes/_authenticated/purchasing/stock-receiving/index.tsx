@@ -10,12 +10,17 @@ import { usePurchaseOrdersQuery } from "@/hooks/usePurchaseOrders";
 import { useTransfersQuery } from "@/hooks/useTransfers";
 import { INVENTORY_ACCESS_ROLES, requireRole, seesAllBranches } from "@/lib/rbac";
 
+type ReceivingTab = "ready_for_delivery" | "open" | "transfers";
+
+const RECEIVING_TABS: readonly ReceivingTab[] = ["ready_for_delivery", "open", "transfers"];
+
 export const Route = createFileRoute("/_authenticated/purchasing/stock-receiving/")({
   beforeLoad: requireRole(...INVENTORY_ACCESS_ROLES),
+  validateSearch: (search: Record<string, unknown>): { tab?: ReceivingTab } => ({
+    tab: RECEIVING_TABS.find((tab) => tab === search.tab),
+  }),
   component: StockReceivingPage,
 });
-
-type ReceivingTab = "ready_for_delivery" | "open" | "transfers";
 
 function StockReceivingPage() {
   const navigate = useNavigate();
@@ -23,7 +28,10 @@ function StockReceivingPage() {
   const receivesTransfers = user ? seesAllBranches(user) || (user.branch !== null && !user.branch.is_main) : false;
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [tab, setTab] = useState<ReceivingTab>("ready_for_delivery");
+  const initialTab = Route.useSearch().tab;
+  const [tab, setTab] = useState<ReceivingTab>(
+    initialTab === "transfers" && !receivesTransfers ? "ready_for_delivery" : (initialTab ?? "ready_for_delivery"),
+  );
   const showingTransfers = tab === "transfers";
   const purchaseOrdersQuery = usePurchaseOrdersQuery({
     page: showingTransfers ? 1 : page,

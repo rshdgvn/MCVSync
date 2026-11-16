@@ -8,6 +8,7 @@ import type {
 
 export interface ListPurchaseOrdersParams {
   page?: number;
+  per_page?: number;
   search?: string;
   status?: PurchaseOrderStatus;
   supplier_id?: number;

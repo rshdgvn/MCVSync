@@ -12,6 +12,7 @@ import type {
 
 export interface ListTransfersParams {
   page?: number;
+  per_page?: number;
   search?: string;
   status?: TransferStatus;
   requesting_branch_id?: number;
