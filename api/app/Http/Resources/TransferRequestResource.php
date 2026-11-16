@@ -21,6 +21,7 @@ class TransferRequestResource extends JsonResource
             'remarks' => $this->remarks,
             'created_at' => $this->created_at?->toIso8601String(),
             'items' => TransferRequestItemResource::collection($this->whenLoaded('items')),
+            'items_count' => $this->whenCounted('items'),
         ];
     }
 }

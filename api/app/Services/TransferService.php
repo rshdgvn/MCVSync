@@ -23,15 +23,46 @@ class TransferService
         private readonly ReservationService $reservations,
     ) {}
 
+    private const STATUSES = ['pending', 'shipped', 'closed', 'cancelled'];
+
     public function query(array $filters): Builder
     {
-        return TransferRequest::query()
+        return $this->filteredTransfers($filters)
             ->with(self::LIST_RELATIONS)
+            ->withCount('items')
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
-            ->when($filters['requesting_branch_id'] ?? null, fn (Builder $query, int $branchId) => $query->where('requesting_branch_id', $branchId))
-            ->when($filters['fulfilling_branch_id'] ?? null, fn (Builder $query, int $branchId) => $query->where('fulfilling_branch_id', $branchId))
             ->latest()
             ->orderByDesc('id');
+    }
+
+    public function statusCounts(array $filters): array
+    {
+        $totals = $this->filteredTransfers($filters)
+            ->toBase()
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        $counts = ['all' => (int) $totals->sum()];
+        foreach (self::STATUSES as $status) {
+            $counts[$status] = (int) ($totals[$status] ?? 0);
+        }
+
+        return $counts;
+    }
+
+    private function filteredTransfers(array $filters): Builder
+    {
+        return TransferRequest::query()
+            ->when($filters['search'] ?? null, function (Builder $query, string $search) {
+                $pattern = '%'.$search.'%';
+                $query->where(fn (Builder $inner) => $inner
+                    ->whereLike('transfer_number', $pattern)
+                    ->orWhereHas('requestingBranch', fn (Builder $branch) => $branch->whereLike('name', $pattern))
+                    ->orWhereHas('fulfillingBranch', fn (Builder $branch) => $branch->whereLike('name', $pattern)));
+            })
+            ->when($filters['requesting_branch_id'] ?? null, fn (Builder $query, int $branchId) => $query->where('requesting_branch_id', $branchId))
+            ->when($filters['fulfilling_branch_id'] ?? null, fn (Builder $query, int $branchId) => $query->where('fulfilling_branch_id', $branchId));
     }
 
     public function create(array $data, array $items, Employee $requestedBy, ?int $actingBranchId): TransferRequest
