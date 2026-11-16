@@ -26,6 +26,7 @@ export interface Item {
   reorder_quantity: number | null;
   is_active: boolean;
   available?: number;
+  cogs?: number | null;
 }
 
 export type BatchStatus = "active" | "expired" | "depleted";
