@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tansta
 import * as receivingApi from "@/api/receiving";
 import { discrepancyKeys } from "@/hooks/useDiscrepancies";
 import { purchaseOrderKeys } from "@/hooks/usePurchaseOrders";
+import { transferKeys } from "@/hooks/useTransfers";
 
 export const receivingKeys = {
   all: ["receiving"] as const,
@@ -17,6 +18,7 @@ export function sessionHasItem(data: unknown, itemId: number): boolean {
 function documentKeys(referenceType: receivingApi.ReceivingReferenceType, id: number) {
   const keys: Record<receivingApi.ReceivingReferenceType, readonly (readonly unknown[])[]> = {
     purchase_order: [purchaseOrderKeys.detail(id), purchaseOrderKeys.lists()],
+    transfer_request: [transferKeys.detail(id), transferKeys.lists()],
   };
   return keys[referenceType];
 }
@@ -53,7 +55,7 @@ export function useReceiveLineMutation(referenceType: receivingApi.ReceivingRefe
 
   return useMutation({
     mutationFn: (payload: receivingApi.ReceiveLinePayload) => receivingApi.receiveLine(referenceType, id, payload),
-    onSuccess: (line) => refreshAfterReceiving(queryClient, referenceType, id, line.received > line.expected),
+    onSuccess: (line) => refreshAfterReceiving(queryClient, referenceType, id, line.done > line.target),
   });
 }
 

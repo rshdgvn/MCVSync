@@ -1,23 +1,19 @@
 import { api } from "@/api/client";
+import { getTransfer, transferStatusKey } from "@/api/transfers";
 import { canReceivePurchaseOrder } from "@/components/purchase-orders/purchaseOrderRules";
+import type { StockFlowLine } from "@/components/stock-flow/stockFlowLines";
 import type { Discrepancy } from "@/types/discrepancy";
 import type { Item } from "@/types/inventory";
 import type { PurchaseOrderDetail, PurchaseOrderLine, PurchaseOrderSummary } from "@/types/purchaseOrder";
+import type { TransferDetail, TransferLine } from "@/types/transfer";
 import type { Branch } from "@/types/user";
 
-export type ReceivingReferenceType = "purchase_order";
-
-export interface ReceivingLine {
-  id: number;
-  item: Item;
-  expected: number;
-  received: number;
-}
+export type ReceivingReferenceType = "purchase_order" | "transfer_request";
 
 export interface ReceivingDocument {
   id: number;
   number: string;
-  status: string;
+  statusKey: string;
   counterparty: string;
   branch: Branch;
   isReceivable: boolean;
@@ -25,12 +21,12 @@ export interface ReceivingDocument {
 
 export interface ReceivingSession {
   document: ReceivingDocument;
-  lines: ReceivingLine[];
+  lines: StockFlowLine[];
   discrepancies: Discrepancy[];
 }
 
 export type ReceivingMatch =
-  | { status: "found"; line: ReceivingLine; remaining: number }
+  | { status: "found"; line: StockFlowLine; remaining: number }
   | { status: "not_found"; item: Item };
 
 export interface ReceiveLinePayload {
@@ -49,7 +45,7 @@ export interface NotOnDocumentPayload {
 
 export interface ReceivingCompletion {
   isClosed: boolean;
-  lines: ReceivingLine[];
+  lines: StockFlowLine[];
 }
 
 interface PurchaseOrderSessionResponse {
@@ -58,33 +54,52 @@ interface PurchaseOrderSessionResponse {
   discrepancies: Discrepancy[];
 }
 
-type PurchaseOrderMatchResponse =
-  | { status: "found"; purchase_order_item: PurchaseOrderLine; remaining_quantity: number }
+type MatchResponse =
+  | { status: "found"; purchase_order_item?: PurchaseOrderLine; transfer_request_item?: TransferLine; remaining_quantity: number }
   | { status: "not_found"; item: Item };
 
-function purchaseOrderLine(line: PurchaseOrderLine): ReceivingLine {
-  return { id: line.id, item: line.item, expected: line.quantity_ordered, received: line.quantity_received };
+function purchaseOrderLine(line: PurchaseOrderLine): StockFlowLine {
+  return { id: line.id, item: line.item, target: line.quantity_ordered, done: line.quantity_received };
 }
 
-function receivePath(referenceType: ReceivingReferenceType, id: number): string {
-  const paths: Record<ReceivingReferenceType, string> = {
-    purchase_order: `/staff/purchase-orders/${id}/receive`,
+function transferLine(line: TransferLine): StockFlowLine {
+  return { id: line.id, item: line.item, target: line.quantity_picked, done: line.quantity_received };
+}
+
+function transferDocument(transfer: TransferDetail): ReceivingDocument {
+  return {
+    id: transfer.id,
+    number: transfer.transfer_number,
+    statusKey: transferStatusKey(transfer.status),
+    counterparty: transfer.fulfilling_branch.name,
+    branch: transfer.requesting_branch,
+    isReceivable: transfer.status === "shipped",
   };
-  return paths[referenceType];
 }
 
-const LINE_FIELD: Record<ReceivingReferenceType, string> = {
-  purchase_order: "purchase_order_item_id",
-};
+const SOURCES = {
+  purchase_order: {
+    path: (id: number) => `/staff/purchase-orders/${id}/receive`,
+    lineField: "purchase_order_item_id",
+    toLine: (line: PurchaseOrderLine | TransferLine) => purchaseOrderLine(line as PurchaseOrderLine),
+    matchedLine: (result: Extract<MatchResponse, { status: "found" }>) => result.purchase_order_item,
+  },
+  transfer_request: {
+    path: (id: number) => `/staff/transfers/${id}/receive`,
+    lineField: "transfer_request_item_id",
+    toLine: (line: PurchaseOrderLine | TransferLine) => transferLine(line as TransferLine),
+    matchedLine: (result: Extract<MatchResponse, { status: "found" }>) => result.transfer_request_item,
+  },
+} as const;
 
-export async function getReceivingSession(referenceType: ReceivingReferenceType, id: number): Promise<ReceivingSession> {
-  const response = await api.get<PurchaseOrderSessionResponse>(receivePath(referenceType, id));
+async function purchaseOrderSession(id: number): Promise<ReceivingSession> {
+  const response = await api.get<PurchaseOrderSessionResponse>(SOURCES.purchase_order.path(id));
   const { purchase_order: purchaseOrder, lines, discrepancies } = response.data;
   return {
     document: {
       id: purchaseOrder.id,
       number: purchaseOrder.po_number,
-      status: purchaseOrder.status,
+      statusKey: purchaseOrder.status,
       counterparty: purchaseOrder.supplier.name,
       branch: purchaseOrder.branch,
       isReceivable: canReceivePurchaseOrder(purchaseOrder.status),
@@ -94,31 +109,50 @@ export async function getReceivingSession(referenceType: ReceivingReferenceType,
   };
 }
 
+async function transferSession(id: number): Promise<ReceivingSession> {
+  const [transfer, discrepancies] = await Promise.all([
+    getTransfer(id),
+    api.get<Discrepancy[]>(`/staff/transfers/${id}/discrepancies`).then((response) => response.data),
+  ]);
+  return { document: transferDocument(transfer), lines: transfer.items.map(transferLine), discrepancies };
+}
+
+export function getReceivingSession(referenceType: ReceivingReferenceType, id: number): Promise<ReceivingSession> {
+  return referenceType === "purchase_order" ? purchaseOrderSession(id) : transferSession(id);
+}
+
 export async function matchReceivingScan(
   referenceType: ReceivingReferenceType,
   id: number,
   scan: { barcode: string } | { item_id: number },
 ): Promise<ReceivingMatch> {
-  const response = await api.post<PurchaseOrderMatchResponse>(`${receivePath(referenceType, id)}/match`, scan);
+  const source = SOURCES[referenceType];
+  const response = await api.post<MatchResponse>(`${source.path(id)}/match`, scan);
   const result = response.data;
-  return result.status === "found"
-    ? { status: "found", line: purchaseOrderLine(result.purchase_order_item), remaining: result.remaining_quantity }
-    : { status: "not_found", item: result.item };
+  if (result.status === "not_found") {
+    return { status: "not_found", item: result.item };
+  }
+  const line = source.matchedLine(result);
+  if (!line) {
+    throw new Error("The match response did not include the matched line.");
+  }
+  return { status: "found", line: source.toLine(line), remaining: result.remaining_quantity };
 }
 
 export async function receiveLine(
   referenceType: ReceivingReferenceType,
   id: number,
   payload: ReceiveLinePayload,
-): Promise<ReceivingLine> {
-  const response = await api.post<PurchaseOrderLine>(`${receivePath(referenceType, id)}/confirm`, {
-    [LINE_FIELD[referenceType]]: payload.lineId,
+): Promise<StockFlowLine> {
+  const source = SOURCES[referenceType];
+  const response = await api.post<PurchaseOrderLine | TransferLine>(`${source.path(id)}/confirm`, {
+    [source.lineField]: payload.lineId,
     quantity_received: payload.quantity,
     batch_number: payload.batchNumber,
     mfg_date: payload.mfgDate,
     expiry_date: payload.expiryDate,
   });
-  return purchaseOrderLine(response.data);
+  return source.toLine(response.data);
 }
 
 export async function logNotOnDocument(
@@ -126,7 +160,7 @@ export async function logNotOnDocument(
   id: number,
   payload: NotOnDocumentPayload,
 ): Promise<Discrepancy> {
-  const response = await api.post<Discrepancy>(`${receivePath(referenceType, id)}/discrepancy`, {
+  const response = await api.post<Discrepancy>(`${SOURCES[referenceType].path(id)}/discrepancy`, {
     type: "not_found",
     item_id: payload.itemId,
     scanned_quantity: payload.scannedQuantity,
@@ -136,6 +170,7 @@ export async function logNotOnDocument(
 }
 
 export async function completeReceiving(referenceType: ReceivingReferenceType, id: number): Promise<ReceivingCompletion> {
-  const response = await api.post<PurchaseOrderDetail>(`${receivePath(referenceType, id)}/complete`);
-  return { isClosed: response.data.status === "closed", lines: response.data.items.map(purchaseOrderLine) };
+  const response = await api.post<PurchaseOrderDetail | TransferDetail>(`${SOURCES[referenceType].path(id)}/complete`);
+  const items: (PurchaseOrderLine | TransferLine)[] = response.data.items;
+  return { isClosed: response.data.status === "closed", lines: items.map(SOURCES[referenceType].toLine) };
 }

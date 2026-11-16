@@ -1,21 +1,21 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { ReceivingLine } from "@/api/receiving";
 import {
   lineState,
   overLines,
   remainingQuantity,
   shortLines,
   summarizeLines,
-} from "@/components/receiving/receivingLineState";
+  type StockFlowLine,
+} from "@/components/stock-flow/stockFlowLines";
 import type { Item } from "@/types/inventory";
 
-function line(id: number, expected: number, received: number): ReceivingLine {
-  return { id, item: { id } as Item, expected, received };
+function line(id: number, target: number, done: number): StockFlowLine {
+  return { id, item: { id } as Item, target, done };
 }
 
-describe("receiving line state", () => {
-  it("classifies each line by what has been received", () => {
+describe("stock flow line state", () => {
+  it("classifies each line by how much is done", () => {
     assert.equal(lineState(line(1, 10, 0)), "pending");
     assert.equal(lineState(line(2, 10, 4)), "partial");
     assert.equal(lineState(line(3, 10, 10)), "complete");
@@ -29,7 +29,7 @@ describe("receiving line state", () => {
 
   it("summarizes a session for the header counts", () => {
     const lines = [line(1, 10, 0), line(2, 10, 4), line(3, 10, 10), line(4, 10, 12)];
-    assert.deepEqual(summarizeLines(lines), { total: 4, fullyReceived: 2, matched: 1, short: 1, over: 1 });
+    assert.deepEqual(summarizeLines(lines), { total: 4, finished: 2, matched: 1, short: 1, over: 1 });
   });
 
   it("treats untouched lines as short when completing", () => {
