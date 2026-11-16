@@ -1,5 +1,6 @@
 import {
   Activity,
+  ArrowLeftRight,
   Banknote,
   Building2,
   ChartNoAxesCombined,
@@ -11,6 +12,7 @@ import {
   GitCompareArrows,
   History,
   Home,
+  KeyRound,
   LayoutGrid,
   type LucideIcon,
   Package,
@@ -127,6 +129,8 @@ export const NAVIGATION: Record<Role, NavItem[]> = {
       icon: ShoppingCart,
       to: "/super-admin/purchases-overview",
     },
+    { key: "transfers", label: "Transfer Orders", icon: ArrowLeftRight, to: "/purchasing/transfers" },
+    { key: "fefo-override", label: "FEFO Override Codes", icon: KeyRound, to: "/super-admin/fefo-override" },
   ],
 
   admin: [
@@ -149,6 +153,7 @@ export const NAVIGATION: Record<Role, NavItem[]> = {
     ITEMS_NAV_GROUP,
     { key: "branches", label: "Branches", icon: Building2, to: "/admin/branches" },
     { key: "suppliers", label: "Suppliers", icon: Truck, to: "/admin/suppliers" },
+    { key: "transfers", label: "Transfer Orders", icon: ArrowLeftRight, to: "/purchasing/transfers" },
     {
       key: "clients",
       label: "Clients",
@@ -298,6 +303,7 @@ export const NAVIGATION: Record<Role, NavItem[]> = {
       icon: ClipboardList,
       to: "/purchasing/purchase-orders",
     },
+    { key: "transfers", label: "Transfer Orders", icon: ArrowLeftRight, to: "/purchasing/transfers" },
     {
       key: "stock-receiving",
       label: "Stock Receiving",
