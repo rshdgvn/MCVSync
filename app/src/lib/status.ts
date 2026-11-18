@@ -20,6 +20,8 @@ const STATUS: Record<string, { label: string; tone: Tone }> = {
   active: { label: "Active", tone: "success" },
   inactive: { label: "Inactive", tone: "neutral" },
   draft: { label: "Draft", tone: "neutral" },
+  auto_low_stock: { label: "Auto: Low Stock", tone: "info" },
+  auto_shortage: { label: "Auto: Shortage", tone: "warning" },
   pending: { label: "Pending", tone: "info" },
   open: { label: "Open", tone: "info" },
   approved: { label: "Approved", tone: "info" },

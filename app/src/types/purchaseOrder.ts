@@ -4,16 +4,19 @@ import type { Branch } from "@/types/user";
 
 export type PurchaseOrderStatus = "draft" | "open" | "ready_for_delivery" | "closed" | "cancelled";
 
+export type PurchaseOrderSource = "manual" | "auto_low_stock" | "auto_shortage";
+
 interface PurchaseOrderBase {
   id: number;
   po_number: string;
-  supplier: Supplier;
+  supplier: Supplier | null;
   branch: Branch;
   status: PurchaseOrderStatus;
   order_date: string;
   request_delivery_date: string | null;
   terms: string | null;
   remarks: string | null;
+  source: PurchaseOrderSource;
   source_type: string | null;
   source_id: number | null;
 }
@@ -34,7 +37,7 @@ export interface PurchaseOrderLine {
 }
 
 export interface PurchaseOrderDetail extends PurchaseOrderBase {
-  prepared_by: string;
+  prepared_by: string | null;
   items: PurchaseOrderLine[];
   total: number;
 }

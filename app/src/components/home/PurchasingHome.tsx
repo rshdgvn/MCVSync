@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { SectionTitle } from "@/components/SectionTitle";
 import { StatCard, StatCardGrid, StatCardSkeleton } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
+import { supplierNameOf } from "@/components/purchase-orders/purchaseOrderRules";
 import { canApproveTransfers } from "@/components/transfers/transferRules";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDiscrepanciesQuery } from "@/hooks/useDiscrepancies";
@@ -85,7 +86,7 @@ export function PurchasingHome({ user }: { user: User }) {
       key: `po-${po.id}`,
       kind: "Ready to Receive",
       title: <span className="font-mono">{po.po_number}</span>,
-      detail: po.supplier.name,
+      detail: supplierNameOf(po),
       since: po.order_date,
       link: { to: "/purchasing/stock-receiving/purchase-orders/$purchaseOrderId", params: { purchaseOrderId: String(po.id) } },
     })),

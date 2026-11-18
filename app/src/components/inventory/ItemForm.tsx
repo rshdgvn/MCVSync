@@ -10,10 +10,13 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { SelectField } from "@/components/SelectField";
+import { SupplierCombobox } from "@/components/suppliers/SupplierCombobox";
+import { Button } from "@/components/ui/button";
 import { useCategoriesQuery, useUnitsQuery } from "@/hooks/useInventory";
 import type { SubmitHandler } from "@/hooks/useSubmitOnce";
 import { getFieldErrors, getGeneralError } from "@/lib/errors";
 import type { Item } from "@/types/inventory";
+import type { Supplier } from "@/types/supplier";
 
 interface ItemFormProps {
   initialItem?: Item;
@@ -45,6 +48,7 @@ export function ItemForm({ initialItem, onSubmit, isPending, submitError }: Item
   const [thresholdDays, setThresholdDays] = useState(toInputValue(initialItem?.expiry_alert_threshold_days));
   const [reorderPoint, setReorderPoint] = useState(toInputValue(initialItem?.reorder_point));
   const [reorderQuantity, setReorderQuantity] = useState(toInputValue(initialItem?.reorder_quantity));
+  const [preferredSupplier, setPreferredSupplier] = useState<Supplier | null>(initialItem?.preferred_supplier ?? null);
   const [isActive, setIsActive] = useState(initialItem?.is_active ?? true);
 
   function handleSubmit() {
@@ -59,6 +63,7 @@ export function ItemForm({ initialItem, onSubmit, isPending, submitError }: Item
       expiry_alert_threshold_days: hasExpiry ? toOptionalNumber(thresholdDays) : null,
       reorder_point: toOptionalNumber(reorderPoint),
       reorder_quantity: toOptionalNumber(reorderQuantity),
+      preferred_supplier_id: preferredSupplier?.id ?? null,
       is_active: isActive,
     });
   }
@@ -185,7 +190,12 @@ export function ItemForm({ initialItem, onSubmit, isPending, submitError }: Item
           />
         </FormField>
 
-        <FormField label="Reorder Quantity" htmlFor="item-reorder-quantity" hint="Optional." error={fieldErrors.reorder_quantity}>
+        <FormField
+          label="Reorder Quantity"
+          htmlFor="item-reorder-quantity"
+          hint="Optional. Quantity for the automatic draft PO. Leave empty to order up to twice the reorder point."
+          error={fieldErrors.reorder_quantity}
+        >
           <Input
             {...fieldA11yProps("item-reorder-quantity", fieldErrors.reorder_quantity, true)}
             inputMode="numeric"
@@ -194,6 +204,30 @@ export function ItemForm({ initialItem, onSubmit, isPending, submitError }: Item
             value={reorderQuantity}
             onChange={(event) => setReorderQuantity(event.target.value.replace(/[^0-9]/g, ""))}
           />
+        </FormField>
+
+        <FormField
+          label="Preferred Supplier"
+          htmlFor="item-preferred-supplier"
+          hint="Optional. Automatic draft POs for this item go to this supplier."
+          error={fieldErrors.preferred_supplier_id}
+        >
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="w-full md:w-72">
+              <SupplierCombobox
+                id="item-preferred-supplier"
+                value={preferredSupplier}
+                invalid={Boolean(fieldErrors.preferred_supplier_id)}
+                placeholder="No preferred supplier"
+                onChange={setPreferredSupplier}
+              />
+            </div>
+            {preferredSupplier && (
+              <Button type="button" variant="ghost" size="sm" onClick={() => setPreferredSupplier(null)}>
+                Clear
+              </Button>
+            )}
+          </div>
         </FormField>
       </div>
 

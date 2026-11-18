@@ -81,6 +81,7 @@ export interface ItemPayload {
   expiry_alert_threshold_days: number | null;
   reorder_point: number | null;
   reorder_quantity: number | null;
+  preferred_supplier_id: number | null;
   is_active: boolean;
 }
 

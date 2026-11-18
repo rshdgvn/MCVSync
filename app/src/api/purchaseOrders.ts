@@ -13,6 +13,7 @@ export interface ListPurchaseOrdersParams {
   status?: PurchaseOrderStatus;
   supplier_id?: number;
   branch_id?: number;
+  item_id?: number;
 }
 
 export interface PurchaseOrderLinePayload {
@@ -74,6 +75,14 @@ export async function updatePurchaseOrderLine(
 
 export async function removePurchaseOrderLine(id: number, lineId: number): Promise<void> {
   await api.delete(`${BASE_PATH}/${id}/items/${lineId}`);
+}
+
+export async function setPurchaseOrderSupplier(id: number, supplierId: number): Promise<void> {
+  await api.patch(`${BASE_PATH}/${id}`, { supplier_id: supplierId });
+}
+
+export async function finalizePurchaseOrder(id: number): Promise<void> {
+  await api.post(`${BASE_PATH}/${id}/finalize`);
 }
 
 export async function markPurchaseOrderReady(id: number): Promise<void> {

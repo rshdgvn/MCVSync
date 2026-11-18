@@ -8,12 +8,13 @@ export const purchaseOrderKeys = {
   detail: (id: number) => [...purchaseOrderKeys.all, "detail", id] as const,
 };
 
-export function usePurchaseOrdersQuery(params: purchaseOrdersApi.ListPurchaseOrdersParams) {
+export function usePurchaseOrdersQuery(params: purchaseOrdersApi.ListPurchaseOrdersParams, enabled = true) {
   return useQuery({
     queryKey: purchaseOrderKeys.list(params),
     queryFn: () => purchaseOrdersApi.listPurchaseOrders(params),
     placeholderData: keepPreviousData,
     refetchOnWindowFocus: true,
+    enabled,
   });
 }
 
@@ -78,6 +79,24 @@ export function useRemovePurchaseOrderLineMutation(id: number) {
 
   return useMutation({
     mutationFn: (lineId: number) => purchaseOrdersApi.removePurchaseOrderLine(id, lineId),
+    onSuccess: () => refreshPurchaseOrder(queryClient, id),
+  });
+}
+
+export function useSetPurchaseOrderSupplierMutation(id: number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (supplierId: number) => purchaseOrdersApi.setPurchaseOrderSupplier(id, supplierId),
+    onSuccess: () => refreshPurchaseOrder(queryClient, id),
+  });
+}
+
+export function useFinalizePurchaseOrderMutation(id: number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => purchaseOrdersApi.finalizePurchaseOrder(id),
     onSuccess: () => refreshPurchaseOrder(queryClient, id),
   });
 }

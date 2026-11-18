@@ -1,6 +1,6 @@
 import { api } from "@/api/client";
 import { getTransfer, transferStatusKey } from "@/api/transfers";
-import { canReceivePurchaseOrder } from "@/components/purchase-orders/purchaseOrderRules";
+import { canReceivePurchaseOrder, supplierNameOf } from "@/components/purchase-orders/purchaseOrderRules";
 import { db } from "@/db/schema";
 import { withOfflineCache } from "@/lib/offline/offlineCache";
 import { sendOrQueue, type SendOutcome } from "@/lib/offline/sendOrQueue";
@@ -104,7 +104,7 @@ async function purchaseOrderSession(id: number): Promise<ReceivingSession> {
       id: purchaseOrder.id,
       number: purchaseOrder.po_number,
       statusKey: purchaseOrder.status,
-      counterparty: purchaseOrder.supplier.name,
+      counterparty: supplierNameOf(purchaseOrder),
       branch: purchaseOrder.branch,
       isReceivable: canReceivePurchaseOrder(purchaseOrder.status),
     },

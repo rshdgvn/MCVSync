@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { ShoppingCart } from "lucide-react";
+import { FileText, ShoppingCart } from "lucide-react";
 import { FormError } from "@/components/FormError";
 import { FormField, fieldA11yProps } from "@/components/FormField";
 import { LoadingButton } from "@/components/LoadingButton";
@@ -12,7 +12,7 @@ import { SupplierCombobox } from "@/components/suppliers/SupplierCombobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useCreatePurchaseOrderMutation } from "@/hooks/usePurchaseOrders";
+import { useCreatePurchaseOrderMutation, usePurchaseOrdersQuery } from "@/hooks/usePurchaseOrders";
 import { getFieldErrors, getGeneralError } from "@/lib/errors";
 import { formatQuantity } from "@/lib/format";
 import { toast } from "@/stores/toast.store";
@@ -29,7 +29,15 @@ interface ShortageDialogProps {
 }
 
 export function ShortageDialog({ shortage, item, transferNumber, fulfillingBranchId, onClose }: ShortageDialogProps) {
+  const navigate = useNavigate();
   const [creatingPo, setCreatingPo] = useState(false);
+  const draftQuery = usePurchaseOrdersQuery({
+    status: "draft",
+    item_id: shortage.item_id,
+    branch_id: fulfillingBranchId,
+    per_page: 1,
+  });
+  const draft = draftQuery.data?.data[0];
   const missing = Math.max(1, shortage.requested - shortage.available);
   const unit = item?.unit?.code;
 
@@ -54,6 +62,12 @@ export function ShortageDialog({ shortage, item, transferNumber, fulfillingBranc
         <>
           Picking for <span className="font-mono">{transferNumber}</span> can't start until every line can be reserved.{" "}
           <span className="font-semibold text-foreground">{item?.name ?? `Item #${shortage.item_id}`}</span> is short.
+          {draft && (
+            <>
+              {" "}
+              MCVSync added it to draft <span className="font-mono">{draft.po_number}</span> for review.
+            </>
+          )}
         </>
       }
       footer={
@@ -61,11 +75,25 @@ export function ShortageDialog({ shortage, item, transferNumber, fulfillingBranc
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
-          {item && (
-            <Button onClick={() => setCreatingPo(true)}>
-              <ShoppingCart />
-              Create Supplier PO
+          {draft ? (
+            <Button
+              onClick={() =>
+                void navigate({
+                  to: "/purchasing/purchase-orders/$purchaseOrderId",
+                  params: { purchaseOrderId: String(draft.id) },
+                })
+              }
+            >
+              <FileText />
+              Open Draft PO
             </Button>
+          ) : (
+            item && (
+              <Button disabled={draftQuery.isPending} onClick={() => setCreatingPo(true)}>
+                <ShoppingCart />
+                Create Supplier PO
+              </Button>
+            )
           )}
         </>
       }
