@@ -64,4 +64,8 @@ $shipped = $transfers->create(['remarks' => 'Click-through shipped'], [['item_id
 $shipped->items()->update(['quantity_picked' => 2]);
 $shipped->update(['status' => 'shipped', 'shipped_at' => now()]);
 
+$shield->update(['reorder_point' => 10]);
+$draft = $orders->draftForLowStock($shield->id, $main->id);
+echo "low stock draft: {$draft->po_number}
+";
 echo "home fixtures ready: {$older->po_number} is the oldest ready PO\n";

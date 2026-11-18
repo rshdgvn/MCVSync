@@ -13,12 +13,13 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Services\AccountProvisioningService;
 use App\Services\EmployeeRoleAssignmentService;
+use App\Services\PurchaseOrderService;
 use App\Services\TransferService;
 
 $cebu = Branch::where('code', 'CEBU')->firstOrFail();
 $main = Branch::where('is_main', true)->firstOrFail();
 
-Supplier::create(['name' => 'Acme Medical Supplies', 'contact_person' => 'Jane Dela Cruz', 'phone' => '0917 123 4567']);
+$acme = Supplier::create(['name' => 'Acme Medical Supplies', 'contact_person' => 'Jane Dela Cruz', 'phone' => '0917 123 4567']);
 $category = Category::create(['name' => 'Consumables']);
 $pieces = Unit::create(['code' => 'pcs', 'name' => 'Pieces']);
 $boxes = Unit::create(['code' => 'box', 'name' => 'Box']);
@@ -35,9 +36,10 @@ $alcohol = Item::factory()->create([
     'name' => 'Isopropyl Alcohol 500ml', 'sku' => 'ALC-500', 'barcode' => '4800001000035',
     'category_id' => $category->id, 'unit_id' => $pieces->id, 'has_expiry' => true,
 ]);
-Item::factory()->create([
+$faceShield = Item::factory()->create([
     'name' => 'Face Shield', 'sku' => 'FSH-01', 'barcode' => '4800001000042',
     'category_id' => $category->id, 'unit_id' => $pieces->id,
+    'reorder_point' => 5, 'reorder_quantity' => 25, 'preferred_supplier_id' => $acme->id,
 ]);
 
 Batch::factory()->create(['item_id' => $gloves->id, 'branch_id' => $main->id, 'batch_number' => 'GLV-EARLY', 'quantity' => 6, 'expiry_date' => '2027-01-31']);
@@ -66,6 +68,16 @@ foreach ($requests as $label => $items) {
     $service->approve($transfer, $approver, $main->id);
     echo "{$label}: {$transfer->transfer_number}\n";
 }
+
+$purchaseOrders = app(PurchaseOrderService::class);
+$earlier = $purchaseOrders->create(
+    ['supplier_id' => $acme->id, 'branch_id' => $main->id, 'order_date' => '2026-10-01', 'remarks' => 'Click-through earlier face shields'],
+    [['item_id' => $faceShield->id, 'quantity_ordered' => 10, 'unit_cost' => 30]],
+    $approver,
+);
+$earlier->update(['status' => 'closed']);
+$lowStockDraft = $purchaseOrders->draftForLowStock($faceShield->id, $main->id);
+echo "low stock draft: {$lowStockDraft->po_number}\n";
 
 foreach (['to approve', 'to decline'] as $label) {
     $transfer = $service->create(['remarks' => "Click-through {$label}"], [['item_id' => $syringe->id, 'quantity' => 2]], $cebuEmployee, $cebu->id);
