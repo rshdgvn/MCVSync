@@ -48,8 +48,8 @@ export async function apiGet(page, url) {
   }, url);
 }
 
-export async function apiPost(page, url) {
-  return page.evaluate(async (target) => {
+export async function apiPost(page, url, body = null) {
+  return page.evaluate(async ({ target, payload }) => {
     await fetch("http://localhost:8000/sanctum/csrf-cookie", { credentials: "include" });
     const token = decodeURIComponent(
       document.cookie
@@ -60,10 +60,11 @@ export async function apiPost(page, url) {
     const response = await fetch(target, {
       method: "POST",
       credentials: "include",
-      headers: { Accept: "application/json", "X-XSRF-TOKEN": token },
+      headers: { Accept: "application/json", "Content-Type": "application/json", "X-XSRF-TOKEN": token },
+      body: payload === null ? undefined : JSON.stringify(payload),
     });
     return response.json();
-  }, url);
+  }, { target: url, payload: body });
 }
 
 export async function noHorizontalScroll(page, label) {
