@@ -10,6 +10,7 @@ class ResolveDiscrepancyRequest extends FormRequest
     {
         return [
             'resolution_note' => ['nullable', 'string', 'max:1000'],
+            'item_id' => ['nullable', 'integer', 'exists:items,id'],
         ];
     }
 }

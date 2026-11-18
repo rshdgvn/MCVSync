@@ -51,8 +51,10 @@ class DiscrepancyService
         string $type,
         ?int $scannedQuantity,
         ?string $notes = null,
+        ?string $scannedBarcode = null,
     ): Discrepancy {
         return Discrepancy::create([
+            'scanned_barcode' => $scannedBarcode,
             'reference_type' => $document->getMorphClass(),
             'reference_id' => $document->getKey(),
             'reference_item_type' => $line?->getMorphClass(),
@@ -91,11 +93,16 @@ class DiscrepancyService
             ->get();
     }
 
-    public function resolve(Discrepancy $discrepancy, Employee $resolvedBy, ?int $actingBranchId, ?string $note = null): Discrepancy
-    {
+    public function resolve(
+        Discrepancy $discrepancy,
+        Employee $resolvedBy,
+        ?int $actingBranchId,
+        ?string $note = null,
+        ?int $linkedItemId = null,
+    ): Discrepancy {
         $this->ensureWithinActingBranch($discrepancy, $actingBranchId);
 
-        return DB::transaction(function () use ($discrepancy, $resolvedBy, $note) {
+        return DB::transaction(function () use ($discrepancy, $resolvedBy, $note, $linkedItemId) {
             $locked = Discrepancy::query()->lockForUpdate()->findOrFail($discrepancy->id);
 
             if ($locked->resolved) {
@@ -104,7 +111,14 @@ class DiscrepancyService
                 ]);
             }
 
+            if ($linkedItemId !== null && $locked->item_id !== null) {
+                throw ValidationException::withMessages([
+                    'item_id' => 'This discrepancy is already linked to an item.',
+                ]);
+            }
+
             $locked->update([
+                'item_id' => $linkedItemId ?? $locked->item_id,
                 'resolved' => true,
                 'resolved_by' => $resolvedBy->id,
                 'resolved_at' => now(),

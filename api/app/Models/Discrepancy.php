@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
     'reference_item_type',
     'reference_item_id',
     'item_id',
+    'scanned_barcode',
     'type',
     'scanned_quantity',
     'notes',

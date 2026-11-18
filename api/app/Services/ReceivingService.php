@@ -108,6 +108,7 @@ class ReceivingService
             $data['type'],
             $data['scanned_quantity'] ?? null,
             $data['notes'] ?? null,
+            $data['scanned_barcode'] ?? null,
         );
     }
 

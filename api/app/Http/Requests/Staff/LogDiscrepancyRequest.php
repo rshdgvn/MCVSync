@@ -14,6 +14,7 @@ class LogDiscrepancyRequest extends FormRequest
         return [
             'type' => ['required', Rule::in(['short', 'over', 'not_found'])],
             'item_id' => ['nullable', 'integer', 'exists:items,id'],
+            'scanned_barcode' => ['nullable', 'string', 'max:255'],
             $this->lineField() => ['nullable', 'integer', $this->lineExistsRule()],
             'scanned_quantity' => ['nullable', 'integer', 'min:0'],
             'notes' => ['nullable', 'string'],
@@ -23,8 +24,8 @@ class LogDiscrepancyRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
-            if ($this->input('type') === 'not_found' && ! $this->filled('item_id')) {
-                $validator->errors()->add('item_id', 'item_id is required for a not_found discrepancy.');
+            if ($this->input('type') === 'not_found' && ! $this->filled('item_id') && ! $this->filled('scanned_barcode')) {
+                $validator->errors()->add('item_id', 'A not_found discrepancy needs either the item or the scanned barcode.');
             }
 
             if (in_array($this->input('type'), ['short', 'over'], true) && ! $this->filled($this->lineField())) {
@@ -40,6 +41,7 @@ class LogDiscrepancyRequest extends FormRequest
         return [
             'line_id' => $validated[$this->lineField()] ?? null,
             'item_id' => $validated['item_id'] ?? null,
+            'scanned_barcode' => $validated['scanned_barcode'] ?? null,
             'type' => $validated['type'],
             'scanned_quantity' => $validated['scanned_quantity'] ?? null,
             'notes' => $validated['notes'] ?? null,

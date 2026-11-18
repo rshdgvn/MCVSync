@@ -17,6 +17,7 @@ class DiscrepancyResource extends JsonResource
             'reference_item_type' => $this->reference_item_type,
             'reference_item_id' => $this->reference_item_id,
             'item' => new ItemResource($this->whenLoaded('item')),
+            'scanned_barcode' => $this->scanned_barcode,
             'type' => $this->type,
             'scanned_quantity' => $this->scanned_quantity,
             'notes' => $this->notes,

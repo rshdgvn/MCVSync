@@ -38,6 +38,7 @@ class DiscrepancyController extends Controller
             $request->user('staff')->employee,
             $this->currentBranchId(),
             $request->validated('resolution_note'),
+            $request->validated('item_id'),
         );
 
         return new DiscrepancyResource($discrepancy->load(DiscrepancyService::RELATIONS));
