@@ -17,7 +17,8 @@ import { type ScanEvent } from "@/components/ScanInput";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { NotOnDocumentDialog } from "@/components/receiving/NotOnDocumentDialog";
+import { discrepancySubject } from "@/api/discrepancies";
+import { NotOnDocumentDialog, type NotOnDocumentSubject } from "@/components/receiving/NotOnDocumentDialog";
 import { ReceiveLineDialog } from "@/components/receiving/ReceiveLineDialog";
 import { ChooseLineDialog } from "@/components/stock-flow/ChooseLineDialog";
 import { StockFlowOfflineNotice } from "@/components/stock-flow/StockFlowOfflineNotice";
@@ -45,7 +46,6 @@ import { getErrorMessage } from "@/lib/errors";
 import { formatQuantity } from "@/lib/format";
 import { statusInfo } from "@/lib/status";
 import { toast } from "@/stores/toast.store";
-import type { Item } from "@/types/inventory";
 
 interface ReceivingSessionProps {
   referenceType: ReceivingReferenceType;
@@ -70,7 +70,7 @@ export function ReceivingSession({
   const notOnDocumentMutation = useLogNotOnDocumentMutation(referenceType, referenceId);
   const completeMutation = useCompleteReceivingMutation(referenceType, referenceId);
   const [receiving, setReceiving] = useState<{ line: StockFlowLine; remaining: number } | null>(null);
-  const [notOnDocument, setNotOnDocument] = useState<Item | null>(null);
+  const [notOnDocument, setNotOnDocument] = useState<NotOnDocumentSubject | null>(null);
   const [choosing, setChoosing] = useState(false);
   const [confirmingComplete, setConfirmingComplete] = useState(false);
   const [completion, setCompletion] = useState<ReceivingCompletion | null>(null);
@@ -114,9 +114,9 @@ export function ReceivingSession({
     setReceiving({ line, remaining });
   }
 
-  function openNotOnDocument(item: Item) {
+  function openNotOnDocument(subject: NotOnDocumentSubject) {
     notOnDocumentMutation.reset();
-    setNotOnDocument(item);
+    setNotOnDocument(subject);
   }
 
   async function runMatch(scan: StockFlowScan): Promise<boolean> {
@@ -127,7 +127,7 @@ export function ReceivingSession({
         openLine(local.line, local.remaining);
         return true;
       }
-      setScanError(`Barcode ${local.barcode ?? ""} isn't on this document's saved copy. Reconnect to log it as a discrepancy.`);
+      openNotOnDocument({ item: null, barcode: local.barcode });
       return false;
     }
     try {
@@ -137,7 +137,7 @@ export function ReceivingSession({
         openLine(line, Math.max(0, result.remaining - (line.queued ?? 0)));
         return true;
       }
-      openNotOnDocument(result.item);
+      openNotOnDocument({ item: result.item, barcode: "barcode" in scan ? scan.barcode : null });
       return false;
     } catch (error) {
       setScanError(getErrorMessage(error));
@@ -282,7 +282,7 @@ export function ReceivingSession({
               {unresolvedDiscrepancies.map((discrepancy) => (
                 <li key={discrepancy.id} className="flex items-center gap-2 text-xs">
                   <StatusBadge status={discrepancy.type} />
-                  <span className="min-w-0 flex-1 truncate">{discrepancy.item?.name ?? "Unknown item"}</span>
+                  <span className="min-w-0 flex-1 truncate">{discrepancySubject(discrepancy)}</span>
                   {discrepancy.scanned_quantity !== null && (
                     <span className="font-mono text-muted-foreground">{discrepancy.scanned_quantity}</span>
                   )}
@@ -308,7 +308,7 @@ export function ReceivingSession({
 
       {notOnDocument && (
         <NotOnDocumentDialog
-          item={notOnDocument}
+          subject={notOnDocument}
           documentNumber={document.number}
           isPending={notOnDocumentMutation.isPending}
           serverError={notOnDocumentMutation.error}

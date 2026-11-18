@@ -41,7 +41,8 @@ export interface ReceiveLinePayload {
 }
 
 export interface NotOnDocumentPayload {
-  itemId: number;
+  itemId: number | null;
+  scannedBarcode: string | null;
   scannedQuantity: number;
   notes: string | null;
 }
@@ -193,6 +194,7 @@ export function logNotOnDocument(
       payload: {
         type: "not_found",
         item_id: payload.itemId,
+        scanned_barcode: payload.scannedBarcode,
         scanned_quantity: payload.scannedQuantity,
         notes: payload.notes,
       },

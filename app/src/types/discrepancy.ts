@@ -12,6 +12,7 @@ export interface Discrepancy {
   reference_item_type: string | null;
   reference_item_id: number | null;
   item: Item | null;
+  scanned_barcode: string | null;
   type: DiscrepancyType;
   scanned_quantity: number | null;
   notes: string | null;

@@ -22,9 +22,17 @@ export async function listDiscrepancies(params: ListDiscrepanciesParams = {}): P
   return response.data;
 }
 
-export async function resolveDiscrepancy(id: number, resolutionNote: string | null): Promise<Discrepancy> {
+export function discrepancySubject(discrepancy: Pick<Discrepancy, "item" | "scanned_barcode">): string {
+  if (discrepancy.item) {
+    return discrepancy.item.name;
+  }
+  return discrepancy.scanned_barcode ? `Barcode ${discrepancy.scanned_barcode}` : "Unknown item";
+}
+
+export async function resolveDiscrepancy(id: number, resolutionNote: string | null, itemId: number | null): Promise<Discrepancy> {
   const response = await api.post<Discrepancy>(`/staff/discrepancies/${id}/resolve`, {
     resolution_note: resolutionNote,
+    item_id: itemId,
   });
   return response.data;
 }

@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { CheckCircle2 } from "lucide-react";
+import { discrepancySubject } from "@/api/discrepancies";
 import { DataList, type DataListColumn } from "@/components/DataList";
 import { ResolveDiscrepancyDialog } from "@/components/discrepancies/ResolveDiscrepancyDialog";
 import { Pagination } from "@/components/Pagination";
@@ -51,7 +52,12 @@ function buildColumns(showDocument: boolean): DataListColumn<Discrepancy>[] {
       key: "item",
       header: "Item",
       mobile: "title",
-      cell: (row) => <span className="font-medium">{row.item?.name ?? "Unknown item"}</span>,
+      cell: (row) => (
+        <span className="flex flex-col">
+          <span className="font-medium">{discrepancySubject(row)}</span>
+          {row.item && row.scanned_barcode && <span className="font-mono text-xs text-muted-foreground">{row.scanned_barcode}</span>}
+        </span>
+      ),
     },
     {
       key: "scanned_quantity",

@@ -10,6 +10,7 @@ import { StatCard, StatCardGrid, StatCardSkeleton } from "@/components/StatCard"
 import { StatusBadge } from "@/components/StatusBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDiscrepanciesQuery } from "@/hooks/useDiscrepancies";
+import { discrepancySubject } from "@/api/discrepancies";
 import { useExpiringAlertsQuery, useLowStockAlertsQuery } from "@/hooks/useInventory";
 import { useInventoryChannels, usePurchasingOwnBranchIds } from "@/hooks/useInventoryChannels";
 import { usePurchaseOrdersQuery } from "@/hooks/usePurchaseOrders";
@@ -94,7 +95,7 @@ export function PurchasingHome({ user }: { user: User }) {
     ...oldestFirst(oldestDiscrepancies.data?.data).map((discrepancy): ActionEntry => ({
       key: `dis-${discrepancy.id}`,
       kind: `${statusInfo(discrepancy.type).label} Discrepancy`,
-      title: discrepancy.item?.name ?? "Unknown item",
+      title: discrepancySubject(discrepancy),
       detail: discrepancy.reference_number ?? "",
       since: discrepancy.created_at ?? new Date().toISOString(),
       link: { to: "/purchasing/discrepancies" },

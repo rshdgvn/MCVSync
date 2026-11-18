@@ -21,7 +21,8 @@ export function useResolveDiscrepancyMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, note }: { id: number; note: string | null }) => discrepanciesApi.resolveDiscrepancy(id, note),
+    mutationFn: ({ id, note, itemId }: { id: number; note: string | null; itemId: number | null }) =>
+      discrepanciesApi.resolveDiscrepancy(id, note, itemId),
     onSuccess: () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: discrepancyKeys.lists() }),
