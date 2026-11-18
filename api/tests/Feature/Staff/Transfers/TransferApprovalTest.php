@@ -221,3 +221,23 @@ test('the approve permission is seeded for purchasing and admin', function () {
     expect($permissions('super_admin'))->toContain('transfer.approve');
     expect($permissions('sales'))->not->toContain('transfer.approve');
 });
+
+test('the grant migration adds the approve permission without touching other role permissions', function () {
+    $roles = collect(['purchasing', 'admin', 'sales'])
+        ->mapWithKeys(fn (string $name) => [$name => Spatie\Permission\Models\Role::findOrCreate($name, 'staff')]);
+    $edited = Permission::firstOrCreate(['name' => 'cof.view', 'guard_name' => 'staff']);
+    $roles['purchasing']->givePermissionTo($edited);
+    Permission::where('name', TransferRequestPolicy::APPROVE_PERMISSION)->delete();
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+    $migration = require database_path('migrations/2026_11_19_000004_grant_transfer_approve_permission.php');
+    $migration->up();
+    $migration->up();
+
+    $permissions = fn (string $role) => $roles[$role]->fresh()->permissions->pluck('name')->sort()->values()->all();
+
+    expect($permissions('purchasing'))->toBe(['cof.view', 'transfer.approve']);
+    expect($permissions('admin'))->toBe(['transfer.approve']);
+    expect($permissions('sales'))->toBe([]);
+    expect(Permission::where('name', TransferRequestPolicy::APPROVE_PERMISSION)->count())->toBe(1);
+});
