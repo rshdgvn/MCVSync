@@ -15,6 +15,7 @@ interface ConfirmDialogProps {
   isPending?: boolean;
   destructive?: boolean;
   error?: string | null;
+  children?: ReactNode;
 }
 
 export function ConfirmDialog({
@@ -27,6 +28,7 @@ export function ConfirmDialog({
   isPending = false,
   destructive = false,
   error,
+  children,
 }: ConfirmDialogProps) {
   return (
     <ResponsiveDialog
@@ -51,6 +53,7 @@ export function ConfirmDialog({
     >
       <div className="space-y-3 text-sm text-foreground-soft md:text-ui">
         <div>{description}</div>
+        {children}
         <FormError message={error} />
       </div>
     </ResponsiveDialog>

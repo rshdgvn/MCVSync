@@ -22,11 +22,12 @@ export const Route = createFileRoute("/_authenticated/purchasing/transfers/")({
   component: TransfersPage,
 });
 
-type TransferTab = "all" | "mine" | "to_fulfill" | "shipped";
+type TransferTab = "all" | "mine" | "to_approve" | "to_fulfill" | "shipped";
 
 const TAB_STATUS: Record<TransferTab, TransferStatus | undefined> = {
   all: undefined,
   mine: undefined,
+  to_approve: "awaiting_approval",
   to_fulfill: "pending",
   shipped: "shipped",
 };
@@ -39,6 +40,7 @@ function tabsFor(user: User, counts: TransferStatusCounts | undefined): FilterTa
   }
   if (user.branch?.is_main) {
     return [
+      { value: "to_approve", label: "To Approve", count: counts?.awaiting_approval },
       { value: "to_fulfill", label: "To Fulfill", count: counts?.pending },
       { value: "shipped", label: "Shipped", count: counts?.shipped },
     ];
@@ -86,16 +88,18 @@ function TransfersPageContent({ user }: { user: User }) {
         primaryAction={newRequestButton}
       />
 
-      <StatCardGrid>
+      <StatCardGrid className="lg:grid-cols-5">
         {counts ? (
           <>
-            <StatCard label="Requested" value={formatNumber(counts.pending)} />
+            <StatCard label="Awaiting Approval" value={formatNumber(counts.awaiting_approval)} />
+            <StatCard label="To Fulfill" value={formatNumber(counts.pending)} />
             <StatCard label="In Transit" value={formatNumber(counts.shipped)} />
             <StatCard label="Received / Closed" value={formatNumber(counts.closed)} />
             <StatCard label="Total" value={formatNumber(counts.all)} />
           </>
         ) : (
           <>
+            <StatCardSkeleton />
             <StatCardSkeleton />
             <StatCardSkeleton />
             <StatCardSkeleton />
@@ -155,9 +159,11 @@ function TransfersPageContent({ user }: { user: User }) {
         empty={
           search
             ? { title: "No transfers found", description: "Try a different Transfer# or branch." }
-            : tab === "to_fulfill"
-              ? { title: "Nothing to fulfill", description: "New requests from other branches appear here." }
-              : { title: "No transfer requests yet", description: "Requests between branches appear here.", action: newRequestButton || undefined }
+            : tab === "to_approve"
+              ? { title: "Nothing to approve", description: "New requests from other branches wait here for approval." }
+              : tab === "to_fulfill"
+                ? { title: "Nothing to fulfill", description: "Approved requests appear here, ready to pick." }
+                : { title: "No transfer requests yet", description: "Requests between branches appear here.", action: newRequestButton || undefined }
         }
       />
     </div>

@@ -38,7 +38,9 @@ export interface PickPayload {
 const BASE_PATH = "/staff/transfers";
 
 const TRANSFER_STATUS_DISPLAY: Record<TransferStatus, string> = {
-  pending: "requested",
+  awaiting_approval: "awaiting_approval",
+  declined: "declined",
+  pending: "approved",
   shipped: "shipped",
   closed: "received",
   cancelled: "cancelled",
@@ -77,6 +79,16 @@ export function getTransfer(id: number): Promise<TransferDetail> {
 
 export async function createTransfer(payload: CreateTransferPayload): Promise<TransferDetail> {
   const response = await api.post<TransferDetail>(BASE_PATH, payload);
+  return response.data;
+}
+
+export async function approveTransfer(id: number): Promise<TransferDetail> {
+  const response = await api.post<TransferDetail>(`${BASE_PATH}/${id}/approve`);
+  return response.data;
+}
+
+export async function declineTransfer(id: number, declineReason: string): Promise<TransferDetail> {
+  const response = await api.post<TransferDetail>(`${BASE_PATH}/${id}/decline`, { decline_reason: declineReason });
   return response.data;
 }
 

@@ -62,6 +62,24 @@ export function useShipTransferMutation(id: number) {
   });
 }
 
+export function useApproveTransferMutation(id: number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => transfersApi.approveTransfer(id),
+    onSuccess: () => refreshTransfer(queryClient, id),
+  });
+}
+
+export function useDeclineTransferMutation(id: number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (declineReason: string) => transfersApi.declineTransfer(id, declineReason),
+    onSuccess: () => refreshTransfer(queryClient, id),
+  });
+}
+
 export function useCancelTransferMutation(id: number) {
   const queryClient = useQueryClient();
 
