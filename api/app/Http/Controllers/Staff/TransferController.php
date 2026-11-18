@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Staff;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Staff\DeclineTransferRequest;
 use App\Http\Requests\Staff\ListTransfersRequest;
 use App\Http\Requests\Staff\StoreTransferRequest;
 use App\Http\Resources\TransferRequestResource;
 use App\Models\TransferRequest;
 use App\Services\TransferService;
+use Illuminate\Http\Request;
 
 class TransferController extends Controller
 {
@@ -42,6 +44,29 @@ class TransferController extends Controller
         $this->authorize('view', $transferRequest);
 
         return new TransferRequestResource($transferRequest->load(TransferService::DETAIL_RELATIONS));
+    }
+
+    public function approve(Request $request, TransferRequest $transferRequest, TransferService $service)
+    {
+        $this->authorize('approve', $transferRequest);
+
+        $transfer = $service->approve($transferRequest, $request->user('staff')->employee, $this->currentBranchId());
+
+        return new TransferRequestResource($transfer->load(TransferService::DETAIL_RELATIONS));
+    }
+
+    public function decline(DeclineTransferRequest $request, TransferRequest $transferRequest, TransferService $service)
+    {
+        $this->authorize('approve', $transferRequest);
+
+        $transfer = $service->decline(
+            $transferRequest,
+            $request->user('staff')->employee,
+            $this->currentBranchId(),
+            $request->validated('decline_reason'),
+        );
+
+        return new TransferRequestResource($transfer->load(TransferService::DETAIL_RELATIONS));
     }
 
     public function ship(TransferRequest $transferRequest, TransferService $service)

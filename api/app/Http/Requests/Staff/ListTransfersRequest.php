@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Staff;
 
+use App\Services\TransferService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -10,7 +11,7 @@ class ListTransfersRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'status' => ['nullable', Rule::in(['pending', 'shipped', 'closed', 'cancelled'])],
+            'status' => ['nullable', Rule::in(TransferService::STATUSES)],
             'search' => ['nullable', 'string', 'max:100'],
             'requesting_branch_id' => ['nullable', 'integer'],
             'fulfilling_branch_id' => ['nullable', 'integer'],

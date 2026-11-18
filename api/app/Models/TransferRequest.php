@@ -22,6 +22,9 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
     'shipped_at',
     'received_at',
     'remarks',
+    'decline_reason',
+    'decided_by',
+    'decided_at',
 ])]
 #[ScopedBy([TransferRequestBranchScope::class])]
 class TransferRequest extends Model implements FulfillableDocument, ReceivableDocument
@@ -29,7 +32,7 @@ class TransferRequest extends Model implements FulfillableDocument, ReceivableDo
     use HasFactory;
 
     protected $attributes = [
-        'status' => 'pending',
+        'status' => 'awaiting_approval',
     ];
 
     protected function casts(): array
@@ -37,6 +40,7 @@ class TransferRequest extends Model implements FulfillableDocument, ReceivableDo
         return [
             'shipped_at' => 'datetime',
             'received_at' => 'datetime',
+            'decided_at' => 'datetime',
         ];
     }
 
@@ -53,6 +57,11 @@ class TransferRequest extends Model implements FulfillableDocument, ReceivableDo
     public function requestedBy(): BelongsTo
     {
         return $this->belongsTo(Employee::class, 'requested_by');
+    }
+
+    public function decidedBy(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'decided_by');
     }
 
     public function items(): HasMany

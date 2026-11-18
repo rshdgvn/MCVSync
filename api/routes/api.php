@@ -129,6 +129,8 @@ Route::prefix('staff/transfers')
         Route::get('/', [TransferController::class, 'index']);
         Route::post('/', [TransferController::class, 'store']);
         Route::get('/{transferRequest}', [TransferController::class, 'show']);
+        Route::post('/{transferRequest}/approve', [TransferController::class, 'approve']);
+        Route::post('/{transferRequest}/decline', [TransferController::class, 'decline']);
         Route::post('/{transferRequest}/ship', [TransferController::class, 'ship']);
         Route::post('/{transferRequest}/cancel', [TransferController::class, 'cancel']);
 

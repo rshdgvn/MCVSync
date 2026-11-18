@@ -18,7 +18,7 @@ test('a purchasing user at a non-main branch can request stock from the main bra
 
     $response->assertCreated();
     $response->assertJsonPath('transfer_number', 'TR-0001');
-    $response->assertJsonPath('status', 'pending');
+    $response->assertJsonPath('status', 'awaiting_approval');
     $response->assertJsonPath('requesting_branch.id', $requester->employee->branch_id);
     $response->assertJsonPath('fulfilling_branch.id', $main->employee->branch_id);
     $response->assertJsonPath('items.0.quantity_requested', 12);
