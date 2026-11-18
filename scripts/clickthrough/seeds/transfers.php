@@ -12,7 +12,9 @@ use App\Models\Supplier;
 use App\Models\Unit;
 use App\Models\User;
 use App\Services\AccountProvisioningService;
+use App\Services\DiscrepancyService;
 use App\Services\EmployeeRoleAssignmentService;
+use App\Services\ReceivingService;
 use App\Services\PurchaseOrderService;
 use App\Services\TransferService;
 
@@ -83,3 +85,11 @@ foreach (['to approve', 'to decline'] as $label) {
     $transfer = $service->create(['remarks' => "Click-through {$label}"], [['item_id' => $syringe->id, 'quantity' => 2]], $cebuEmployee, $cebu->id);
     echo "{$label}: {$transfer->transfer_number}\n";
 }
+
+$shortAccepted = $service->create(['remarks' => 'Click-through short accepted'], [['item_id' => $syringe->id, 'quantity' => 5]], $cebuEmployee, $cebu->id);
+$shortAccepted = $service->approve($shortAccepted, $approver, $main->id);
+$shortAccepted->items()->update(['quantity_picked' => 5, 'quantity_received' => 3]);
+$shortAccepted->update(['status' => 'shipped', 'shipped_at' => now()]);
+app(ReceivingService::class)->complete($shortAccepted->fresh(), $cebu->id);
+app(DiscrepancyService::class)->resolve($shortAccepted->discrepancies()->firstOrFail(), $cebuEmployee, $cebu->id, 'accepted', 'Two syringes broke in transit.');
+echo "short accepted: {$shortAccepted->transfer_number}\n";

@@ -150,7 +150,7 @@ async function offlinePurchaseOrderReceiving(browser, shot) {
   await row.getByRole("button", { name: "Resolve" }).click();
   await pickFromCombobox(page, "resolve-item", "Search Item", "Gauze", /Gauze Pad 4x4/);
   await shot(page, "offline-03b-link-barcode-desktop");
-  await dialog.getByRole("button", { name: "Mark Resolved" }).click();
+  await dialog.getByRole("button", { name: "Accept Discrepancy" }).click();
   await dialog.waitFor({ state: "detached" });
   const discrepancies = await apiGet(page, `${API_URL}/staff/discrepancies?reference_type=purchase_order&reference_id=1&type=not_found`);
   const linked = discrepancies.data.find((discrepancy) => discrepancy.scanned_barcode === BARCODE.unknown);

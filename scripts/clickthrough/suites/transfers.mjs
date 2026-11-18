@@ -237,6 +237,19 @@ async function requestingBranch(browser, shot) {
   await context.close();
 }
 
+async function shortAccepted(browser, shot) {
+  const p = (name) => `short-accepted-mobile-${name}`;
+  const { context, page } = await openAs(browser, "cebu.purchasing@mcvsync.test", "mobile");
+
+  await page.goto(`${APP_URL}/purchasing/transfers/6`);
+  await visible(page.getByText("3 received · 2 short accepted")).waitFor({ timeout: 20000 });
+  check(p("the transfer line shows the accepted shortfall"), true);
+  check(p("accepting the only gap received the transfer"), (await visible(page.getByText("Received", { exact: true })).count()) >= 1);
+  await noHorizontalScroll(page, p("detail"));
+  await shot(page, p("01-detail"));
+  await context.close();
+}
+
 async function superAdmin(browser, shot) {
   const { context, page } = await openAs(browser, "superadmin@mcvsync.test", "mobile");
   await page.goto(`${APP_URL}/super-admin/fefo-override`);
@@ -353,6 +366,7 @@ export async function run({ browser, shot }) {
   await runFlow("mobile pick", () => mobilePick(browser, shot));
   await runFlow("requesting branch", () => requestingBranch(browser, shot));
   await runFlow("super admin", () => superAdmin(browser, shot));
+  await runFlow("short accepted", () => shortAccepted(browser, shot));
   await runFlow("draft review", () => draftReview(browser, shot));
   await runFlow("approve request", () => approveRequest(browser, shot));
   await runFlow("decline request", () => declineRequest(browser, shot));
