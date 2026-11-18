@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
     'terms',
     'prepared_by',
     'remarks',
+    'source',
     'source_type',
     'source_id',
 ])]
@@ -31,6 +32,10 @@ class PurchaseOrder extends Model implements ReceivableDocument
     use HasFactory;
 
     private const RECEIVABLE_STATUSES = ['open', 'ready_for_delivery'];
+
+    protected $attributes = [
+        'source' => 'manual',
+    ];
 
     protected function casts(): array
     {

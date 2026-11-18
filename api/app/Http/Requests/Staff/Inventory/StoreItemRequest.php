@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Staff\Inventory;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreItemRequest extends FormRequest
 {
@@ -19,6 +20,7 @@ class StoreItemRequest extends FormRequest
             'expiry_alert_threshold_days' => ['nullable', 'integer', 'min:0'],
             'reorder_point' => ['nullable', 'integer', 'min:0'],
             'reorder_quantity' => ['nullable', 'integer', 'min:0'],
+            'preferred_supplier_id' => ['nullable', 'integer', Rule::exists('suppliers', 'id')->where('is_active', true)],
             'is_active' => ['boolean'],
         ];
     }
