@@ -34,6 +34,7 @@ const STATUS: Record<string, { label: string; tone: Tone }> = {
   cancelled: { label: "Cancelled", tone: "danger" },
   released: { label: "Released", tone: "neutral" },
   failed: { label: "Failed", tone: "danger" },
+  queued: { label: "Queued", tone: "info" },
   needs_revision: { label: "Needs Revision", tone: "warning" },
   paid: { label: "Paid", tone: "success" },
   payment_due: { label: "Payment Due", tone: "warning" },

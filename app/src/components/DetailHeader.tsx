@@ -16,6 +16,7 @@ export interface OverflowAction {
   icon?: LucideIcon;
   onSelect: () => void;
   destructive?: boolean;
+  disabledReason?: string;
 }
 
 interface DetailHeaderProps {
@@ -56,10 +57,15 @@ export function DetailHeader({
                   <DropdownMenuItem
                     key={action.label}
                     variant={action.destructive ? "destructive" : "default"}
+                    disabled={action.disabledReason !== undefined}
+                    title={action.disabledReason}
                     onClick={action.onSelect}
                   >
                     {action.icon && <action.icon />}
-                    {action.label}
+                    <span className="flex flex-col">
+                      {action.label}
+                      {action.disabledReason && <span className="text-xs text-muted-foreground">{action.disabledReason}</span>}
+                    </span>
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>

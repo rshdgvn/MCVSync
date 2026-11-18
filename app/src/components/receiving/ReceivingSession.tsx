@@ -1,7 +1,14 @@
 import { useState } from "react";
 import { Link, type LinkProps } from "@tanstack/react-router";
 import { CheckCircle2, ClipboardCheck, TriangleAlert } from "lucide-react";
-import type { ReceivingCompletion, ReceivingReferenceType } from "@/api/receiving";
+import {
+  receivingCacheKey,
+  receivingScope,
+  type NotOnDocumentPayload,
+  type ReceiveLinePayload,
+  type ReceivingCompletion,
+  type ReceivingReferenceType,
+} from "@/api/receiving";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DetailLoadError } from "@/components/DetailLoadError";
 import { EmptyState } from "@/components/EmptyState";
@@ -13,9 +20,20 @@ import { Button } from "@/components/ui/button";
 import { NotOnDocumentDialog } from "@/components/receiving/NotOnDocumentDialog";
 import { ReceiveLineDialog } from "@/components/receiving/ReceiveLineDialog";
 import { ChooseLineDialog } from "@/components/stock-flow/ChooseLineDialog";
+import { StockFlowOfflineNotice } from "@/components/stock-flow/StockFlowOfflineNotice";
 import { StockFlowShell, StockFlowSkeleton, type StockFlowHighlight } from "@/components/stock-flow/StockFlowShell";
-import { overLines, shortLines, summarizeLines, type StockFlowLine } from "@/components/stock-flow/stockFlowLines";
+import {
+  matchScanLocally,
+  overLines,
+  shortLines,
+  summarizeLines,
+  withQueuedQuantities,
+  type StockFlowLine,
+  type StockFlowScan,
+} from "@/components/stock-flow/stockFlowLines";
 import { useInventoryChannels } from "@/hooks/useInventoryChannels";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { useScopeQueue } from "@/hooks/usePendingMutations";
 import {
   useCompleteReceivingMutation,
   useLogNotOnDocumentMutation,
@@ -59,6 +77,8 @@ export function ReceivingSession({
   const [highlight, setHighlight] = useState<StockFlowHighlight | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
   const session = sessionQuery.data;
+  const isOnline = useOnlineStatus();
+  const queue = useScopeQueue(receivingScope(referenceType, referenceId));
   useInventoryChannels(session ? [session.document.branch.id] : []);
 
   if (sessionQuery.isPending) {
@@ -77,23 +97,47 @@ export function ReceivingSession({
     );
   }
 
-  const { document, lines, discrepancies } = session;
+  const { document, discrepancies } = session;
+  const lines = withQueuedQuantities(session.lines, queue.quantities);
   const summary = summarizeLines(lines);
   const sheetOpen = receiving !== null || notOnDocument !== null || choosing || confirmingComplete;
   const canReceive = document.isReceivable && completion === null;
   const unresolvedDiscrepancies = discrepancies.filter((discrepancy) => !discrepancy.resolved);
+  const completeBlockedReason = !isOnline
+    ? "Reconnect to complete receiving"
+    : queue.unsynced > 0
+      ? "Wait for queued scans to sync"
+      : undefined;
 
-  async function runMatch(scan: { barcode: string } | { item_id: number }): Promise<boolean> {
+  function openLine(line: StockFlowLine, remaining: number) {
+    receiveMutation.reset();
+    setReceiving({ line, remaining });
+  }
+
+  function openNotOnDocument(item: Item) {
+    notOnDocumentMutation.reset();
+    setNotOnDocument(item);
+  }
+
+  async function runMatch(scan: StockFlowScan): Promise<boolean> {
     setScanError(null);
+    if (!isOnline) {
+      const local = matchScanLocally(lines, scan);
+      if (local.status === "found") {
+        openLine(local.line, local.remaining);
+        return true;
+      }
+      setScanError(`Barcode ${local.barcode ?? ""} isn't on this document's saved copy. Reconnect to log it as a discrepancy.`);
+      return false;
+    }
     try {
       const result = await matchMutation.mutateAsync(scan);
       if (result.status === "found") {
-        receiveMutation.reset();
-        setReceiving({ line: result.line, remaining: result.remaining });
+        const line = lines.find((candidate) => candidate.id === result.line.id) ?? result.line;
+        openLine(line, Math.max(0, result.remaining - (line.queued ?? 0)));
         return true;
       }
-      notOnDocumentMutation.reset();
-      setNotOnDocument(result.item);
+      openNotOnDocument(result.item);
       return false;
     } catch (error) {
       setScanError(getErrorMessage(error));
@@ -113,23 +157,38 @@ export function ReceivingSession({
     void runMatch({ item_id: line.item.id });
   }
 
-  function confirmReceipt(payload: Parameters<typeof receiveMutation.mutateAsync>[0]) {
-    return receiveMutation.mutateAsync(payload, {
-      onSuccess: (line) => {
-        toast.success(`Received ${formatQuantity(payload.quantity, line.item.unit?.code)} of ${line.item.name}.`);
-        setHighlight({ lineId: line.id, key: Date.now() });
-        setReceiving(null);
+  function confirmReceipt(payload: ReceiveLinePayload) {
+    if (!receiving) {
+      return;
+    }
+    const { item } = receiving.line;
+    const amount = formatQuantity(payload.quantity, item.unit?.code);
+    return receiveMutation.mutateAsync(
+      { payload, label: `Receive ${amount} of ${item.name} on ${document.number}` },
+      {
+        onSuccess: (outcome) => {
+          if (outcome.queued) {
+            toast.info(`Queued ${amount} of ${item.name}. It syncs when you're back online.`);
+          } else {
+            toast.success(`Received ${amount} of ${item.name}.`);
+          }
+          setHighlight({ lineId: payload.lineId, key: Date.now() });
+          setReceiving(null);
+        },
       },
-    });
+    );
   }
 
-  function logNotOnDocument(payload: Parameters<typeof notOnDocumentMutation.mutateAsync>[0]) {
-    return notOnDocumentMutation.mutateAsync(payload, {
-      onSuccess: () => {
-        toast.info("Discrepancy logged.");
-        setNotOnDocument(null);
+  function logNotOnDocument(payload: NotOnDocumentPayload) {
+    return notOnDocumentMutation.mutateAsync(
+      { payload, label: `Log an item not on ${document.number}` },
+      {
+        onSuccess: (outcome) => {
+          toast.info(outcome.queued ? "Discrepancy queued. It syncs when you're back online." : "Discrepancy logged.");
+          setNotOnDocument(null);
+        },
       },
-    });
+    );
   }
 
   function confirmComplete() {
@@ -157,7 +216,8 @@ export function ReceivingSession({
       primaryAction={
         completion === null && (
           <Button
-            disabled={!canReceive}
+            disabled={!canReceive || completeBlockedReason !== undefined}
+            title={completeBlockedReason}
             onClick={() => {
               completeMutation.reset();
               setConfirmingComplete(true);
@@ -177,16 +237,18 @@ export function ReceivingSession({
         </>
       }
       notice={
-        !document.isReceivable &&
-        completion === null && (
-          <Alert variant="warning">
-            <TriangleAlert />
-            <AlertDescription>
-              This {documentLabel.toLowerCase()} is {statusInfo(document.statusKey).label.toLowerCase()} and isn't open for
-              receiving.
-            </AlertDescription>
-          </Alert>
-        )
+        <>
+          <StockFlowOfflineNotice cacheKey={receivingCacheKey(referenceType, referenceId)} unsynced={queue.unsynced} />
+          {!document.isReceivable && completion === null && (
+            <Alert variant="warning">
+              <TriangleAlert />
+              <AlertDescription>
+                This {documentLabel.toLowerCase()} is {statusInfo(document.statusKey).label.toLowerCase()} and isn't open for
+                receiving.
+              </AlertDescription>
+            </Alert>
+          )}
+        </>
       }
       result={
         completion && (

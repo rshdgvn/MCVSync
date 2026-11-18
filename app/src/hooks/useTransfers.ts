@@ -1,6 +1,8 @@
 import { keepPreviousData, queryOptions, useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import * as transfersApi from "@/api/transfers";
+import { useMeQuery } from "@/hooks/useAuth";
 import { receivingKeys } from "@/hooks/useReceiving";
+import { requireUserId } from "@/lib/offline/sendOrQueue";
 
 export const transferKeys = {
   all: ["transfers"] as const,
@@ -28,7 +30,7 @@ export const transferQueryOptions = (id: number) =>
   queryOptions({ queryKey: transferKeys.detail(id), queryFn: () => transfersApi.getTransfer(id) });
 
 export function useTransferQuery(id: number) {
-  return useQuery({ ...transferQueryOptions(id), refetchOnWindowFocus: true });
+  return useQuery({ ...transferQueryOptions(id), refetchOnWindowFocus: true, networkMode: "offlineFirst" });
 }
 
 function refreshTransfer(queryClient: QueryClient, id: number) {
@@ -77,14 +79,18 @@ export function useMatchPickMutation(id: number) {
 
 export function usePickStockMutation(id: number) {
   const queryClient = useQueryClient();
+  const userId = useMeQuery().data?.id;
 
   return useMutation({
-    mutationFn: (payload: transfersApi.PickPayload) => transfersApi.pickStock(id, payload),
-    onSuccess: (line) =>
-      Promise.all([
-        refreshTransfer(queryClient, id),
-        queryClient.invalidateQueries({ queryKey: ["inventory", "items", line.item.id, "batches"] }),
-      ]),
+    mutationFn: ({ payload, lineId, label }: { payload: transfersApi.PickPayload; lineId: number; label: string }) =>
+      transfersApi.pickStock(requireUserId(userId), id, payload, { lineId, label }),
+    onSuccess: (outcome) =>
+      outcome.queued
+        ? undefined
+        : Promise.all([
+            refreshTransfer(queryClient, id),
+            queryClient.invalidateQueries({ queryKey: ["inventory", "items", outcome.data.item.id, "batches"] }),
+          ]),
   });
 }
 

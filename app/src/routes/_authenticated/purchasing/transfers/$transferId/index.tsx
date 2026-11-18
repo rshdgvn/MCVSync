@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMeQuery } from "@/hooks/useAuth";
 import { useDiscrepanciesQuery } from "@/hooks/useDiscrepancies";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { useCancelTransferMutation, useTransferQuery } from "@/hooks/useTransfers";
 import { getErrorMessage } from "@/lib/errors";
 import { formatDateTime, formatQuantity } from "@/lib/format";
@@ -102,6 +103,7 @@ const LINE_COLUMNS: DataListColumn<TransferLine>[] = [
 
 function TransferDetailView({ transfer, user }: { transfer: TransferDetail; user: User }) {
   const cancelMutation = useCancelTransferMutation(transfer.id);
+  const isOnline = useOnlineStatus();
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [discrepancyPage, setDiscrepancyPage] = useState(1);
   const discrepanciesQuery = useDiscrepanciesQuery({
@@ -117,6 +119,7 @@ function TransferDetailView({ transfer, user }: { transfer: TransferDetail; user
           label: "Cancel Transfer",
           icon: Ban,
           destructive: true,
+          disabledReason: isOnline ? undefined : "Reconnect to cancel",
           onSelect: () => {
             cancelMutation.reset();
             setConfirmingCancel(true);

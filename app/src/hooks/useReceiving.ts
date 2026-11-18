@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import * as receivingApi from "@/api/receiving";
+import { useMeQuery } from "@/hooks/useAuth";
 import { discrepancyKeys } from "@/hooks/useDiscrepancies";
 import { purchaseOrderKeys } from "@/hooks/usePurchaseOrders";
 import { transferKeys } from "@/hooks/useTransfers";
+import { requireUserId } from "@/lib/offline/sendOrQueue";
 
 export const receivingKeys = {
   all: ["receiving"] as const,
@@ -41,6 +43,7 @@ export function useReceivingSessionQuery(referenceType: receivingApi.ReceivingRe
     queryKey: receivingKeys.session(referenceType, id),
     queryFn: () => receivingApi.getReceivingSession(referenceType, id),
     refetchOnWindowFocus: true,
+    networkMode: "offlineFirst",
   });
 }
 
@@ -52,23 +55,30 @@ export function useMatchReceivingScanMutation(referenceType: receivingApi.Receiv
 
 export function useReceiveLineMutation(referenceType: receivingApi.ReceivingReferenceType, id: number) {
   const queryClient = useQueryClient();
+  const userId = useMeQuery().data?.id;
 
   return useMutation({
-    mutationFn: (payload: receivingApi.ReceiveLinePayload) => receivingApi.receiveLine(referenceType, id, payload),
-    onSuccess: (line) => refreshAfterReceiving(queryClient, referenceType, id, line.done > line.target),
+    mutationFn: ({ payload, label }: { payload: receivingApi.ReceiveLinePayload; label: string }) =>
+      receivingApi.receiveLine(requireUserId(userId), referenceType, id, payload, label),
+    onSuccess: (outcome) =>
+      outcome.queued ? undefined : refreshAfterReceiving(queryClient, referenceType, id, outcome.data.done > outcome.data.target),
   });
 }
 
 export function useLogNotOnDocumentMutation(referenceType: receivingApi.ReceivingReferenceType, id: number) {
   const queryClient = useQueryClient();
+  const userId = useMeQuery().data?.id;
 
   return useMutation({
-    mutationFn: (payload: receivingApi.NotOnDocumentPayload) => receivingApi.logNotOnDocument(referenceType, id, payload),
-    onSuccess: () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: receivingKeys.session(referenceType, id) }),
-        queryClient.invalidateQueries({ queryKey: discrepancyKeys.lists() }),
-      ]),
+    mutationFn: ({ payload, label }: { payload: receivingApi.NotOnDocumentPayload; label: string }) =>
+      receivingApi.logNotOnDocument(requireUserId(userId), referenceType, id, payload, label),
+    onSuccess: (outcome) =>
+      outcome.queued
+        ? undefined
+        : Promise.all([
+            queryClient.invalidateQueries({ queryKey: receivingKeys.session(referenceType, id) }),
+            queryClient.invalidateQueries({ queryKey: discrepancyKeys.lists() }),
+          ]),
   });
 }
 

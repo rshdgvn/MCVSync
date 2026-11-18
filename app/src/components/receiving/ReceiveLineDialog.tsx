@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { StockFlowLine } from "@/components/stock-flow/stockFlowLines";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import type { SubmitHandler } from "@/hooks/useSubmitOnce";
 import { getFieldErrors, getGeneralError } from "@/lib/errors";
 import { formatQuantity } from "@/lib/format";
@@ -39,6 +40,7 @@ function blankToNull(value: string): string | null {
 
 export function ReceiveLineDialog({ line, remaining, targetLabel, isPending, serverError, onSubmit, onClose }: ReceiveLineDialogProps) {
   const unit = line.item.unit?.code;
+  const isOnline = useOnlineStatus();
   const [quantity, setQuantity] = useState(Math.max(remaining, 1));
   const [batchNumber, setBatchNumber] = useState("");
   const [mfgDate, setMfgDate] = useState("");
@@ -88,7 +90,7 @@ export function ReceiveLineDialog({ line, remaining, targetLabel, isPending, ser
             Cancel
           </Button>
           <LoadingButton type="submit" form="receive-line-form" isPending={isPending} pendingText="Receiving…">
-            Confirm Receipt
+            {isOnline ? "Confirm Receipt" : "Queue Receipt"}
           </LoadingButton>
         </>
       }

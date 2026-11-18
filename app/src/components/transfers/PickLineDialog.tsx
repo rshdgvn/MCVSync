@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import type { StockFlowLine } from "@/components/stock-flow/stockFlowLines";
 import { useItemBatchesQuery } from "@/hooks/useInventory";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import type { SubmitHandler } from "@/hooks/useSubmitOnce";
 import { getFieldErrors, getGeneralError } from "@/lib/errors";
 import { formatQuantity } from "@/lib/format";
@@ -65,6 +66,7 @@ export function PickLineDialog({
   onClose,
 }: PickLineDialogProps) {
   const unit = line.item.unit?.code;
+  const isOffline = !useOnlineStatus();
   const thresholdDays = line.item.effective_expiry_alert_threshold_days;
   const [quantity, setQuantity] = useState(defaultQuantity(remaining, suggestedBatch));
   const [choosingBatch, setChoosingBatch] = useState(false);
@@ -123,8 +125,14 @@ export function PickLineDialog({
           <Button variant="outline" disabled={isPending} onClick={onClose}>
             Cancel
           </Button>
-          <LoadingButton type="submit" form="pick-line-form" disabled={!pickBatch} isPending={isPending} pendingText="Picking…">
-            Confirm Pick
+          <LoadingButton
+            type="submit"
+            form="pick-line-form"
+            disabled={!pickBatch && !isOffline}
+            isPending={isPending}
+            pendingText="Picking…"
+          >
+            {isOffline ? "Queue Pick" : "Confirm Pick"}
           </LoadingButton>
         </>
       }
@@ -146,7 +154,12 @@ export function PickLineDialog({
           ))}
         </dl>
 
-        {pickBatch ? (
+        {isOffline ? (
+          <p className="border border-border-subtle bg-subtle px-3 py-2.5 text-xs text-muted-foreground">
+            Offline. The pick is saved on this device and the server takes it from the earliest-expiry batch when it syncs. If
+            stock has run out by then, it shows up in Sync Issues.
+          </p>
+        ) : pickBatch ? (
           <BatchSummary
             batch={pickBatch}
             thresholdDays={thresholdDays}
@@ -173,7 +186,7 @@ export function PickLineDialog({
           />
         </FormField>
 
-        {suggestedBatch && (
+        {suggestedBatch && !isOffline && (
           <div className="flex flex-col gap-2">
             <Button
               variant="ghost"
