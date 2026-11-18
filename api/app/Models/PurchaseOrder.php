@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Contracts\ReceivableDocument;
+use App\Models\Concerns\ClosesWhenSettled;
 use App\Models\Scopes\BranchScope;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
@@ -29,7 +30,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 #[ScopedBy([BranchScope::class])]
 class PurchaseOrder extends Model implements ReceivableDocument
 {
-    use HasFactory;
+    use ClosesWhenSettled, HasFactory;
 
     private const RECEIVABLE_STATUSES = ['open', 'ready_for_delivery'];
 

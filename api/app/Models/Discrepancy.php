@@ -21,11 +21,14 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
     'resolved',
     'resolved_by',
     'resolved_at',
+    'resolution',
     'resolution_note',
 ])]
 class Discrepancy extends Model
 {
     use HasFactory;
+
+    public const RESOLUTIONS = ['accepted', 'redelivery_requested'];
 
     protected $attributes = [
         'resolved' => false,

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Contracts\ReceivableDocument;
+use App\Contracts\ReceivableLine;
 use App\Models\Batch;
 use App\Support\BusinessDate;
 use App\Models\Discrepancy;
@@ -117,26 +118,15 @@ class ReceivingService
         $this->assertReceivable($document, $actingBranchId);
 
         return DB::transaction(function () use ($document) {
-            $lines = $document->receivingLines()->lockForUpdate()->get();
-            $allMatched = true;
+            $this->discrepancies->lockDocument($document);
 
-            foreach ($lines as $line) {
-                $expected = $line->expectedReceiptQuantity();
+            $document->receivingLines()
+                ->lockForUpdate()
+                ->get()
+                ->reject(fn (ReceivableLine $line) => $line->isSettled())
+                ->each(fn (Model $line) => $this->discrepancies->recordShortfall($document, $line));
 
-                if ($line->quantity_received === $expected) {
-                    continue;
-                }
-
-                $allMatched = false;
-
-                if ($line->quantity_received < $expected) {
-                    $this->discrepancies->recordShortfall($document, $line);
-                }
-            }
-
-            if ($allMatched) {
-                $document->markFullyReceived();
-            }
+            $document->closeIfSettled();
 
             return $document->fresh();
         });

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Contracts\ReceivableLine;
+use App\Models\Concerns\SettlesReceipt;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['purchase_order_id', 'item_id', 'quantity_ordered', 'quantity_received', 'unit_cost', 'discount', 'total'])]
 class PurchaseOrderItem extends Model implements ReceivableLine
 {
-    use HasFactory;
+    use HasFactory, SettlesReceipt;
 
     /**
      * quantity_received defaults to 0 at the DB level, but Eloquent's

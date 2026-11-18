@@ -11,9 +11,7 @@ use Spatie\Permission\PermissionRegistrar;
 
 function grantTransferApproval(User $user): User
 {
-    $permission = Permission::firstOrCreate(['name' => TransferRequestPolicy::APPROVE_PERMISSION, 'guard_name' => 'staff']);
-    $user->roles()->first()->givePermissionTo($permission);
-    app(PermissionRegistrar::class)->forgetCachedPermissions();
+    grantRolePermission(TransferRequestPolicy::APPROVE_PERMISSION, [$user->roles()->first()->name]);
 
     return $user->fresh();
 }

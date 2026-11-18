@@ -31,12 +31,13 @@ class DiscrepancyController extends Controller
 
     public function resolve(ResolveDiscrepancyRequest $request, Discrepancy $discrepancy, DiscrepancyService $service)
     {
-        $this->authorize('update', $discrepancy);
+        $this->authorize('resolve', $discrepancy);
 
         $discrepancy = $service->resolve(
             $discrepancy,
             $request->user('staff')->employee,
             $this->currentBranchId(),
+            $request->validated('resolution'),
             $request->validated('resolution_note'),
             $request->validated('item_id'),
         );

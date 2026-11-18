@@ -13,6 +13,8 @@ interface ReceivableDocument
 
     public function fresh($with = []);
 
+    public function newQueryWithoutScopes();
+
     public function receivingBranchId(): int;
 
     public function isReceivable(): bool;
@@ -24,6 +26,8 @@ interface ReceivableDocument
     public function discrepancies(): MorphMany;
 
     public function markFullyReceived(): void;
+
+    public function closeIfSettled(): bool;
 
     public function involvesBranch(int $branchId): bool;
 

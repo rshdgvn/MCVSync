@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Contracts\FulfillableDocument;
 use App\Contracts\ReceivableDocument;
+use App\Models\Concerns\ClosesWhenSettled;
 use App\Models\Scopes\TransferRequestBranchScope;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
@@ -29,7 +30,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 #[ScopedBy([TransferRequestBranchScope::class])]
 class TransferRequest extends Model implements FulfillableDocument, ReceivableDocument
 {
-    use HasFactory;
+    use ClosesWhenSettled, HasFactory;
 
     protected $attributes = [
         'status' => 'awaiting_approval',

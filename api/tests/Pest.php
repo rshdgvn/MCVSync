@@ -10,7 +10,9 @@ use App\Models\TransferRequest;
 use App\Models\User;
 use App\Models\Zone;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 /*
@@ -75,6 +77,17 @@ function assignStaffRole(User $user, string $roleName): User
     $user->syncRoles([$role]);
 
     return $user->fresh();
+}
+
+function grantRolePermission(string $permissionName, array $roleNames = ['purchasing', 'admin', 'super_admin']): void
+{
+    $permission = Permission::firstOrCreate(['name' => $permissionName, 'guard_name' => 'staff']);
+
+    foreach ($roleNames as $roleName) {
+        Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'staff'])->givePermissionTo($permission);
+    }
+
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
 }
 
 function makeClientUser(array $overrides = [], string $zoneName = 'Pampanga/Bulacan'): User

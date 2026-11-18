@@ -14,6 +14,7 @@ class PurchaseOrderItemResource extends JsonResource
             'item' => new ItemResource($this->whenLoaded('item')),
             'quantity_ordered' => $this->quantity_ordered,
             'quantity_received' => $this->quantity_received,
+            'short_accepted_quantity' => $this->short_accepted_quantity,
             'unit_cost' => (float) $this->unit_cost,
             'discount' => (float) $this->discount,
             'total' => (float) $this->total,

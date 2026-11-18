@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Contracts\FulfillableLine;
 use App\Contracts\ReceivableLine;
+use App\Models\Concerns\SettlesReceipt;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['transfer_request_id', 'item_id', 'quantity_requested', 'quantity_picked', 'quantity_received'])]
 class TransferRequestItem extends Model implements FulfillableLine, ReceivableLine
 {
-    use HasFactory;
+    use HasFactory, SettlesReceipt;
 
     protected $attributes = [
         'quantity_picked' => 0,

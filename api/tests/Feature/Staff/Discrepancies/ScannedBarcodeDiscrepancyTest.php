@@ -13,6 +13,8 @@ function openPurchaseOrderFor($user): PurchaseOrder
     return PurchaseOrder::factory()->create(['branch_id' => $user->employee->branch_id, 'status' => 'open']);
 }
 
+beforeEach(fn () => grantRolePermission('discrepancy.resolve'));
+
 test('a not_found discrepancy can be logged with only the scanned barcode', function () {
     $user = makePurchasingUser('APALIT');
     $po = openPurchaseOrderFor($user);
@@ -81,7 +83,7 @@ test('resolving a barcode-only discrepancy can link it to an item', function () 
     $item = Item::factory()->create();
     $discrepancy = Discrepancy::factory()->create(['reference_id' => $po->id, 'type' => 'not_found', 'item_id' => null, 'scanned_barcode' => UNKNOWN_BARCODE]);
 
-    $this->actingAs($user, 'staff')->postJson("/api/staff/discrepancies/{$discrepancy->id}/resolve", ['item_id' => $item->id])
+    $this->actingAs($user, 'staff')->postJson("/api/staff/discrepancies/{$discrepancy->id}/resolve", ['resolution' => 'accepted', 'item_id' => $item->id])
         ->assertOk()
         ->assertJsonPath('resolved', true)
         ->assertJsonPath('item.id', $item->id)
@@ -94,7 +96,7 @@ test('a discrepancy already linked to an item cannot be relinked', function () {
     $original = Item::factory()->create();
     $discrepancy = Discrepancy::factory()->create(['reference_id' => $po->id, 'item_id' => $original->id]);
 
-    $this->actingAs($user, 'staff')->postJson("/api/staff/discrepancies/{$discrepancy->id}/resolve", ['item_id' => Item::factory()->create()->id])
+    $this->actingAs($user, 'staff')->postJson("/api/staff/discrepancies/{$discrepancy->id}/resolve", ['resolution' => 'accepted', 'item_id' => Item::factory()->create()->id])
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['item_id' => 'This discrepancy is already linked to an item.']);
 
@@ -108,7 +110,7 @@ test('linking a discrepancy to an item that does not exist is rejected', functio
     $po = openPurchaseOrderFor($user);
     $discrepancy = Discrepancy::factory()->create(['reference_id' => $po->id, 'item_id' => null, 'scanned_barcode' => UNKNOWN_BARCODE]);
 
-    $this->actingAs($user, 'staff')->postJson("/api/staff/discrepancies/{$discrepancy->id}/resolve", ['item_id' => 999999])
+    $this->actingAs($user, 'staff')->postJson("/api/staff/discrepancies/{$discrepancy->id}/resolve", ['resolution' => 'accepted', 'item_id' => 999999])
         ->assertUnprocessable()
         ->assertJsonValidationErrors('item_id');
 });
@@ -120,7 +122,7 @@ test('another branch cannot resolve and link a barcode-only discrepancy', functi
     $discrepancy = Discrepancy::factory()->create(['reference_id' => $po->id, 'item_id' => null, 'scanned_barcode' => UNKNOWN_BARCODE]);
 
     $this->actingAs($outsider, 'staff')
-        ->postJson("/api/staff/discrepancies/{$discrepancy->id}/resolve", ['item_id' => Item::factory()->create()->id])
+        ->postJson("/api/staff/discrepancies/{$discrepancy->id}/resolve", ['resolution' => 'accepted', 'item_id' => Item::factory()->create()->id])
         ->assertNotFound();
 
     expect($discrepancy->fresh()->item_id)->toBeNull();
