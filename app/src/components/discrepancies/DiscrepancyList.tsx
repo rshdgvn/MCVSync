@@ -7,6 +7,8 @@ import { DataList, type DataListColumn } from "@/components/DataList";
 import { ResolveDiscrepancyDialog } from "@/components/discrepancies/ResolveDiscrepancyDialog";
 import { Pagination } from "@/components/Pagination";
 import { StatusBadge } from "@/components/StatusBadge";
+import { canResolveDiscrepancies } from "@/components/discrepancies/discrepancyRules";
+import { useMeQuery } from "@/hooks/useAuth";
 import { formatDateTime, formatNumber } from "@/lib/format";
 import type { Discrepancy, DiscrepancyListResponse } from "@/types/discrepancy";
 
@@ -77,7 +79,7 @@ function buildColumns(showDocument: boolean): DataListColumn<Discrepancy>[] {
       cell: (row) =>
         row.resolved ? (
           <span className="flex flex-col gap-0.5">
-            <StatusBadge status="resolved" />
+            <StatusBadge status={row.resolution ?? "resolved"} />
             <span className="text-xs text-muted-foreground">
               {row.resolved_by ?? "—"} · {formatDateTime(row.resolved_at)}
             </span>
@@ -93,6 +95,8 @@ function buildColumns(showDocument: boolean): DataListColumn<Discrepancy>[] {
 
 export function DiscrepancyList({ query, onPageChange, showDocument = true, empty }: DiscrepancyListProps) {
   const [resolving, setResolving] = useState<Discrepancy | null>(null);
+  const user = useMeQuery().data;
+  const canResolve = user ? canResolveDiscrepancies(user) : false;
 
   return (
     <>
@@ -108,7 +112,7 @@ export function DiscrepancyList({ query, onPageChange, showDocument = true, empt
         skeletonRows={5}
         empty={empty}
         rowActions={(row) =>
-          row.resolved ? [] : [{ label: "Resolve", icon: CheckCircle2, onClick: () => setResolving(row) }]
+          row.resolved || !canResolve ? [] : [{ label: "Resolve", icon: CheckCircle2, onClick: () => setResolving(row) }]
         }
         footer={query.data && <Pagination meta={query.data.meta} onPageChange={onPageChange} />}
       />

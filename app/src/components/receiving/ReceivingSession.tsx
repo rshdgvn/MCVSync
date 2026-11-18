@@ -344,11 +344,21 @@ function CompleteSummary({ lines, documentNumber }: { lines: StockFlowLine[]; do
   const short = shortLines(lines);
   const over = overLines(lines);
 
-  if (short.length === 0 && over.length === 0) {
+  const overNote = over.length > 0 && (
+    <p>
+      {over.length} {over.length === 1 ? "line was" : "lines were"} over-received and already logged as{" "}
+      {over.length === 1 ? "a discrepancy" : "discrepancies"}.
+    </p>
+  );
+
+  if (short.length === 0) {
     return (
-      <>
-        Every line on <span className="font-mono">{documentNumber}</span> matches what was expected. It will close.
-      </>
+      <div className="flex flex-col gap-2">
+        <p>
+          Every line on <span className="font-mono">{documentNumber}</span> is fully received. It will close.
+        </p>
+        {overNote}
+      </div>
     );
   }
 
@@ -369,12 +379,7 @@ function CompleteSummary({ lines, documentNumber }: { lines: StockFlowLine[]; do
           </ul>
         </div>
       )}
-      {over.length > 0 && (
-        <p>
-          {over.length} {over.length === 1 ? "line was" : "lines were"} over-received and already logged. The document stays
-          open until they're reviewed.
-        </p>
-      )}
+      {overNote}
     </div>
   );
 }
@@ -389,17 +394,12 @@ interface ReceivingResultProps {
 
 function ReceivingResult({ completion, documentNumber, documentLink, backTo, backLabel }: ReceivingResultProps) {
   const short = shortLines(completion.lines).length;
-  const over = overLines(completion.lines).length;
-  const openReasons = [
-    short > 0 && `${short} ${short === 1 ? "shortfall" : "shortfalls"} logged`,
-    over > 0 && `${over} ${over === 1 ? "line" : "lines"} over-received need review`,
-  ].filter(Boolean);
 
   return (
     <div className="border border-border bg-card">
       <EmptyState
         icon={completion.isClosed ? CheckCircle2 : TriangleAlert}
-        title={completion.isClosed ? "Stock Received" : `Still open: ${openReasons.join(", ")}`}
+        title={completion.isClosed ? "Stock Received" : `Still open: ${short} ${short === 1 ? "shortfall" : "shortfalls"} logged`}
         description={
           completion.isClosed
             ? `${documentNumber} is fully received and closed.`

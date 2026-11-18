@@ -3,6 +3,7 @@ import type {
   Discrepancy,
   DiscrepancyListResponse,
   DiscrepancyReferenceType,
+  DiscrepancyResolution,
   DiscrepancyType,
 } from "@/types/discrepancy";
 
@@ -29,8 +30,14 @@ export function discrepancySubject(discrepancy: Pick<Discrepancy, "item" | "scan
   return discrepancy.scanned_barcode ? `Barcode ${discrepancy.scanned_barcode}` : "Unknown item";
 }
 
-export async function resolveDiscrepancy(id: number, resolutionNote: string | null, itemId: number | null): Promise<Discrepancy> {
+export async function resolveDiscrepancy(
+  id: number,
+  resolution: DiscrepancyResolution,
+  resolutionNote: string | null,
+  itemId: number | null,
+): Promise<Discrepancy> {
   const response = await api.post<Discrepancy>(`/staff/discrepancies/${id}/resolve`, {
+    resolution,
     resolution_note: resolutionNote,
     item_id: itemId,
   });

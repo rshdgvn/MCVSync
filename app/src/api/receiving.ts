@@ -63,11 +63,11 @@ type MatchResponse =
   | { status: "not_found"; item: Item };
 
 function purchaseOrderLine(line: PurchaseOrderLine): StockFlowLine {
-  return { id: line.id, item: line.item, target: line.quantity_ordered, done: line.quantity_received };
+  return { id: line.id, item: line.item, target: line.quantity_ordered - line.short_accepted_quantity, done: line.quantity_received };
 }
 
 function transferLine(line: TransferLine): StockFlowLine {
-  return { id: line.id, item: line.item, target: line.quantity_picked, done: line.quantity_received };
+  return { id: line.id, item: line.item, target: line.quantity_picked - line.short_accepted_quantity, done: line.quantity_received };
 }
 
 function transferDocument(transfer: TransferDetail): ReceivingDocument {

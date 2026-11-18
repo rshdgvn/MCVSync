@@ -4,6 +4,8 @@ export type DiscrepancyType = "short" | "over" | "not_found";
 
 export type DiscrepancyReferenceType = "purchase_order" | "transfer_request";
 
+export type DiscrepancyResolution = "accepted" | "redelivery_requested";
+
 export interface Discrepancy {
   id: number;
   reference_type: DiscrepancyReferenceType;
@@ -19,6 +21,7 @@ export interface Discrepancy {
   resolved: boolean;
   resolved_by?: string | null;
   resolved_at: string | null;
+  resolution: DiscrepancyResolution | null;
   resolution_note: string | null;
   created_at: string | null;
 }

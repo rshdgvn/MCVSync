@@ -54,6 +54,8 @@ const STATUS: Record<string, { label: string; tone: Tone }> = {
   partial: { label: "Partial", tone: "warning" },
   complete: { label: "Complete", tone: "success" },
   resolved: { label: "Resolved", tone: "success" },
+  accepted: { label: "Accepted", tone: "success" },
+  redelivery_requested: { label: "Redelivery Requested", tone: "warning" },
   unresolved: { label: "Unresolved", tone: "warning" },
 };
 

@@ -9,6 +9,7 @@ export interface TransferLine {
   quantity_requested: number;
   quantity_picked: number;
   quantity_received: number;
+  short_accepted_quantity: number;
 }
 
 interface TransferBase {

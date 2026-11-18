@@ -31,6 +31,7 @@ export interface PurchaseOrderLine {
   item: Item;
   quantity_ordered: number;
   quantity_received: number;
+  short_accepted_quantity: number;
   unit_cost: number;
   discount: number;
   total: number;
