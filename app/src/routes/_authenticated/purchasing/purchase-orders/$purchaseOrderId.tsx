@@ -20,7 +20,7 @@ import {
   finalizeBlocker,
   supplierNameOf,
 } from "@/components/purchase-orders/purchaseOrderRules";
-import { QuantityProgress } from "@/components/QuantityProgress";
+import { ReceivedProgress } from "@/components/ReceivedProgress";
 import { SectionTitle } from "@/components/SectionTitle";
 import { StatusBadge } from "@/components/StatusBadge";
 import { SupplierCombobox } from "@/components/suppliers/SupplierCombobox";
@@ -207,7 +207,13 @@ function PurchaseOrderDetailView({ purchaseOrder }: { purchaseOrder: PurchaseOrd
       key: "received",
       header: "Received / Ordered",
       className: "w-44",
-      cell: (line) => <QuantityProgress value={line.quantity_received} total={line.quantity_ordered} />,
+      cell: (line) => (
+        <ReceivedProgress
+          received={line.quantity_received}
+          shortAccepted={line.short_accepted_quantity}
+          total={line.quantity_ordered}
+        />
+      ),
     },
     { key: "unit", header: "Unit", cell: (line) => line.item.unit?.code ?? "—" },
     {

@@ -10,6 +10,7 @@ import { DetailLoadError } from "@/components/DetailLoadError";
 import { DiscrepancyList } from "@/components/discrepancies/DiscrepancyList";
 import { FormField, fieldA11yProps } from "@/components/FormField";
 import { QuantityProgress } from "@/components/QuantityProgress";
+import { ReceivedProgress } from "@/components/ReceivedProgress";
 import { SectionTitle } from "@/components/SectionTitle";
 import { StatusBadge } from "@/components/StatusBadge";
 import {
@@ -110,7 +111,15 @@ const LINE_COLUMNS: DataListColumn<TransferLine>[] = [
     header: "Received",
     className: "w-40",
     cell: (line) =>
-      line.quantity_picked > 0 ? <QuantityProgress value={line.quantity_received} total={line.quantity_picked} /> : "—",
+      line.quantity_picked > 0 ? (
+        <ReceivedProgress
+          received={line.quantity_received}
+          shortAccepted={line.short_accepted_quantity}
+          total={line.quantity_picked}
+        />
+      ) : (
+        "—"
+      ),
   },
 ];
 
