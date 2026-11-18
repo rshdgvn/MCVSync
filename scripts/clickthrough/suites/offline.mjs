@@ -1,4 +1,5 @@
-import { API_URL, APP_URL, apiGet, apiPost, check, noHorizontalScroll, openAs, runFlow, scan, visible } from "../lib/browser.mjs";
+import { randomUUID } from "node:crypto";
+import { API_URL, APP_URL, apiGet, apiPost, check, noHorizontalScroll, openAs, pickFromCombobox, runFlow, scan, visible } from "../lib/browser.mjs";
 
 const BARCODE = { gloves: "4800001000011", syringe: "4800001000028", unknown: "4899999999999" };
 const PENDING_LINK = 'a[aria-label$="offline changes waiting to sync"]';
@@ -39,7 +40,7 @@ function recordQueueWrites(page) {
   const writes = [];
   page.on("request", (request) => {
     if (request.method() === "POST" && QUEUE_WRITE.test(request.url())) {
-      writes.push({ url: request.url(), body: JSON.parse(request.postData() ?? "{}") });
+      writes.push({ url: request.url(), body: JSON.parse(request.postData() ?? "{}"), key: request.headers()["idempotency-key"] });
     }
   });
   return writes;
@@ -94,8 +95,12 @@ async function offlinePurchaseOrderReceiving(browser, shot) {
   check(p("top bar counts three queued changes"), (await pendingCount(page)) === 3, String(await pendingCount(page)));
 
   await scan(page, BARCODE.unknown);
-  await visible(page.getByText(/Reconnect to log it as a discrepancy/)).waitFor();
-  check(p("an unknown barcode offline asks to reconnect instead of queuing a log the server would reject"), (await pendingCount(page)) === 3);
+  await dialog.getByText(BARCODE.unknown).waitFor();
+  check(p("an unknown barcode offline offers a not-on-document log"), true);
+  await dialog.locator("#not-on-document-notes").fill("Unlabelled carton.");
+  await dialog.getByRole("button", { name: "Queue Discrepancy" }).click();
+  await dialog.waitFor({ state: "detached" });
+  check(p("the barcode-only discrepancy is queued too"), (await pendingCount(page)) === 4);
   await noHorizontalScroll(page, p("offline session"));
   await shot(page, "offline-01-po-queued-desktop");
 
@@ -103,22 +108,53 @@ async function offlinePurchaseOrderReceiving(browser, shot) {
   await visible(page.getByText("lines received")).waitFor({ timeout: 20000 });
   check(p("the session reopens offline after a reload"), true);
   check(p("queued quantities survive the reload"), (await queuedBadge(page, 10)) && (await queuedBadge(page, 5)) && (await queuedBadge(page, 3)));
-  check(p("queued count survives the reload"), (await pendingCount(page)) === 3);
+  check(p("queued count survives the reload"), (await pendingCount(page)) === 4);
   check(p("nothing was sent while offline"), writes.length === 0, String(writes.length));
   await shot(page, "offline-02-po-after-reload-desktop");
 
   await context.setOffline(false);
   check(p("queue drains after reconnecting"), await waitForPendingCount(page, 0));
-  const order = writes.map((write) => write.body.purchase_order_item_id);
-  check(p("replay keeps the scan order"), JSON.stringify(order) === JSON.stringify([1, 2, 3]), JSON.stringify(order));
+  const order = writes.map((write) => (write.url.endsWith("discrepancy") ? "discrepancy" : write.body.purchase_order_item_id));
+  check(p("replay keeps the scan order"), JSON.stringify(order) === JSON.stringify([1, 2, 3, "discrepancy"]), JSON.stringify(order));
+  check(p("every replayed write carries its own idempotency key"), new Set(writes.map((write) => write.key).filter(Boolean)).size === 4);
 
   const session = await apiGet(page, `${API_URL}/staff/purchase-orders/1/receive`);
   const received = session.lines.map((line) => line.quantity_received);
   check(p("server received 10, 5 and 3"), JSON.stringify(received) === JSON.stringify([10, 5, 3]), JSON.stringify(received));
+  const logged = session.discrepancies.find((discrepancy) => discrepancy.type === "not_found");
+  check(p("the offline log keeps the scanned barcode with no item"), logged?.scanned_barcode === BARCODE.unknown && logged?.item === null, JSON.stringify(logged));
   await page.waitForFunction(() => !document.body.innerText.includes("Queued +"));
   check(p("queued badges clear after sync"), true);
   check(p("complete receiving is enabled again"), !(await visible(page.getByRole("button", { name: "Complete Receiving" })).isDisabled()));
   await shot(page, "offline-03-po-synced-desktop");
+
+  const gauze = session.lines.find((line) => line.item.sku === "GZE-44");
+  const key = randomUUID();
+  const confirm = () =>
+    apiPost(
+      page,
+      `${API_URL}/staff/purchase-orders/1/receive/confirm`,
+      { purchase_order_item_id: gauze.id, quantity_received: 1, batch_number: "OFF-GZE" },
+      { "Idempotency-Key": key },
+    );
+  await confirm();
+  await confirm();
+  const resent = await apiGet(page, `${API_URL}/staff/purchase-orders/1/receive`);
+  const gauzeReceived = resent.lines.find((line) => line.id === gauze.id).quantity_received;
+  check(p("an online receipt sent twice with one key is applied once"), gauzeReceived === 4, String(gauzeReceived));
+
+  await page.goto(`${APP_URL}/purchasing/discrepancies`);
+  const row = visible(page.getByRole("row", { name: new RegExp(`Barcode ${BARCODE.unknown}`) }));
+  await row.waitFor({ timeout: 20000 });
+  check(p("the discrepancy list shows the scanned barcode"), true);
+  await row.getByRole("button", { name: "Resolve" }).click();
+  await pickFromCombobox(page, "resolve-item", "Search Item", "Gauze", /Gauze Pad 4x4/);
+  await shot(page, "offline-03b-link-barcode-desktop");
+  await dialog.getByRole("button", { name: "Mark Resolved" }).click();
+  await dialog.waitFor({ state: "detached" });
+  const discrepancies = await apiGet(page, `${API_URL}/staff/discrepancies?reference_type=purchase_order&reference_id=1&type=not_found`);
+  const linked = discrepancies.data.find((discrepancy) => discrepancy.scanned_barcode === BARCODE.unknown);
+  check(p("resolving links the barcode to the chosen item"), linked?.resolved === true && linked?.item?.sku === "GZE-44", JSON.stringify(linked));
   await context.close();
 }
 
@@ -203,10 +239,24 @@ async function offlineTransferReceiving(browser, shot) {
   check(p("queued receipt survives the reload"), await queuedBadge(page, 3));
   await shot(page, "offline-06-transfer-receive-queued-desktop");
 
+  const attempts = [];
+  await page.route("**/staff/transfers/2/receive/confirm", async (route) => {
+    attempts.push(route.request().headers()["idempotency-key"]);
+    const response = await route.fetch();
+    if (attempts.length === 1) {
+      await route.abort("connectionreset");
+      return;
+    }
+    attempts.replayed = response.headers()["idempotent-replayed"];
+    await route.fulfill({ response });
+  });
+
   await context.setOffline(false);
-  check(p("queue drains after reconnecting"), await waitForPendingCount(page, 0));
+  check(p("queue drains after a dropped reply"), await waitForPendingCount(page, 0));
+  check(p("the dropped send retried automatically with the same key"), attempts.length === 2 && attempts[0] === attempts[1], JSON.stringify(attempts));
+  check(p("the retry got the stored reply instead of a second receipt"), attempts.replayed === "true", String(attempts.replayed));
   const transfer = await apiGet(page, `${API_URL}/staff/transfers/2`);
-  check(p("server received the shipped quantity"), transfer.items[0].quantity_received === 3, String(transfer.items[0].quantity_received));
+  check(p("server received the shipped quantity once"), transfer.items[0].quantity_received === 3, String(transfer.items[0].quantity_received));
   await context.close();
 }
 
