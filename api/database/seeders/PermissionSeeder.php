@@ -16,10 +16,10 @@ class PermissionSeeder extends Seeder
      */
     public const ROLE_PERMISSIONS = [
         'sales' => ['cof.create', 'cof.view', 'cof.forward_to_purchasing', 'discount.set', 'client.view'],
-        'purchasing' => ['purchase_order.create', 'purchase_order.approve', 'stock.receive', 'transfer.approve'],
+        'purchasing' => ['purchase_order.create', 'purchase_order.approve', 'stock.receive', 'transfer.approve', 'discrepancy.resolve'],
         'accounting' => ['pricing.set', 'invoice.create', 'payment.record'],
         'logistics' => ['dispatch.approve', 'transfer.request', 'transfer.fulfill'],
-        'admin' => ['user.manage', 'role_permission.edit', 'branch.manage', 'system.configure', 'transfer.approve'],
+        'admin' => ['user.manage', 'role_permission.edit', 'branch.manage', 'system.configure', 'transfer.approve', 'discrepancy.resolve'],
         'super_admin' => ['employee_role.assign'],
     ];
 
