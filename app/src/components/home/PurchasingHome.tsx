@@ -19,6 +19,7 @@ import { usePurchaseOrdersQuery } from "@/hooks/usePurchaseOrders";
 import { useTransfersQuery } from "@/hooks/useTransfers";
 import { daysUntil, formatDate, formatNumber } from "@/lib/format";
 import { getErrorMessage } from "@/lib/errors";
+import { canEditPurchaseOrders } from "@/lib/rbac";
 import { statusInfo } from "@/lib/status";
 import type { User } from "@/types/user";
 
@@ -53,6 +54,7 @@ export function PurchasingHome({ user }: { user: User }) {
   const isMain = user.branch?.is_main ?? false;
   const transferStatus = isMain ? "pending" : "shipped";
   const canApprove = canApproveTransfers(user);
+  const canReviewDrafts = canEditPurchaseOrders(user);
   useInventoryChannels(usePurchasingOwnBranchIds());
 
   const expiring = useExpiringAlertsQuery({ per_page: QUEUE_PAGE_SIZE });
@@ -69,6 +71,11 @@ export function PurchasingHome({ user }: { user: User }) {
     per_page: QUEUE_PAGE_SIZE,
     page: lastPage(transfers.data?.meta),
   });
+  const drafts = usePurchaseOrdersQuery({ status: "draft", per_page: QUEUE_PAGE_SIZE }, canReviewDrafts);
+  const oldestDrafts = usePurchaseOrdersQuery(
+    { status: "draft", per_page: QUEUE_PAGE_SIZE, page: lastPage(drafts.data?.meta) },
+    canReviewDrafts,
+  );
   const approvals = useTransfersQuery({ status: "awaiting_approval", per_page: QUEUE_PAGE_SIZE }, canApprove);
   const oldestApprovals = useTransfersQuery(
     { status: "awaiting_approval", per_page: QUEUE_PAGE_SIZE, page: lastPage(approvals.data?.meta) },
@@ -89,6 +96,14 @@ export function PurchasingHome({ user }: { user: User }) {
       detail: supplierNameOf(po),
       since: po.order_date,
       link: { to: "/purchasing/stock-receiving/purchase-orders/$purchaseOrderId", params: { purchaseOrderId: String(po.id) } },
+    })),
+    ...oldestFirst(oldestDrafts.data?.data).map((po): ActionEntry => ({
+      key: `draft-${po.id}`,
+      kind: "Draft PO",
+      title: <span className="font-mono">{po.po_number}</span>,
+      detail: supplierNameOf(po),
+      since: po.order_date,
+      link: { to: "/purchasing/purchase-orders/$purchaseOrderId", params: { purchaseOrderId: String(po.id) } },
     })),
     ...oldestFirst(oldestApprovals.data?.data).map((transfer): ActionEntry => ({
       key: `approve-${transfer.id}`,
@@ -121,14 +136,19 @@ export function PurchasingHome({ user }: { user: User }) {
     .slice(0, NEEDS_ACTION_LIMIT);
 
   const queuesPending =
-    oldestOrders.isPending || oldestTransfers.isPending || oldestDiscrepancies.isPending || (canApprove && oldestApprovals.isPending);
-  const queueError = oldestOrders.error ?? oldestTransfers.error ?? oldestDiscrepancies.error ?? oldestApprovals.error;
+    oldestOrders.isPending ||
+    oldestTransfers.isPending ||
+    oldestDiscrepancies.isPending ||
+    (canApprove && oldestApprovals.isPending) ||
+    (canReviewDrafts && oldestDrafts.isPending);
+  const queueError =
+    oldestOrders.error ?? oldestTransfers.error ?? oldestDiscrepancies.error ?? oldestApprovals.error ?? oldestDrafts.error;
 
   return (
     <div className="flex flex-col gap-4">
       <PageHeader title="Purchasing Home" description={`${user.branch?.name ?? "All branches"} · what needs attention today.`} />
 
-      <StatCardGrid className={canApprove ? "lg:grid-cols-4 xl:grid-cols-7" : "lg:grid-cols-3 xl:grid-cols-6"}>
+      <StatCardGrid className={canApprove ? "lg:grid-cols-4" : "lg:grid-cols-4 xl:grid-cols-7"}>
         {expiring.data ? (
           <StatCard label="Near Expiry" value={formatNumber(expiring.data.meta.total)} sub="batches" link={{ to: "/inventory/expiring" }} />
         ) : (
@@ -151,13 +171,26 @@ export function PurchasingHome({ user }: { user: User }) {
           </>
         )}
         {orders.data ? (
-          <StatCard
-            label="POs Ready to Receive"
-            value={formatNumber(orders.data.counts.ready_for_delivery)}
-            link={{ to: "/purchasing/stock-receiving" }}
-          />
+          <>
+            <StatCard
+              label="POs Ready to Receive"
+              value={formatNumber(orders.data.counts.ready_for_delivery)}
+              link={{ to: "/purchasing/stock-receiving" }}
+            />
+            {canReviewDrafts && (
+              <StatCard
+                label="Draft POs to Review"
+                value={formatNumber(orders.data.counts.draft)}
+                sub="waiting to be finalized"
+                link={{ to: "/purchasing/purchase-orders", search: { status: "draft" } }}
+              />
+            )}
+          </>
         ) : (
-          <StatCardSkeleton />
+          <>
+            <StatCardSkeleton />
+            {canReviewDrafts && <StatCardSkeleton />}
+          </>
         )}
         {canApprove &&
           (approvals.data ? (
@@ -206,11 +239,12 @@ export function PurchasingHome({ user }: { user: User }) {
                 void oldestOrders.refetch();
                 void oldestTransfers.refetch();
                 if (canApprove) void oldestApprovals.refetch();
+                if (canReviewDrafts) void oldestDrafts.refetch();
                 void oldestDiscrepancies.refetch();
               }}
             />
           ) : entries.length === 0 ? (
-            <EmptyState title="Nothing waiting" description="Deliveries, transfers and discrepancies that need you appear here, oldest first." />
+            <EmptyState title="Nothing waiting" description="Deliveries, draft POs, transfers and discrepancies that need you appear here, oldest first." />
           ) : (
             <ul className="divide-y divide-border-subtle">
               {entries.map((entry) => (
