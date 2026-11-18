@@ -110,8 +110,8 @@ Route::prefix('staff/purchase-orders')
 
         Route::get('/{purchaseOrder}/receive', [ReceivingController::class, 'show']);
         Route::post('/{purchaseOrder}/receive/match', [ReceivingController::class, 'match']);
-        Route::post('/{purchaseOrder}/receive/confirm', [ReceivingController::class, 'confirm']);
-        Route::post('/{purchaseOrder}/receive/discrepancy', [ReceivingController::class, 'discrepancy']);
+        Route::post('/{purchaseOrder}/receive/confirm', [ReceivingController::class, 'confirm'])->middleware('idempotent');
+        Route::post('/{purchaseOrder}/receive/discrepancy', [ReceivingController::class, 'discrepancy'])->middleware('idempotent');
         Route::post('/{purchaseOrder}/receive/complete', [ReceivingController::class, 'complete']);
 
     });
@@ -133,11 +133,11 @@ Route::prefix('staff/transfers')
         Route::post('/{transferRequest}/cancel', [TransferController::class, 'cancel']);
 
         Route::post('/{transferRequest}/fulfill/match', [TransferFulfillmentController::class, 'match']);
-        Route::post('/{transferRequest}/fulfill/pick', [TransferFulfillmentController::class, 'pick']);
+        Route::post('/{transferRequest}/fulfill/pick', [TransferFulfillmentController::class, 'pick'])->middleware('idempotent');
 
         Route::post('/{transferRequest}/receive/match', [TransferReceivingController::class, 'match']);
-        Route::post('/{transferRequest}/receive/confirm', [TransferReceivingController::class, 'confirm']);
-        Route::post('/{transferRequest}/receive/discrepancy', [TransferReceivingController::class, 'discrepancy']);
+        Route::post('/{transferRequest}/receive/confirm', [TransferReceivingController::class, 'confirm'])->middleware('idempotent');
+        Route::post('/{transferRequest}/receive/discrepancy', [TransferReceivingController::class, 'discrepancy'])->middleware('idempotent');
         Route::post('/{transferRequest}/receive/complete', [TransferReceivingController::class, 'complete']);
 
         Route::get('/{transferRequest}/discrepancies', [DiscrepancyController::class, 'transferIndex']);
