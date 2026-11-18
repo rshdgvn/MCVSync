@@ -1,12 +1,9 @@
 import { db } from "@/db/schema";
 import type { PendingMutation } from "@/db/schema";
 
-export type QueuedRequest = Pick<PendingMutation, "method" | "url" | "payload">;
+export type QueuedRequest = Pick<PendingMutation, "method" | "url" | "payload" | "idempotency_key">;
 
 export type QueuedChange = Pick<PendingMutation, "user_id" | "scope" | "line_id" | "quantity" | "label">;
-
-export const INTERRUPTED_SYNC_REASON =
-  "The connection dropped while this change was syncing, so it may or may not have been saved. Check the document before retrying.";
 
 export async function enqueueMutation(request: QueuedRequest, change: QueuedChange): Promise<number> {
   return db.pending_mutations.add({
@@ -33,12 +30,16 @@ export async function claimMutation(id: number): Promise<boolean> {
   });
 }
 
-export async function failInterruptedSyncs(userId: number): Promise<void> {
+export async function releaseInterruptedSyncs(userId: number): Promise<void> {
   await db.pending_mutations
     .where("user_id")
     .equals(userId)
     .filter((mutation) => mutation.status === "syncing")
-    .modify({ status: "failed", error_reason: INTERRUPTED_SYNC_REASON });
+    .modify({ status: "pending" });
+}
+
+export async function releaseMutation(id: number): Promise<void> {
+  await db.pending_mutations.update(id, { status: "pending" });
 }
 
 export async function markFailed(id: number, errorReason: string): Promise<void> {

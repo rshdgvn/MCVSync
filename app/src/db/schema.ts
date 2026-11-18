@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from "dexie";
+import { newIdempotencyKey } from "@/lib/offline/idempotencyKey";
 
 export interface CachedItem {
   id: string;
@@ -25,6 +26,7 @@ export interface PendingMutation {
   method: "POST" | "PUT" | "PATCH" | "DELETE";
   url: string;
   payload: unknown;
+  idempotency_key: string;
   created_at: number;
   status: PendingMutationStatus;
   error_reason?: string;
@@ -54,6 +56,17 @@ export class AppDatabase extends Dexie {
       cached_session: "id",
       pending_mutations: "++id, status, created_at, scope, user_id",
     });
+
+    this.version(3)
+      .stores({})
+      .upgrade((transaction) =>
+        transaction
+          .table<PendingMutation, number>("pending_mutations")
+          .toCollection()
+          .modify((mutation) => {
+            mutation.idempotency_key ??= newIdempotencyKey();
+          }),
+      );
   }
 }
 

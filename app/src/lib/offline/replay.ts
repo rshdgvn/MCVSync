@@ -1,11 +1,11 @@
 import { api } from "@/api/client";
 import type { PendingMutation } from "@/db/schema";
 import {
-  INTERRUPTED_SYNC_REASON,
   claimMutation,
-  failInterruptedSyncs,
   listReplayableMutations,
   markFailed,
+  releaseInterruptedSyncs,
+  releaseMutation,
   removeMutation,
 } from "@/db/pendingMutations";
 import { discrepancyKeys } from "@/hooks/useDiscrepancies";
@@ -18,11 +18,34 @@ import { queryClient } from "@/lib/queryClient";
 import { toast } from "@/stores/toast.store";
 
 const REPLAY_LOCK = "mcvsync-offline-replay";
+const IDEMPOTENCY_HEADER = "Idempotency-Key";
+const RETRY_DELAYS_MS = [2000, 5000, 15000, 30000, 60000];
 
 let running: Promise<ReplayResult | null> | null = null;
+let retryAttempt = 0;
+let retryTimer: number | undefined;
 
-export function sendQueuedMutation<T = unknown>(mutation: Pick<PendingMutation, "method" | "url" | "payload">) {
-  return api.request<T>({ method: mutation.method, url: mutation.url, data: mutation.payload });
+export function sendQueuedMutation<T = unknown>(
+  mutation: Pick<PendingMutation, "method" | "url" | "payload" | "idempotency_key">,
+) {
+  return api.request<T>({
+    method: mutation.method,
+    url: mutation.url,
+    data: mutation.payload,
+    headers: { [IDEMPOTENCY_HEADER]: mutation.idempotency_key },
+  });
+}
+
+function scheduleRetry(userId: number): void {
+  if (retryTimer !== undefined || !navigator.onLine) {
+    return;
+  }
+  const delay = RETRY_DELAYS_MS[Math.min(retryAttempt, RETRY_DELAYS_MS.length - 1)];
+  retryAttempt += 1;
+  retryTimer = window.setTimeout(() => {
+    retryTimer = undefined;
+    void replayPendingMutations(userId);
+  }, delay);
 }
 
 function replayOnce(userId: number): Promise<ReplayResult> {
@@ -32,18 +55,18 @@ function replayOnce(userId: number): Promise<ReplayResult> {
       claim: claimMutation,
       remove: removeMutation,
       fail: markFailed,
+      release: releaseMutation,
     },
     {
       send: sendQueuedMutation,
       isConnectionLost: isNetworkError,
       describeRejection: getErrorMessage,
-      connectionLostReason: INTERRUPTED_SYNC_REASON,
     },
   );
 }
 
 async function replayAll(userId: number): Promise<ReplayResult> {
-  await failInterruptedSyncs(userId);
+  await releaseInterruptedSyncs(userId);
   const total: ReplayResult = { synced: [], failed: [], connectionLost: false };
   for (;;) {
     const pass = await replayOnce(userId);
@@ -91,6 +114,11 @@ export function replayPendingMutations(userId: number): Promise<ReplayResult | n
   }
   running = withReplayLock(() => replayAll(userId))
     .then(async (result) => {
+      if (result?.connectionLost) {
+        scheduleRetry(userId);
+      } else if (result) {
+        retryAttempt = 0;
+      }
       if (result && result.synced.length + result.failed.length > 0) {
         await refreshStockFlows();
         announce(result);

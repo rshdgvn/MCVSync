@@ -5,13 +5,13 @@ export interface ReplayQueue {
   claim: (id: number) => Promise<boolean>;
   remove: (id: number) => Promise<void>;
   fail: (id: number, reason: string) => Promise<void>;
+  release: (id: number) => Promise<void>;
 }
 
 export interface ReplayHandlers {
   send: (mutation: PendingMutation) => Promise<unknown>;
   isConnectionLost: (error: unknown) => boolean;
   describeRejection: (error: unknown) => string;
-  connectionLostReason: string;
 }
 
 export interface ReplayResult {
@@ -33,13 +33,13 @@ export async function replayQueue(queue: ReplayQueue, handlers: ReplayHandlers):
       await queue.remove(mutation.id);
       result.synced.push(mutation);
     } catch (error) {
-      const connectionLost = handlers.isConnectionLost(error);
-      await queue.fail(mutation.id, connectionLost ? handlers.connectionLostReason : handlers.describeRejection(error));
-      result.failed.push(mutation);
-      if (connectionLost) {
+      if (handlers.isConnectionLost(error)) {
+        await queue.release(mutation.id);
         result.connectionLost = true;
         break;
       }
+      await queue.fail(mutation.id, handlers.describeRejection(error));
+      result.failed.push(mutation);
     }
   }
 

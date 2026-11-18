@@ -3,14 +3,13 @@ import { describe, it } from "node:test";
 import type { PendingMutation } from "@/db/schema";
 import { replayQueue, type ReplayQueue } from "@/lib/offline/replayQueue";
 
-const CONNECTION_LOST = "connection lost";
-
 function mutation(id: number, createdAt: number): PendingMutation {
   return {
     id,
     method: "POST",
     url: `/staff/transfers/1/fulfill/pick?n=${id}`,
     payload: { id },
+    idempotency_key: `key-${id}`,
     created_at: createdAt,
     status: "pending",
     user_id: 1,
@@ -43,6 +42,12 @@ function memoryQueue(rows: PendingMutation[]) {
         row.error_reason = reason;
       }
     },
+    release: async (id) => {
+      const row = store.get(id);
+      if (row) {
+        row.status = "pending";
+      }
+    },
   };
   return { queue, store };
 }
@@ -55,7 +60,6 @@ function handlers(send: (mutation: PendingMutation) => Promise<unknown>) {
     send,
     isConnectionLost: (error: unknown) => error === networkDown,
     describeRejection: () => "Batch B-1 only has 2 left.",
-    connectionLostReason: CONNECTION_LOST,
   };
 }
 
@@ -99,22 +103,29 @@ describe("offline replay queue", () => {
     assert.equal(store.get(2)?.error_reason, "Batch B-1 only has 2 left.");
   });
 
-  it("stops at a dropped connection and flags that row for a human instead of resending it", async () => {
+  it("stops at a dropped connection and keeps that row pending so it retries with the same key", async () => {
     const { queue, store } = memoryQueue([mutation(1, 100), mutation(2, 200), mutation(3, 300)]);
+    const sentKeys: string[] = [];
+    let dropNext = true;
 
-    const result = await replayQueue(
-      queue,
-      handlers(async (row) => {
-        if (row.id === 2) {
-          throw networkDown;
-        }
-      }),
-    );
+    const send = async (row: PendingMutation) => {
+      sentKeys.push(row.idempotency_key);
+      if (row.id === 2 && dropNext) {
+        dropNext = false;
+        throw networkDown;
+      }
+    };
 
-    assert.equal(result.connectionLost, true);
-    assert.equal(store.get(2)?.status, "failed");
-    assert.equal(store.get(2)?.error_reason, CONNECTION_LOST);
+    const first = await replayQueue(queue, handlers(send));
+    assert.equal(first.connectionLost, true);
+    assert.equal(first.failed.length, 0);
+    assert.equal(store.get(2)?.status, "pending");
     assert.equal(store.get(3)?.status, "pending");
+
+    const retry = await replayQueue(queue, handlers(send));
+    assert.deepEqual(retry.synced.map((row) => row.id), [2, 3]);
+    assert.deepEqual(sentKeys, ["key-1", "key-2", "key-2", "key-3"]);
+    assert.equal(store.size, 0);
   });
 
   it("skips rows another tab already claimed", async () => {

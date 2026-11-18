@@ -1,10 +1,14 @@
 import { db } from "@/db/schema";
 import { enqueueMutation, type QueuedChange, type QueuedRequest } from "@/db/pendingMutations";
+import { isNetworkError } from "@/lib/errors";
+import { newIdempotencyKey } from "@/lib/offline/idempotencyKey";
 import { replayPendingMutations, sendQueuedMutation } from "@/lib/offline/replay";
 
 export type SendOutcome<T> = { queued: false; data: T } | { queued: true };
 
 export type QueueableChange = Omit<QueuedChange, "user_id">;
+
+export type OutgoingRequest = Omit<QueuedRequest, "idempotency_key">;
 
 async function hasUnsyncedBacklog(userId: number): Promise<boolean> {
   const unsynced = await db.pending_mutations
@@ -15,20 +19,32 @@ async function hasUnsyncedBacklog(userId: number): Promise<boolean> {
   return unsynced > 0;
 }
 
+async function queue(userId: number, request: QueuedRequest, change: QueueableChange): Promise<SendOutcome<never>> {
+  await enqueueMutation(request, { ...change, user_id: userId });
+  if (navigator.onLine) {
+    void replayPendingMutations(userId);
+  }
+  return { queued: true };
+}
+
 export async function sendOrQueue<T>(
   userId: number,
-  request: QueuedRequest,
+  outgoing: OutgoingRequest,
   change: QueueableChange,
 ): Promise<SendOutcome<T>> {
+  const request: QueuedRequest = { ...outgoing, idempotency_key: newIdempotencyKey() };
   if (!navigator.onLine || (await hasUnsyncedBacklog(userId))) {
-    await enqueueMutation(request, { ...change, user_id: userId });
-    if (navigator.onLine) {
-      void replayPendingMutations(userId);
-    }
-    return { queued: true };
+    return queue(userId, request, change);
   }
-  const response = await sendQueuedMutation<T>(request);
-  return { queued: false, data: response.data };
+  try {
+    const response = await sendQueuedMutation<T>(request);
+    return { queued: false, data: response.data };
+  } catch (error) {
+    if (isNetworkError(error)) {
+      return queue(userId, request, change);
+    }
+    throw error;
+  }
 }
 
 export function requireUserId(userId: number | undefined): number {
