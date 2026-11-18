@@ -3,10 +3,12 @@
 namespace App\Services;
 
 use App\Contracts\FulfillableDocument;
+use App\Exceptions\InsufficientStockException;
 use App\Models\Batch;
 use App\Models\Employee;
 use App\Models\StockTransaction;
 use App\Services\Concerns\EnforcesActingBranch;
+use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -23,13 +25,14 @@ class FulfillmentService
         private readonly ScanMatchService $scanMatcher,
         private readonly FefoOverrideService $overrides,
         private readonly AuditLogger $audit,
+        private readonly PurchaseOrderService $purchaseOrders,
     ) {}
 
     public function match(FulfillableDocument $document, ?string $barcode, ?int $itemId, ?int $actingBranchId): array
     {
         $this->assertFulfillable($document, $actingBranchId);
 
-        DB::transaction(fn () => $this->lockAndReserve($document));
+        $this->draftingShortages(fn () => $this->lockAndReserve($document));
 
         $item = $this->scanMatcher->findItem($barcode, $itemId);
         $line = $this->scanMatcher->lineFor($document->fulfillmentLines(), $item);
@@ -50,7 +53,7 @@ class FulfillmentService
     {
         $this->assertFulfillable($document, $actingBranchId);
 
-        return DB::transaction(function () use ($document, $data, $picker) {
+        return $this->draftingShortages(function () use ($document, $data, $picker) {
             $this->lockAndReserve($document);
 
             $branchId = $document->fulfillingBranchId();
@@ -79,6 +82,17 @@ class FulfillmentService
 
             return $line->refresh();
         });
+    }
+
+    private function draftingShortages(Closure $work): mixed
+    {
+        try {
+            return DB::transaction($work);
+        } catch (InsufficientStockException $shortage) {
+            $this->purchaseOrders->draftForShortageAfterTransaction($shortage);
+
+            throw $shortage;
+        }
     }
 
     private function assertFulfillable(FulfillableDocument $document, ?int $actingBranchId): void

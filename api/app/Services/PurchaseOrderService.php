@@ -2,9 +2,13 @@
 
 namespace App\Services;
 
+use App\Exceptions\InsufficientStockException;
+use App\Models\Branch;
 use App\Models\Employee;
+use App\Models\Item;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
+use App\Models\Scopes\BranchScope;
 use App\Support\BusinessDate;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +27,14 @@ class PurchaseOrderService
 
     private const STATUSES = ['draft', 'open', 'ready_for_delivery', 'closed', 'cancelled'];
 
-    public function __construct(private readonly DocumentNumberGenerator $numbers) {}
+    private const PRICED_STATUSES = ['open', 'ready_for_delivery', 'closed'];
+
+    private const INCOMING_STATUSES = ['open', 'ready_for_delivery'];
+
+    public function __construct(
+        private readonly DocumentNumberGenerator $numbers,
+        private readonly StockAvailabilityService $availability,
+    ) {}
 
     /**
      * @param  array{search?: string, status?: string, supplier_id?: int, branch_id?: int}  $filters
@@ -35,6 +46,7 @@ class PurchaseOrderService
             ->withCount('items')
             ->withSum('items', 'total')
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
+            ->when($filters['item_id'] ?? null, fn (Builder $query, int $itemId) => $query->whereHas('items', fn (Builder $lines) => $lines->where('item_id', $itemId)))
             ->orderByDesc('order_date')
             ->orderByDesc('id');
     }
@@ -84,6 +96,12 @@ class PurchaseOrderService
     public function updateHeader(PurchaseOrder $purchaseOrder, array $data): PurchaseOrder
     {
         $this->assertLinesEditable($purchaseOrder);
+
+        if (array_key_exists('supplier_id', $data) && $purchaseOrder->status !== 'draft') {
+            throw ValidationException::withMessages([
+                'supplier_id' => 'The supplier can only be changed while the purchase order is a draft.',
+            ]);
+        }
 
         $purchaseOrder->update($data);
 
@@ -137,6 +155,67 @@ class PurchaseOrderService
         });
     }
 
+    public function finalize(PurchaseOrder $purchaseOrder, Employee $finalizedBy): PurchaseOrder
+    {
+        return DB::transaction(function () use ($purchaseOrder, $finalizedBy) {
+            $locked = PurchaseOrder::query()->lockForUpdate()->findOrFail($purchaseOrder->id);
+
+            if ($locked->status !== 'draft') {
+                throw ValidationException::withMessages([
+                    'status' => 'Only a draft purchase order can be finalized.',
+                ]);
+            }
+
+            if ($locked->supplier_id === null) {
+                throw ValidationException::withMessages([
+                    'supplier_id' => 'Choose a supplier before finalizing this purchase order.',
+                ]);
+            }
+
+            if ($locked->items()->where('unit_cost', '<=', 0)->exists()) {
+                throw ValidationException::withMessages([
+                    'items' => 'Enter a unit cost for every item before finalizing this purchase order.',
+                ]);
+            }
+
+            $locked->update([
+                'status' => 'open',
+                'prepared_by' => $locked->prepared_by ?? $finalizedBy->id,
+            ]);
+
+            return $locked;
+        });
+    }
+
+    public function draftForLowStock(int $itemId, int $branchId): ?PurchaseOrder
+    {
+        $item = Item::query()->find($itemId);
+
+        if ($item?->reorder_point === null) {
+            return null;
+        }
+
+        $available = $this->availability->available($itemId, $branchId);
+        $quantity = $item->reorder_quantity > 0
+            ? $item->reorder_quantity
+            : max($item->reorder_point * 2 - $available, 1);
+
+        return $this->addToDraft($item, $branchId, 'auto_low_stock', $quantity);
+    }
+
+    public function draftForShortageAfterTransaction(InsufficientStockException $shortage): void
+    {
+        $draft = fn () => rescue(fn () => $this->addToDraft(
+            Item::query()->findOrFail($shortage->itemId),
+            $shortage->branchId,
+            'auto_shortage',
+            max($shortage->requested - $shortage->available, 1),
+        ));
+
+        DB::afterCommit($draft);
+        DB::afterRollBack($draft);
+    }
+
     public function markReady(PurchaseOrder $purchaseOrder): PurchaseOrder
     {
         if ($purchaseOrder->status !== 'open') {
@@ -181,8 +260,73 @@ class PurchaseOrderService
         ]);
     }
 
+    private function addToDraft(Item $item, int $branchId, string $source, int $needed): ?PurchaseOrder
+    {
+        return DB::transaction(function () use ($item, $branchId, $source, $needed) {
+            Branch::query()->whereKey($branchId)->lockForUpdate()->firstOrFail();
+
+            $quantity = $needed - $this->incomingQuantity($item->id, $branchId);
+
+            if ($quantity <= 0) {
+                return null;
+            }
+
+            $draft = PurchaseOrder::query()
+                ->withoutGlobalScope(BranchScope::class)
+                ->where('branch_id', $branchId)
+                ->where('status', 'draft')
+                ->where('supplier_id', $item->preferred_supplier_id)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->first();
+
+            if ($draft?->items()->where('item_id', $item->id)->exists()) {
+                return $draft;
+            }
+
+            $draft ??= PurchaseOrder::create([
+                'po_number' => $this->numbers->next(PurchaseOrder::class, 'po_number', 'PO'),
+                'supplier_id' => $item->preferred_supplier_id,
+                'branch_id' => $branchId,
+                'status' => 'draft',
+                'source' => $source,
+                'order_date' => BusinessDate::todayString(),
+            ]);
+
+            $this->createLine($draft, [
+                'item_id' => $item->id,
+                'quantity_ordered' => $quantity,
+                'unit_cost' => $this->lastPaidUnitCost($item->id, $branchId),
+            ]);
+
+            return $draft;
+        });
+    }
+
+    private function incomingQuantity(int $itemId, int $branchId): int
+    {
+        return (int) PurchaseOrderItem::query()
+            ->join('purchase_orders', 'purchase_orders.id', '=', 'purchase_order_items.purchase_order_id')
+            ->where('purchase_order_items.item_id', $itemId)
+            ->where('purchase_orders.branch_id', $branchId)
+            ->whereIn('purchase_orders.status', self::INCOMING_STATUSES)
+            ->sum(DB::raw('purchase_order_items.quantity_ordered - purchase_order_items.quantity_received'));
+    }
+
+    private function lastPaidUnitCost(int $itemId, int $branchId): float
+    {
+        return (float) (PurchaseOrderItem::query()
+            ->join('purchase_orders', 'purchase_orders.id', '=', 'purchase_order_items.purchase_order_id')
+            ->where('purchase_order_items.item_id', $itemId)
+            ->whereIn('purchase_orders.status', self::PRICED_STATUSES)
+            ->orderByRaw('CASE WHEN purchase_orders.branch_id = ? THEN 0 ELSE 1 END', [$branchId])
+            ->orderByDesc('purchase_orders.order_date')
+            ->orderByDesc('purchase_order_items.id')
+            ->value('purchase_order_items.unit_cost') ?? 0);
+    }
+
     /**
-     * @param  array{search?: string, supplier_id?: int, branch_id?: int}  $filters
+     * @param  array{search?: string, supplier_id?: int, branch_id?: int, item_id?: int}  $filters
      */
     private function filteredOrders(array $filters): Builder
     {

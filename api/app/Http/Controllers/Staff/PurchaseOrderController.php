@@ -21,6 +21,7 @@ class PurchaseOrderController extends Controller
             'status' => $request->filled('status') ? (string) $request->string('status') : null,
             'supplier_id' => $request->filled('supplier_id') ? $request->integer('supplier_id') : null,
             'branch_id' => $request->filled('branch_id') ? $request->integer('branch_id') : null,
+            'item_id' => $request->filled('item_id') ? $request->integer('item_id') : null,
         ], fn ($value) => $value !== null);
 
         return PurchaseOrderResource::collection($service->listQuery($filters)->paginate($this->perPage($request)))
@@ -56,6 +57,15 @@ class PurchaseOrderController extends Controller
         $this->authorize('update', $purchaseOrder);
 
         $purchaseOrder = $service->updateHeader($purchaseOrder, $request->validated());
+
+        return new PurchaseOrderResource($purchaseOrder->load(['supplier', 'branch', 'preparedBy.user']));
+    }
+
+    public function finalize(Request $request, PurchaseOrder $purchaseOrder, PurchaseOrderService $service)
+    {
+        $this->authorize('update', $purchaseOrder);
+
+        $purchaseOrder = $service->finalize($purchaseOrder, $request->user('staff')->employee);
 
         return new PurchaseOrderResource($purchaseOrder->load(['supplier', 'branch', 'preparedBy.user']));
     }

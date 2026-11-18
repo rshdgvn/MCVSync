@@ -105,6 +105,7 @@ Route::prefix('staff/purchase-orders')
         Route::post('/{purchaseOrder}/items', [PurchaseOrderItemController::class, 'store']);
         Route::patch('/{purchaseOrder}/items/{item}', [PurchaseOrderItemController::class, 'update']);
         Route::delete('/{purchaseOrder}/items/{item}', [PurchaseOrderItemController::class, 'destroy']);
+        Route::post('/{purchaseOrder}/finalize', [PurchaseOrderController::class, 'finalize']);
         Route::post('/{purchaseOrder}/mark-ready', [PurchaseOrderController::class, 'markReady']);
         Route::post('/{purchaseOrder}/cancel', [PurchaseOrderController::class, 'cancel']);
 
