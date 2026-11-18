@@ -2,6 +2,7 @@ import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { AppShellSkeleton } from "@/components/AppShellSkeleton";
 import { EmptyState } from "@/components/EmptyState";
+import { OfflineSync } from "@/components/OfflineSync";
 import { EchoProvider } from "@/providers/EchoProvider";
 import { meQueryOptions, useMeQuery } from "@/hooks/useAuth";
 import { activateUserCache } from "@/pwa/userCache";
@@ -42,6 +43,7 @@ function AuthenticatedLayout() {
 
   return (
     <EchoProvider user={user}>
+      <OfflineSync userId={user.id} />
       <AppShell role={user.role}>
         <Outlet />
       </AppShell>

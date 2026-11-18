@@ -11,16 +11,21 @@ import {
   me,
   resetPassword,
 } from "@/api/auth";
+import { db } from "@/db/schema";
+import { withOfflineCache } from "@/lib/offline/offlineCache";
 import { purgeUserData } from "@/pwa/userCache";
 import { useActingAsStore } from "@/stores/actingAs.store";
 import type { Role } from "@/types/user";
 
 export const meQueryKey = ["auth", "me"] as const;
 
+const ME_CACHE_KEY = "me";
+
 export const meQueryOptions = queryOptions({
   queryKey: meQueryKey,
-  queryFn: me,
+  queryFn: () => withOfflineCache(db.cached_session, ME_CACHE_KEY, me),
   retry: false,
+  networkMode: "offlineFirst",
 });
 
 export function useMeQuery() {

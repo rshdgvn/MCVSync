@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { RotateCw, Trash2 } from "lucide-react";
-import { api } from "@/api/client";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DataList, type DataListColumn } from "@/components/DataList";
 import { PageHeader } from "@/components/PageHeader";
@@ -11,15 +10,12 @@ import { removeMutation, retryMutation } from "@/db/pendingMutations";
 import { useFailedMutations, usePendingMutationCount } from "@/hooks/usePendingMutations";
 import { getErrorMessage } from "@/lib/errors";
 import { formatDateTime } from "@/lib/format";
+import { sendQueuedMutation } from "@/lib/offline/replay";
 import { toast } from "@/stores/toast.store";
 
 export const Route = createFileRoute("/_authenticated/sync-issues")({
   component: SyncIssuesPage,
 });
-
-function sendMutation(mutation: PendingMutation) {
-  return api.request({ method: mutation.method, url: mutation.url, data: mutation.payload });
-}
 
 const COLUMNS: DataListColumn<PendingMutation>[] = [
   {
@@ -27,8 +23,11 @@ const COLUMNS: DataListColumn<PendingMutation>[] = [
     header: "Change",
     mobile: "title",
     cell: (mutation) => (
-      <span className="font-mono text-xs">
-        {mutation.method} {mutation.url}
+      <span className="flex flex-col">
+        <span className="font-medium">{mutation.label}</span>
+        <span className="font-mono text-xs text-muted-foreground">
+          {mutation.method} {mutation.url}
+        </span>
       </span>
     ),
   },
@@ -59,7 +58,7 @@ function SyncIssuesPage() {
 
   async function retry(mutation: PendingMutation) {
     setRetryingId(mutation.id);
-    const synced = await retryMutation(mutation, sendMutation, getErrorMessage);
+    const synced = await retryMutation(mutation, sendQueuedMutation, getErrorMessage);
     setRetryingId(null);
     if (synced) {
       toast.success("Change synced.");
