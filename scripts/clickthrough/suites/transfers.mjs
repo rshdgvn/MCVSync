@@ -20,9 +20,11 @@ async function desktopPick(browser, shot) {
   const dialog = page.getByRole("dialog");
 
   await page.goto(`${APP_URL}/purchasing/transfers`);
-  await visible(page.getByText("TR-0002")).waitFor({ timeout: 20000 });
+  await visible(page.getByText("TR-0004")).waitFor({ timeout: 20000 });
   const tabs = await page.getByRole("tab").allTextContents();
-  check(p("main branch gets To Fulfill and Shipped tabs"), tabs.some((tab) => tab.startsWith("To Fulfill")) && tabs.some((tab) => tab.startsWith("Shipped")), tabs.join(" | "));
+  check(p("main branch opens on To Approve, then To Fulfill and Shipped"), tabs[0]?.startsWith("To Approve") && tabs[0]?.endsWith("2") && tabs[1]?.startsWith("To Fulfill") && tabs[2]?.startsWith("Shipped"), tabs.join(" | "));
+  await page.getByRole("tab", { name: /To Fulfill/ }).click();
+  await visible(page.getByText("TR-0002")).waitFor();
   check(p("main branch has no New Transfer Request button"), (await page.getByRole("link", { name: "New Transfer Request" }).count()) === 0);
   await noHorizontalScroll(page, p("transfers list"));
   await shot(page, p("01-transfers-list"));
@@ -168,8 +170,8 @@ async function requestingBranch(browser, shot) {
   await shot(page, p("01-new-request"));
   await visible(page.getByRole("button", { name: "Submit Request" })).click();
   await page.waitForURL(/\/purchasing\/transfers\/\d+$/);
-  await visible(page.getByText("Requested", { exact: true })).waitFor();
-  check(p("request created as Requested"), true);
+  await visible(page.getByText("Awaiting Approval", { exact: true })).waitFor();
+  check(p("a new request waits for approval"), true);
 
   await page.getByRole("button", { name: "More actions" }).click();
   await page.getByRole("menuitem", { name: "Cancel Transfer" }).click();
@@ -177,7 +179,7 @@ async function requestingBranch(browser, shot) {
   await dialog.getByRole("button", { name: "Cancel Transfer" }).click();
   await dialog.waitFor({ state: "detached" });
   await visible(page.getByText("Cancelled", { exact: true })).waitFor();
-  check(p("requesting branch cancels before picking"), true);
+  check(p("requesting branch cancels while awaiting approval"), true);
 
   await page.goto(`${APP_URL}/purchasing/stock-receiving`);
   const transitTab = page.getByRole("tab", { name: /In Transit Transfers/ });
@@ -221,9 +223,73 @@ async function superAdmin(browser, shot) {
   await context.close();
 }
 
+async function approveRequest(browser, shot) {
+  const p = (name) => `approve-desktop-${name}`;
+  const { context, page } = await openAs(browser, "purchasing@mcvsync.test", "desktop");
+  const dialog = page.getByRole("dialog");
+
+  await page.goto(`${APP_URL}/purchasing/transfers`);
+  await visible(page.getByText("TR-0004")).click();
+  await page.waitForURL(/\/purchasing\/transfers\/4$/);
+  await visible(page.getByText("Awaiting Approval", { exact: true })).waitFor();
+  check(p("an awaiting request offers Approve and Decline"), (await visible(page.getByRole("button", { name: "Approve" })).count()) === 1 && (await visible(page.getByRole("button", { name: "Decline" })).count()) === 1);
+  check(p("an awaiting request cannot be picked yet"), (await page.getByRole("link", { name: "Prepare & Ship" }).count()) === 0);
+  await noHorizontalScroll(page, p("awaiting detail"));
+  await shot(page, "approve-01-awaiting-desktop");
+
+  await visible(page.getByRole("button", { name: "Approve" })).click();
+  await dialog.getByRole("button", { name: "Approve Request" }).dblclick();
+  await dialog.waitFor({ state: "detached" });
+  await visible(page.getByRole("link", { name: "Prepare & Ship" })).waitFor();
+  const approved = await apiGet(page, `${API_URL}/staff/transfers/4`);
+  check(p("approval moves the request to pending with who approved it"), approved.status === "pending" && Boolean(approved.decided_by) && Boolean(approved.decided_at), `${approved.status} ${approved.decided_by}`);
+  await shot(page, "approve-02-approved-desktop");
+
+  await page.goto(`${APP_URL}/purchasing/transfers`);
+  await page.getByRole("tab", { name: /To Fulfill/ }).click();
+  const approvedRow = page.getByRole("row", { name: /TR-0004/ });
+  await approvedRow.waitFor();
+  check(p("an approved request shows as Approved under To Fulfill"), (await approvedRow.getByText("Approved", { exact: true }).count()) === 1);
+  await context.close();
+}
+
+async function declineRequest(browser, shot) {
+  const p = (name) => `decline-mobile-${name}`;
+  const { context, page } = await openAs(browser, "purchasing@mcvsync.test", "mobile");
+  const dialog = page.getByRole("dialog");
+  const reason = "Syringes are committed to a client order this week.";
+
+  await page.goto(`${APP_URL}/purchasing/transfers/5`);
+  await visible(page.getByRole("button", { name: "Decline" })).click();
+  await dialog.getByRole("button", { name: "Decline Request" }).click();
+  await dialog.getByText("Say why this request is being declined.").waitFor();
+  check(p("decline needs a reason"), true);
+  await noHorizontalScroll(page, p("decline sheet"));
+  await shot(page, "approve-03-decline-reason-mobile");
+  await dialog.locator("#decline-reason").fill(reason);
+  await dialog.getByRole("button", { name: "Decline Request" }).click();
+  await dialog.waitFor({ state: "detached" });
+  await visible(page.getByText("Declined", { exact: true })).waitFor();
+  const declined = await apiGet(page, `${API_URL}/staff/transfers/5`);
+  check(p("decline ends the request with the reason"), declined.status === "declined" && declined.decline_reason === reason, declined.status);
+  check(p("a declined request has no actions left"), (await page.getByRole("button", { name: "Approve" }).count()) === 0);
+  await context.close();
+
+  const cebu = await openAs(browser, "cebu.purchasing@mcvsync.test", "mobile");
+  await cebu.page.goto(`${APP_URL}/purchasing/transfers/5`);
+  await visible(cebu.page.getByText(reason)).waitFor({ timeout: 20000 });
+  check(p("the requesting branch sees the decline reason"), true);
+  check(p("the requesting branch cannot approve"), (await cebu.page.getByRole("button", { name: "Approve" }).count()) === 0);
+  await noHorizontalScroll(cebu.page, p("declined detail"));
+  await shot(cebu.page, "approve-04-declined-requester-mobile");
+  await cebu.context.close();
+}
+
 export async function run({ browser, shot }) {
   await runFlow("desktop pick", () => desktopPick(browser, shot));
   await runFlow("mobile pick", () => mobilePick(browser, shot));
   await runFlow("requesting branch", () => requestingBranch(browser, shot));
   await runFlow("super admin", () => superAdmin(browser, shot));
+  await runFlow("approve request", () => approveRequest(browser, shot));
+  await runFlow("decline request", () => declineRequest(browser, shot));
 }

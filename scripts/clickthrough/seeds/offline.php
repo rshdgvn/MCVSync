@@ -85,9 +85,11 @@ $pickRequest = $transfers->create(
     $cebuEmployee,
     $cebu->id,
 );
+$transfers->approve($pickRequest, $mainEmployee, $main->id);
 echo "offline pick: {$pickRequest->transfer_number}\n";
 
 $shipment = $transfers->create(['remarks' => 'Click-through offline receive'], [['item_id' => $gloves->id, 'quantity' => 3]], $cebuEmployee, $cebu->id);
+$shipment = $transfers->approve($shipment, $mainEmployee, $main->id);
 app(FulfillmentService::class)->pick($shipment, ['item_id' => $gloves->id, 'quantity' => 3], $mainEmployee, $main->id);
 $transfers->ship($shipment->fresh(), $main->id);
 echo "offline receive: {$shipment->transfer_number}\n";

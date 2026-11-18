@@ -10,6 +10,7 @@ use App\Models\Category;
 use App\Models\Item;
 use App\Models\Supplier;
 use App\Models\Unit;
+use App\Models\User;
 use App\Services\AccountProvisioningService;
 use App\Services\EmployeeRoleAssignmentService;
 use App\Services\TransferService;
@@ -58,7 +59,15 @@ $requests = [
     'shortage' => [['item_id' => $alcohol->id, 'quantity' => 10]],
 ];
 
+$approver = User::where('email', 'purchasing@mcvsync.test')->firstOrFail()->employee;
+
 foreach ($requests as $label => $items) {
     $transfer = $service->create(['remarks' => "Click-through {$label}"], $items, $cebuEmployee, $cebu->id);
+    $service->approve($transfer, $approver, $main->id);
+    echo "{$label}: {$transfer->transfer_number}\n";
+}
+
+foreach (['to approve', 'to decline'] as $label) {
+    $transfer = $service->create(['remarks' => "Click-through {$label}"], [['item_id' => $syringe->id, 'quantity' => 2]], $cebuEmployee, $cebu->id);
     echo "{$label}: {$transfer->transfer_number}\n";
 }

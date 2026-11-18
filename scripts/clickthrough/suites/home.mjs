@@ -17,7 +17,7 @@ async function mainBranchHome(browser, mode, shot) {
   const expiring = await apiGet(page, `${API_URL}/staff/inventory/alerts/expiring?per_page=1`);
   const lowStock = await apiGet(page, `${API_URL}/staff/inventory/alerts/low-stock?per_page=100`);
   const orders = await apiGet(page, `${API_URL}/staff/purchase-orders?status=ready_for_delivery&per_page=1`);
-  const transfers = await apiGet(page, `${API_URL}/staff/transfers?status=pending&per_page=1`);
+  const transfers = await apiGet(page, `${API_URL}/staff/transfers?per_page=1`);
   const discrepancies = await apiGet(page, `${API_URL}/staff/discrepancies?resolved=0&per_page=1`);
   const outOfStock = lowStock.data.filter((row) => row.available <= 0).length;
 
@@ -25,7 +25,8 @@ async function mainBranchHome(browser, mode, shot) {
   check(p("low stock card matches the server"), (await cardValue(page, "Low Stock")) === String(lowStock.meta.total));
   check(p("out of stock card counts items with nothing available"), (await cardValue(page, "Out of Stock")) === String(outOfStock), String(outOfStock));
   check(p("ready to receive card matches the server"), (await cardValue(page, "POs Ready to Receive")) === String(orders.counts.ready_for_delivery));
-  check(p("main branch sees transfers to fulfill"), (await cardValue(page, "Transfers to Fulfill")) === String(transfers.counts.pending));
+  check(p("main branch sees transfers to approve"), (await cardValue(page, "Transfers to Approve")) === String(transfers.counts.awaiting_approval) && transfers.counts.awaiting_approval === 1);
+  check(p("main branch sees transfers to fulfill"), (await cardValue(page, "Transfers to Fulfill")) === String(transfers.counts.pending) && transfers.counts.pending === 1);
   check(p("unresolved discrepancies card matches the server"), (await cardValue(page, "Unresolved Discrepancies")) === String(discrepancies.counts.unresolved));
   await noHorizontalScroll(page, p("home"));
   await shot(page, p("01-home"));
@@ -35,6 +36,16 @@ async function mainBranchHome(browser, mode, shot) {
   const secondEntry = (await entries.nth(1).textContent()) ?? "";
   check(p("needs action starts with the oldest ready PO"), firstEntry.includes("Ready to Receive") && firstEntry.includes("PO-0001"), firstEntry);
   check(p("the older discrepancy comes before newer items"), secondEntry.includes("Discrepancy"), secondEntry);
+  const entryTexts = await entries.allTextContents();
+  const approvalIndex = entryTexts.findIndex((text) => text.includes("To Approve"));
+  const fulfillIndex = entryTexts.findIndex((text) => text.includes("To Fulfill"));
+  check(p("needs action lists the older request awaiting approval before the newer one to fulfill"), approvalIndex >= 0 && approvalIndex < fulfillIndex, entryTexts.join(" | "));
+  await entries.nth(approvalIndex).click();
+  await page.waitForURL(/\/purchasing\/transfers\/\d+$/);
+  await visible(page.getByRole("button", { name: "Approve" })).waitFor();
+  check(p("the approval entry opens the request with Approve ready"), true);
+  await page.goto(`${APP_URL}/`);
+  await visible(page.getByText("Needs Action")).waitFor();
   await entries.first().click();
   await page.waitForURL(/\/purchasing\/stock-receiving\/purchase-orders\/\d+$/);
   check(p("a needs action entry opens its work screen"), true);
@@ -51,6 +62,8 @@ async function requestingBranchHome(browser, shot) {
   await page.goto(`${APP_URL}/`);
   await visible(page.getByRole("link", { name: /^Shipments to Receive/ })).waitFor({ timeout: 20000 });
   check("non-main branch sees shipments to receive", (await cardValue(page, "Shipments to Receive")) === "1");
+  check("non-main branch has no approvals card", (await page.getByRole("link", { name: /^Transfers to Approve/ }).count()) === 0);
+  check("non-main branch has no approvals to act on", (await page.getByRole("region", { name: "Needs action" }).getByText("To Approve").count()) === 0);
   await shot(page, "cebu-home");
   await visible(page.getByRole("link", { name: /^Shipments to Receive/ })).click();
   await page.waitForURL(/\/purchasing\/stock-receiving\?tab=transfers$/);
