@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { SectionTitle } from "@/components/SectionTitle";
 import { StatCard, StatCardGrid, StatCardSkeleton } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
+import { canApproveTransfers } from "@/components/transfers/transferRules";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDiscrepanciesQuery } from "@/hooks/useDiscrepancies";
 import { discrepancySubject } from "@/api/discrepancies";
@@ -50,6 +51,7 @@ function lastPage(meta: { last_page: number } | undefined): number {
 export function PurchasingHome({ user }: { user: User }) {
   const isMain = user.branch?.is_main ?? false;
   const transferStatus = isMain ? "pending" : "shipped";
+  const canApprove = canApproveTransfers(user);
   useInventoryChannels(usePurchasingOwnBranchIds());
 
   const expiring = useExpiringAlertsQuery({ per_page: QUEUE_PAGE_SIZE });
@@ -66,6 +68,11 @@ export function PurchasingHome({ user }: { user: User }) {
     per_page: QUEUE_PAGE_SIZE,
     page: lastPage(transfers.data?.meta),
   });
+  const approvals = useTransfersQuery({ status: "awaiting_approval", per_page: QUEUE_PAGE_SIZE }, canApprove);
+  const oldestApprovals = useTransfersQuery(
+    { status: "awaiting_approval", per_page: QUEUE_PAGE_SIZE, page: lastPage(approvals.data?.meta) },
+    canApprove,
+  );
   const discrepancies = useDiscrepanciesQuery({ resolved: false, per_page: QUEUE_PAGE_SIZE });
   const oldestDiscrepancies = useDiscrepanciesQuery({
     resolved: false,
@@ -81,6 +88,14 @@ export function PurchasingHome({ user }: { user: User }) {
       detail: po.supplier.name,
       since: po.order_date,
       link: { to: "/purchasing/stock-receiving/purchase-orders/$purchaseOrderId", params: { purchaseOrderId: String(po.id) } },
+    })),
+    ...oldestFirst(oldestApprovals.data?.data).map((transfer): ActionEntry => ({
+      key: `approve-${transfer.id}`,
+      kind: "To Approve",
+      title: <span className="font-mono">{transfer.transfer_number}</span>,
+      detail: `From ${transfer.requesting_branch.name}`,
+      since: transfer.created_at ?? new Date().toISOString(),
+      link: { to: "/purchasing/transfers/$transferId", params: { transferId: String(transfer.id) } },
     })),
     ...oldestFirst(oldestTransfers.data?.data).map((transfer): ActionEntry => ({
       key: `tr-${transfer.id}`,
@@ -104,14 +119,15 @@ export function PurchasingHome({ user }: { user: User }) {
     .sort((a, b) => a.since.localeCompare(b.since))
     .slice(0, NEEDS_ACTION_LIMIT);
 
-  const queuesPending = oldestOrders.isPending || oldestTransfers.isPending || oldestDiscrepancies.isPending;
-  const queueError = oldestOrders.error ?? oldestTransfers.error ?? oldestDiscrepancies.error;
+  const queuesPending =
+    oldestOrders.isPending || oldestTransfers.isPending || oldestDiscrepancies.isPending || (canApprove && oldestApprovals.isPending);
+  const queueError = oldestOrders.error ?? oldestTransfers.error ?? oldestDiscrepancies.error ?? oldestApprovals.error;
 
   return (
     <div className="flex flex-col gap-4">
       <PageHeader title="Purchasing Home" description={`${user.branch?.name ?? "All branches"} · what needs attention today.`} />
 
-      <StatCardGrid className="lg:grid-cols-3 xl:grid-cols-6">
+      <StatCardGrid className={canApprove ? "lg:grid-cols-4 xl:grid-cols-7" : "lg:grid-cols-3 xl:grid-cols-6"}>
         {expiring.data ? (
           <StatCard label="Near Expiry" value={formatNumber(expiring.data.meta.total)} sub="batches" link={{ to: "/inventory/expiring" }} />
         ) : (
@@ -142,6 +158,17 @@ export function PurchasingHome({ user }: { user: User }) {
         ) : (
           <StatCardSkeleton />
         )}
+        {canApprove &&
+          (approvals.data ? (
+            <StatCard
+              label="Transfers to Approve"
+              value={formatNumber(approvals.data.counts.awaiting_approval)}
+              sub="waiting for a decision"
+              link={{ to: "/purchasing/transfers" }}
+            />
+          ) : (
+            <StatCardSkeleton />
+          ))}
         {transfers.data ? (
           <StatCard
             label={isMain ? "Transfers to Fulfill" : "Shipments to Receive"}
@@ -177,6 +204,7 @@ export function PurchasingHome({ user }: { user: User }) {
               onRetry={() => {
                 void oldestOrders.refetch();
                 void oldestTransfers.refetch();
+                if (canApprove) void oldestApprovals.refetch();
                 void oldestDiscrepancies.refetch();
               }}
             />
