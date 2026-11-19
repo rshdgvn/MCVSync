@@ -1,8 +1,10 @@
+import type { DocumentFile } from "@/hooks/useDocuments";
 import type { PurchaseOrderDetail, PurchaseOrderStatus } from "@/types/purchaseOrder";
 
 const LINES_EDITABLE: ReadonlySet<PurchaseOrderStatus> = new Set(["draft", "open"]);
 const CANCELLABLE: ReadonlySet<PurchaseOrderStatus> = new Set(["draft", "open", "ready_for_delivery"]);
 const RECEIVABLE: ReadonlySet<PurchaseOrderStatus> = new Set(["open", "ready_for_delivery"]);
+const PRINTABLE: ReadonlySet<PurchaseOrderStatus> = new Set(["open", "ready_for_delivery", "closed"]);
 
 export const PURCHASE_ORDER_STATUSES: readonly PurchaseOrderStatus[] = [
   "draft",
@@ -14,6 +16,14 @@ export const PURCHASE_ORDER_STATUSES: readonly PurchaseOrderStatus[] = [
 
 export function canEditPurchaseOrder(status: PurchaseOrderStatus): boolean {
   return LINES_EDITABLE.has(status);
+}
+
+export function canPrintPurchaseOrder(status: PurchaseOrderStatus): boolean {
+  return PRINTABLE.has(status);
+}
+
+export function purchaseOrderDocument(purchaseOrder: Pick<PurchaseOrderDetail, "id" | "po_number">): DocumentFile {
+  return { path: `/staff/purchase-orders/${purchaseOrder.id}/document.pdf`, filename: `${purchaseOrder.po_number}.pdf` };
 }
 
 export function supplierNameOf(purchaseOrder: Pick<PurchaseOrderDetail, "supplier">): string {

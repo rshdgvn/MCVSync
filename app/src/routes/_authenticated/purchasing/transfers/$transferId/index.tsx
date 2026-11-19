@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Ban, CircleCheck, CircleX, PackageCheck, PackageOpen } from "lucide-react";
+import { Ban, CircleCheck, CircleX, FileDown, PackageCheck, PackageOpen } from "lucide-react";
 import { transferStatusKey } from "@/api/transfers";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DataList, type DataListColumn } from "@/components/DataList";
@@ -17,7 +17,9 @@ import {
   canApproveTransfer,
   canCancelTransfer,
   canFulfillTransfer,
+  canPrintTransmittalReceipt,
   canReceiveTransfer,
+  transmittalReceiptDocument,
 } from "@/components/transfers/transferRules";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -25,6 +27,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useMeQuery } from "@/hooks/useAuth";
 import { useDiscrepanciesQuery } from "@/hooks/useDiscrepancies";
+import { useDownloadDocumentMutation } from "@/hooks/useDocuments";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import {
   useApproveTransferMutation,
@@ -129,6 +132,7 @@ type Decision = "approve" | "decline" | null;
 
 function TransferDetailView({ transfer, user }: { transfer: TransferDetail; user: User }) {
   const cancelMutation = useCancelTransferMutation(transfer.id);
+  const downloadMutation = useDownloadDocumentMutation();
   const approveMutation = useApproveTransferMutation(transfer.id);
   const declineMutation = useDeclineTransferMutation(transfer.id);
   const isOnline = useOnlineStatus();
@@ -145,20 +149,27 @@ function TransferDetailView({ transfer, user }: { transfer: TransferDetail; user
   });
   const transferId = String(transfer.id);
 
-  const overflowActions: OverflowAction[] = canCancelTransfer(user, transfer)
-    ? [
-        {
-          label: "Cancel Transfer",
-          icon: Ban,
-          destructive: true,
-          disabledReason: isOnline ? undefined : "Reconnect to cancel",
-          onSelect: () => {
-            cancelMutation.reset();
-            setConfirmingCancel(true);
-          },
-        },
-      ]
-    : [];
+  const overflowActions: OverflowAction[] = [];
+  if (canPrintTransmittalReceipt(transfer)) {
+    overflowActions.push({
+      label: "Download PDF",
+      icon: FileDown,
+      disabledReason: isOnline ? undefined : "Reconnect to download",
+      onSelect: () => downloadMutation.mutate(transmittalReceiptDocument(transfer)),
+    });
+  }
+  if (canCancelTransfer(user, transfer)) {
+    overflowActions.push({
+      label: "Cancel Transfer",
+      icon: Ban,
+      destructive: true,
+      disabledReason: isOnline ? undefined : "Reconnect to cancel",
+      onSelect: () => {
+        cancelMutation.reset();
+        setConfirmingCancel(true);
+      },
+    });
+  }
 
   function openDecision(next: Exclude<Decision, null>) {
     approveMutation.reset();

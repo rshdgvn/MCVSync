@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Ban, Bot, FileCheck, PackageCheck, Pencil, Plus, Trash2, Truck } from "lucide-react";
+import { Ban, Bot, FileCheck, FileDown, PackageCheck, Pencil, Plus, Trash2, Truck } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DataList, type DataListColumn } from "@/components/DataList";
 import { DiscrepancyList } from "@/components/discrepancies/DiscrepancyList";
@@ -16,8 +16,10 @@ import {
   canCancelPurchaseOrder,
   canEditPurchaseOrder,
   canMarkPurchaseOrderReady,
+  canPrintPurchaseOrder,
   canReceivePurchaseOrder,
   finalizeBlocker,
+  purchaseOrderDocument,
   supplierNameOf,
 } from "@/components/purchase-orders/purchaseOrderRules";
 import { ReceivedProgress } from "@/components/ReceivedProgress";
@@ -30,6 +32,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SUPPLIER_ROUTES, supplierSectionFor } from "@/components/suppliers/supplierRoutes";
 import { useEffectiveRole } from "@/hooks/useAuth";
 import { useDiscrepanciesQuery } from "@/hooks/useDiscrepancies";
+import { useDownloadDocumentMutation } from "@/hooks/useDocuments";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import {
   useAddPurchaseOrderLineMutation,
   useCancelPurchaseOrderMutation,
@@ -102,6 +106,8 @@ function PurchaseOrderDetailView({ purchaseOrder }: { purchaseOrder: PurchaseOrd
   const cancelMutation = useCancelPurchaseOrderMutation(id);
   const finalizeMutation = useFinalizePurchaseOrderMutation(id);
   const supplierMutation = useSetPurchaseOrderSupplierMutation(id);
+  const downloadMutation = useDownloadDocumentMutation();
+  const isOnline = useOnlineStatus();
   const [editingHeader, setEditingHeader] = useState(false);
   const [lineDialog, setLineDialog] = useState<LineDialogState>(null);
   const [removingLine, setRemovingLine] = useState<PurchaseOrderLine | null>(null);
@@ -179,6 +185,14 @@ function PurchaseOrderDetailView({ purchaseOrder }: { purchaseOrder: PurchaseOrd
   }
 
   const overflowActions: OverflowAction[] = [];
+  if (canPrintPurchaseOrder(status)) {
+    overflowActions.push({
+      label: "Download PDF",
+      icon: FileDown,
+      disabledReason: isOnline ? undefined : "Reconnect to download",
+      onSelect: () => downloadMutation.mutate(purchaseOrderDocument(purchaseOrder)),
+    });
+  }
   if (editable) {
     overflowActions.push({ label: "Edit Details", icon: Pencil, onSelect: () => setEditingHeader(true) });
   }

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { FileText, ShoppingCart } from "lucide-react";
+import { FileDown, FileText, ShoppingCart } from "lucide-react";
 import { FormError } from "@/components/FormError";
 import { FormField, fieldA11yProps } from "@/components/FormField";
 import { LoadingButton } from "@/components/LoadingButton";
@@ -8,15 +8,18 @@ import { MicroLabel } from "@/components/MicroLabel";
 import { QuantityInput } from "@/components/QuantityInput";
 import { ResponsiveDialog } from "@/components/ResponsiveDialog";
 import { SubmitForm } from "@/components/SubmitForm";
+import { purchaseOrderDocument } from "@/components/purchase-orders/purchaseOrderRules";
 import { SupplierCombobox } from "@/components/suppliers/SupplierCombobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useDownloadDocumentMutation } from "@/hooks/useDocuments";
 import { useCreatePurchaseOrderMutation, usePurchaseOrdersQuery } from "@/hooks/usePurchaseOrders";
 import { getFieldErrors, getGeneralError } from "@/lib/errors";
 import { formatQuantity } from "@/lib/format";
 import { toast } from "@/stores/toast.store";
 import type { Item } from "@/types/inventory";
+import type { PurchaseOrderDetail } from "@/types/purchaseOrder";
 import type { Supplier } from "@/types/supplier";
 import type { InsufficientStock } from "@/types/transfer";
 
@@ -129,6 +132,7 @@ const PO_FIELDS = ["supplier_id", "branch_id", "remarks", "items", "items.0.quan
 function ShortagePurchaseOrderDialog({ item, quantity: initialQuantity, transferNumber, branchId, onClose }: ShortagePurchaseOrderDialogProps) {
   const navigate = useNavigate();
   const mutation = useCreatePurchaseOrderMutation();
+  const [created, setCreated] = useState<PurchaseOrderDetail | null>(null);
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [quantity, setQuantity] = useState(initialQuantity);
   const [unitCost, setUnitCost] = useState("");
@@ -160,19 +164,26 @@ function ShortagePurchaseOrderDialog({ item, quantity: initialQuantity, transfer
       },
       {
         onSuccess: (purchaseOrder) => {
-          toast.success(`${purchaseOrder.po_number} created for ${supplier.name}.`, {
-            action: {
-              label: "View",
-              onAction: () =>
-                void navigate({
-                  to: "/purchasing/purchase-orders/$purchaseOrderId",
-                  params: { purchaseOrderId: String(purchaseOrder.id) },
-                }),
-            },
-          });
-          onClose();
+          toast.success(`${purchaseOrder.po_number} created for ${supplier.name}.`);
+          setCreated(purchaseOrder);
         },
       },
+    );
+  }
+
+  if (created) {
+    return (
+      <CreatedPurchaseOrderDialog
+        purchaseOrder={created}
+        summary={`${formatQuantity(quantity, item.unit?.code)} of ${item.name}`}
+        onView={() =>
+          void navigate({
+            to: "/purchasing/purchase-orders/$purchaseOrderId",
+            params: { purchaseOrderId: String(created.id) },
+          })
+        }
+        onClose={onClose}
+      />
     );
   }
 
@@ -230,6 +241,52 @@ function ShortagePurchaseOrderDialog({ item, quantity: initialQuantity, transfer
           {formatQuantity(quantity, item.unit?.code)} of {item.name}. Saved as an open Purchase Order for the fulfilling branch.
         </p>
       </SubmitForm>
+    </ResponsiveDialog>
+  );
+}
+
+interface CreatedPurchaseOrderDialogProps {
+  purchaseOrder: PurchaseOrderDetail;
+  summary: string;
+  onView: () => void;
+  onClose: () => void;
+}
+
+function CreatedPurchaseOrderDialog({ purchaseOrder, summary, onView, onClose }: CreatedPurchaseOrderDialogProps) {
+  const download = useDownloadDocumentMutation();
+
+  return (
+    <ResponsiveDialog
+      open
+      onOpenChange={(open) => !open && onClose()}
+      title="Supplier PO Created"
+      description={
+        <>
+          <span className="font-mono font-semibold text-foreground">{purchaseOrder.po_number}</span> saved for{" "}
+          {purchaseOrder.supplier?.name} · {summary}.
+        </>
+      }
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
+          <Button variant="outline" onClick={onView}>
+            <FileText />
+            View PO
+          </Button>
+          <LoadingButton
+            isPending={download.isPending}
+            pendingText="Preparing…"
+            onClick={() => download.mutateAsync(purchaseOrderDocument(purchaseOrder))}
+          >
+            <FileDown />
+            Download PDF
+          </LoadingButton>
+        </>
+      }
+    >
+      <p className="text-sm text-foreground-soft md:text-ui">Send the PDF to the supplier, or open the PO to review it first.</p>
     </ResponsiveDialog>
   );
 }
