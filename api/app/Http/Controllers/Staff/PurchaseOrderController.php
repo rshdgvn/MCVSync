@@ -7,6 +7,7 @@ use App\Http\Requests\Staff\StorePurchaseOrderRequest;
 use App\Http\Requests\Staff\UpdatePurchaseOrderRequest;
 use App\Http\Resources\PurchaseOrderResource;
 use App\Models\PurchaseOrder;
+use App\Services\DocumentService;
 use App\Services\PurchaseOrderService;
 use Illuminate\Http\Request;
 
@@ -50,6 +51,13 @@ class PurchaseOrderController extends Controller
         return new PurchaseOrderResource(
             $purchaseOrder->load(['supplier', 'branch', 'preparedBy.user', 'items.item.category', 'items.item.unit']),
         );
+    }
+
+    public function document(PurchaseOrder $purchaseOrder, DocumentService $documents)
+    {
+        $this->authorize('view', $purchaseOrder);
+
+        return $documents->purchaseOrder($purchaseOrder);
     }
 
     public function update(UpdatePurchaseOrderRequest $request, PurchaseOrder $purchaseOrder, PurchaseOrderService $service)

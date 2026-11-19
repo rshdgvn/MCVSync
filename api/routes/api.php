@@ -101,6 +101,7 @@ Route::prefix('staff/purchase-orders')
         Route::get('/', [PurchaseOrderController::class, 'index']);
         Route::post('/', [PurchaseOrderController::class, 'store']);
         Route::get('/{purchaseOrder}', [PurchaseOrderController::class, 'show']);
+        Route::get('/{purchaseOrder}/document.pdf', [PurchaseOrderController::class, 'document']);
         Route::patch('/{purchaseOrder}', [PurchaseOrderController::class, 'update']);
         Route::post('/{purchaseOrder}/items', [PurchaseOrderItemController::class, 'store']);
         Route::patch('/{purchaseOrder}/items/{item}', [PurchaseOrderItemController::class, 'update']);
@@ -130,6 +131,7 @@ Route::prefix('staff/transfers')
         Route::get('/', [TransferController::class, 'index']);
         Route::post('/', [TransferController::class, 'store']);
         Route::get('/{transferRequest}', [TransferController::class, 'show']);
+        Route::get('/{transferRequest}/transmittal-receipt.pdf', [TransferController::class, 'transmittalReceipt']);
         Route::post('/{transferRequest}/approve', [TransferController::class, 'approve']);
         Route::post('/{transferRequest}/decline', [TransferController::class, 'decline']);
         Route::post('/{transferRequest}/ship', [TransferController::class, 'ship']);

@@ -8,6 +8,7 @@ use App\Http\Requests\Staff\ListTransfersRequest;
 use App\Http\Requests\Staff\StoreTransferRequest;
 use App\Http\Resources\TransferRequestResource;
 use App\Models\TransferRequest;
+use App\Services\DocumentService;
 use App\Services\TransferService;
 use Illuminate\Http\Request;
 
@@ -44,6 +45,13 @@ class TransferController extends Controller
         $this->authorize('view', $transferRequest);
 
         return new TransferRequestResource($transferRequest->load(TransferService::DETAIL_RELATIONS));
+    }
+
+    public function transmittalReceipt(TransferRequest $transferRequest, DocumentService $documents)
+    {
+        $this->authorize('view', $transferRequest);
+
+        return $documents->transmittalReceipt($transferRequest);
     }
 
     public function approve(Request $request, TransferRequest $transferRequest, TransferService $service)
