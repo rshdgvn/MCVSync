@@ -93,3 +93,17 @@ $shortAccepted->update(['status' => 'shipped', 'shipped_at' => now()]);
 app(ReceivingService::class)->complete($shortAccepted->fresh(), $cebu->id);
 app(DiscrepancyService::class)->resolve($shortAccepted->discrepancies()->firstOrFail(), $cebuEmployee, $cebu->id, 'accepted', 'Two syringes broke in transit.');
 echo "short accepted: {$shortAccepted->transfer_number}\n";
+
+$gauze = Item::factory()->create([
+    'name' => 'Gauze Pad 4x4', 'sku' => 'GZE-44', 'barcode' => '4800001000059',
+    'category_id' => $category->id, 'unit_id' => $pieces->id, 'has_expiry' => false,
+]);
+Batch::factory()->create(['item_id' => $gauze->id, 'branch_id' => $main->id, 'batch_number' => 'GZE-MAIN', 'quantity' => 1, 'expiry_date' => null]);
+$purchaseOrders->create(
+    ['supplier_id' => $acme->id, 'branch_id' => $main->id, 'remarks' => 'Click-through incoming gauze'],
+    [['item_id' => $gauze->id, 'quantity_ordered' => 10, 'unit_cost' => 3]],
+    $approver,
+);
+$coveredShortage = $service->create(['remarks' => 'Click-through covered shortage'], [['item_id' => $gauze->id, 'quantity' => 6]], $cebuEmployee, $cebu->id);
+$service->approve($coveredShortage, $approver, $main->id);
+echo "covered shortage: {$coveredShortage->transfer_number}\n";

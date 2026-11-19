@@ -1,6 +1,12 @@
 import { API_URL, APP_URL, apiGet, apiPost, check, noHorizontalScroll, openAs, runFlow, scan, visible } from "../lib/browser.mjs";
 
-const BARCODE = { gloves: "4800001000011", alcohol: "4800001000035" };
+const BARCODE = { gloves: "4800001000011", alcohol: "4800001000035", gauze: "4800001000059" };
+
+async function downloadFromMenu(page) {
+  await page.getByRole("button", { name: "More actions" }).click();
+  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("menuitem", { name: "Download PDF" }).click()]);
+  return download.suggestedFilename();
+}
 
 async function generateOverrideCode(browser) {
   const { context, page } = await openAs(browser, "superadmin@mcvsync.test", "desktop");
@@ -121,7 +127,33 @@ async function desktopPick(browser, shot) {
     finalized.status === "open" && finalized.source === "auto_shortage" && finalized.branch.is_main === true && finalized.total === 760 && finalized.prepared_by !== null,
     `${finalized.status} ${finalized.total} ${finalized.prepared_by}`,
   );
+  const poFile = await downloadFromMenu(page);
+  check(p("a finalized PO downloads as a PDF named after it"), poFile === `${finalized.po_number}.pdf`, poFile);
 
+  await context.close();
+}
+
+async function coveredShortage(browser, shot) {
+  const p = (name) => `covered-shortage-desktop-${name}`;
+  const { context, page } = await openAs(browser, "purchasing@mcvsync.test", "desktop");
+  const dialog = page.getByRole("dialog");
+
+  await page.goto(`${APP_URL}/purchasing/transfers/7/pick`);
+  await visible(page.getByText("lines picked")).waitFor({ timeout: 20000 });
+  await scan(page, BARCODE.gauze);
+  await dialog.getByText("Insufficient Stock").waitFor();
+  await dialog.getByRole("button", { name: "Create Supplier PO" }).waitFor();
+  check(p("no draft when an open PO already covers the shortfall"), (await dialog.getByRole("button", { name: "Open Draft PO" }).count()) === 0);
+  await dialog.getByRole("button", { name: "Create Supplier PO" }).click();
+  await page.locator("#shortage-supplier").click();
+  await page.getByLabel("Search Supplier").fill("Acme");
+  await visible(page.getByRole("option", { name: "Acme Medical Supplies" })).locator("button").click();
+  await dialog.locator("#shortage-unit-cost").fill("3");
+  await dialog.getByRole("button", { name: "Create Purchase Order" }).click();
+  await dialog.getByText("Supplier PO Created").waitFor();
+  await shot(page, p("01-created"));
+  const [download] = await Promise.all([page.waitForEvent("download"), dialog.getByRole("button", { name: "Download PDF" }).click()]);
+  check(p("the saved shortage PO downloads as a PDF"), /^PO-\d{4}\.pdf$/.test(download.suggestedFilename()), download.suggestedFilename());
   await context.close();
 }
 
@@ -247,6 +279,8 @@ async function shortAccepted(browser, shot) {
   check(p("accepting the only gap received the transfer"), (await visible(page.getByText("Received", { exact: true })).count()) >= 1);
   await noHorizontalScroll(page, p("detail"));
   await shot(page, p("01-detail"));
+  const receiptFile = await downloadFromMenu(page);
+  check(p("the transmittal receipt downloads as a PDF named after the transfer"), receiptFile === "TR-0006.pdf", receiptFile);
   await context.close();
 }
 
@@ -291,6 +325,7 @@ async function draftReview(browser, shot) {
   await shot(page, p("02-draft-detail"));
 
   await page.getByRole("button", { name: "More actions" }).click();
+  check(p("a draft has no PDF to download"), (await page.getByRole("menuitem", { name: "Download PDF" }).count()) === 0);
   await page.getByRole("menuitem", { name: "Discard Draft" }).click();
   await dialog.getByRole("button", { name: "Discard Draft" }).click();
   await dialog.waitFor({ state: "detached" });
@@ -307,7 +342,7 @@ async function approveRequest(browser, shot) {
   await page.goto(`${APP_URL}/purchasing/transfers`);
   await visible(page.getByText("TR-0004")).click();
   await page.waitForURL(/\/purchasing\/transfers\/4$/);
-  await visible(page.getByText("Awaiting Approval", { exact: true })).waitFor();
+  await visible(page.getByRole("button", { name: "Approve" })).waitFor();
   check(p("an awaiting request offers Approve and Decline"), (await visible(page.getByRole("button", { name: "Approve" })).count()) === 1 && (await visible(page.getByRole("button", { name: "Decline" })).count()) === 1);
   check(p("an awaiting request cannot be picked yet"), (await page.getByRole("link", { name: "Prepare & Ship" }).count()) === 0);
   await noHorizontalScroll(page, p("awaiting detail"));
@@ -367,6 +402,7 @@ export async function run({ browser, shot }) {
   await runFlow("requesting branch", () => requestingBranch(browser, shot));
   await runFlow("super admin", () => superAdmin(browser, shot));
   await runFlow("short accepted", () => shortAccepted(browser, shot));
+  await runFlow("covered shortage", () => coveredShortage(browser, shot));
   await runFlow("draft review", () => draftReview(browser, shot));
   await runFlow("approve request", () => approveRequest(browser, shot));
   await runFlow("decline request", () => declineRequest(browser, shot));
