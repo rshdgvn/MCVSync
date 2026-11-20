@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 #[Fillable([
@@ -22,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
     'source_id',
     'order_status',
     'cancellation_requested',
+    'ready_for_delivery_at',
     'prepared_by',
     'checked_by',
     'terms',
@@ -48,6 +50,7 @@ class ClientOrderForm extends Model implements DiscrepancyDocument, FulfillableD
     {
         return [
             'cancellation_requested' => 'boolean',
+            'ready_for_delivery_at' => 'datetime',
             'request_delivery_date' => 'date',
             'dispatch_held_at' => 'datetime',
             'issue_reported_at' => 'datetime',
@@ -134,9 +137,14 @@ class ClientOrderForm extends Model implements DiscrepancyDocument, FulfillableD
         return $this->cof_number;
     }
 
+    public function delivery(): HasOne
+    {
+        return $this->hasOne(Delivery::class);
+    }
+
     public function deliveryDate(): ?CarbonImmutable
     {
-        return null;
+        return $this->delivery?->delivery_date;
     }
 
     public function isFromPortal(): bool
