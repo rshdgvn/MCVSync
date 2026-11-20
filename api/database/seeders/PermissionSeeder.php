@@ -15,11 +15,11 @@ class PermissionSeeder extends Seeder
      * meant to be exhaustive.
      */
     public const ROLE_PERMISSIONS = [
-        'sales' => ['cof.create', 'cof.view', 'cof.forward_to_purchasing', 'discount.set', 'client.view'],
-        'purchasing' => ['purchase_order.create', 'purchase_order.approve', 'stock.receive', 'transfer.approve', 'discrepancy.resolve'],
-        'accounting' => ['pricing.set', 'invoice.create', 'payment.record'],
+        'sales' => ['cof.create', 'cof.view', 'cof.forward_to_purchasing', 'cof.approve_dispatch', 'cof.confirm_cancellation', 'discount.set', 'client.view', 'client.manage'],
+        'purchasing' => ['purchase_order.create', 'purchase_order.approve', 'stock.receive', 'transfer.approve', 'discrepancy.resolve', 'cof.confirm_cancellation'],
+        'accounting' => ['pricing.set', 'invoice.create', 'payment.record', 'cof.view'],
         'logistics' => ['dispatch.approve', 'transfer.request', 'transfer.fulfill'],
-        'admin' => ['user.manage', 'role_permission.edit', 'branch.manage', 'system.configure', 'transfer.approve', 'discrepancy.resolve'],
+        'admin' => ['user.manage', 'role_permission.edit', 'branch.manage', 'system.configure', 'transfer.approve', 'discrepancy.resolve', 'cof.view'],
         'super_admin' => ['employee_role.assign'],
     ];
 
