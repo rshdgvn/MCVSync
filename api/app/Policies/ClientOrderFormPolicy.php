@@ -51,6 +51,16 @@ class ClientOrderFormPolicy
         return $this->hasInventoryAccess($user);
     }
 
+    public function viewLogistics(User $user): bool
+    {
+        return $this->allows($user, 'logistics.view');
+    }
+
+    public function confirmDelivery(User $user): bool
+    {
+        return $this->allows($user, 'logistics.confirm_delivery');
+    }
+
     public function printDeliveryReceipt(User $user): bool
     {
         return $this->allows($user, 'cof.view') || $this->hasInventoryAccess($user);
