@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Contracts\FulfillableDocument;
 use App\Models\Batch;
+use App\Models\ClientOrderForm;
 use App\Models\PurchaseOrder;
 use App\Models\Scopes\BranchScope;
 use App\Models\StockTransaction;
@@ -21,6 +23,8 @@ class DocumentService
 
     private const PRINTABLE_TRANSFER_STATUSES = ['shipped', 'closed'];
 
+    private const PRINTABLE_DELIVERY_STATUSES = ['ready_for_delivery', 'delivered', 'completed'];
+
     public function purchaseOrder(PurchaseOrder $purchaseOrder): Response
     {
         return $this->stream($this->purchaseOrderView($purchaseOrder), $purchaseOrder->po_number);
@@ -29,6 +33,11 @@ class DocumentService
     public function transmittalReceipt(TransferRequest $transfer): Response
     {
         return $this->stream($this->transmittalReceiptView($transfer), $transfer->transfer_number);
+    }
+
+    public function deliveryReceipt(ClientOrderForm $cof): Response
+    {
+        return $this->stream($this->deliveryReceiptView($cof), $cof->dr_number);
     }
 
     public function purchaseOrderView(PurchaseOrder $purchaseOrder): View
@@ -106,16 +115,55 @@ class DocumentService
         ]);
     }
 
+    public function deliveryReceiptView(ClientOrderForm $cof): View
+    {
+        $this->assertPrintable(
+            $cof->order_status,
+            self::PRINTABLE_DELIVERY_STATUSES,
+            'A delivery receipt is available once the order is ready for delivery.',
+        );
+
+        $cof->load(['client.user', 'branch', 'preparedBy.user', 'checkedBy.user', 'items.item.unit']);
+        $lines = $cof->items;
+
+        return $this->view('documents.delivery-receipt', 'Delivery Receipt', $cof->dr_number, [
+            'details' => [
+                'Deliver To' => [
+                    'Client' => $cof->client->user->name,
+                    'Address' => $cof->client->address,
+                    'Contact #' => $cof->client->contact,
+                ],
+                'Order' => [
+                    'COF #' => $cof->cof_number,
+                    'Order Date' => $this->dateTime($cof->created_at),
+                    'Delivery Date' => $this->date($cof->request_delivery_date),
+                    'Terms' => $cof->terms,
+                    'From' => $cof->branch->name,
+                ],
+            ],
+            'lines' => $lines,
+            'batchesByItem' => $this->pickedBatches($cof),
+            'total' => $lines->sum(fn ($line) => (float) $line->total),
+            'remarks' => $cof->remarks,
+            'signatures' => [
+                ['label' => 'Prepared by', 'name' => $cof->preparedBy?->user->name],
+                ['label' => 'Checked by', 'name' => $cof->checkedBy?->user->name],
+                ['label' => 'Delivered by'],
+                ['label' => 'Received by'],
+            ],
+        ]);
+    }
+
     /**
      * @return Collection<int, array<int, array{number: string, expiry: ?string, quantity: int}>>
      */
-    private function pickedBatches(TransferRequest $transfer): Collection
+    private function pickedBatches(FulfillableDocument $document): Collection
     {
         return StockTransaction::query()
             ->withoutGlobalScope(BranchScope::class)
-            ->where('reference_type', $transfer->getMorphClass())
-            ->where('reference_id', $transfer->getKey())
-            ->where('type', $transfer->fulfillmentTransactionType())
+            ->where('reference_type', $document->getMorphClass())
+            ->where('reference_id', $document->getKey())
+            ->where('type', $document->fulfillmentTransactionType())
             ->with(['batch' => fn ($query) => $query->withoutGlobalScope(BranchScope::class)])
             ->orderBy('id')
             ->get()
