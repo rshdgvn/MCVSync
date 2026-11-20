@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Branch;
 use App\Models\Client;
 use App\Models\Employee;
 use App\Models\User;
@@ -32,7 +33,11 @@ class AccountProvisioningService
         return DB::transaction(function () use ($userData, $clientData) {
             $user = User::create([...$userData, 'type' => 'client']);
 
-            return Client::create([...$clientData, 'user_id' => $user->id]);
+            return Client::create([
+                ...$clientData,
+                'branch_id' => $clientData['branch_id'] ?? Branch::where('is_main', true)->value('id'),
+                'user_id' => $user->id,
+            ]);
         });
     }
 }
