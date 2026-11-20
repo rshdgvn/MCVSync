@@ -14,7 +14,7 @@ use Illuminate\Http\Request;
 
 class OrderController extends Controller
 {
-    private const DETAIL_RELATIONS = ['items.item.category', 'items.item.unit', 'payments'];
+    private const DETAIL_RELATIONS = ['items.item.category', 'items.item.unit', 'payments', 'delivery'];
 
     public function index(Request $request)
     {

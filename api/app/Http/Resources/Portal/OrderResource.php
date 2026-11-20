@@ -22,6 +22,8 @@ class OrderResource extends JsonResource
             'terms' => $this->terms,
             'request_delivery_date' => $this->request_delivery_date?->toDateString(),
             'notes' => $this->remarks,
+            'delivery_date' => $this->relationLoaded('delivery') ? $this->delivery?->delivery_date->toDateString() : null,
+            'received_by' => $this->relationLoaded('delivery') ? $this->delivery?->received_by : null,
             'issue' => $this->issue_reported_at === null ? null : [
                 'description' => $this->issue_description,
                 'reported_at' => $this->issue_reported_at->toIso8601String(),

@@ -10,6 +10,7 @@ use App\Http\Controllers\Staff\BranchController;
 use App\Http\Controllers\Staff\DiscrepancyController;
 use App\Http\Controllers\Staff\EmployeeController;
 use App\Http\Controllers\Staff\FefoOverrideController;
+use App\Http\Controllers\Staff\LogisticsController;
 use App\Http\Controllers\Staff\Inventory\AlertController;
 use App\Http\Controllers\Staff\Inventory\BatchController;
 use App\Http\Controllers\Staff\Inventory\CategoryController;
@@ -237,6 +238,16 @@ Route::prefix('staff/sales')
     ->group(function () {
         Route::get('/expiry-alerts', [SalesInsightController::class, 'expiryAlerts']);
         Route::get('/analytics', [SalesInsightController::class, 'analytics']);
+    });
+
+Route::prefix('staff/logistics')
+    ->middleware(['auth:staff', 'ensure-active-account', 'scope-to-branch'])
+    ->group(function () {
+        Route::get('/incoming-orders', [LogisticsController::class, 'incomingOrders']);
+        Route::get('/ready-to-deliver', [LogisticsController::class, 'readyToDeliver']);
+        Route::post('/ready-to-deliver/{clientOrderForm}/confirm', [LogisticsController::class, 'confirm']);
+        Route::get('/delivery-history', [LogisticsController::class, 'deliveryHistory']);
+        Route::get('/summary', [LogisticsController::class, 'summary']);
     });
 
 Route::prefix('portal/auth')->group(function () {
