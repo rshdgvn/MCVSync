@@ -5,6 +5,7 @@ use App\Models\ClientOrderForm;
 use App\Models\Item;
 use App\Models\User;
 use App\Models\Zone;
+use App\Support\BusinessDate;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -135,9 +136,9 @@ test('sales analytics reports volume, top clients and items, and quiet clients f
 test('sales sees only item, branch and days left for near-expiry stock', function () {
     $sales = makeSalesUser();
     $item = Item::factory()->create(['name' => 'Saline', 'expiry_alert_threshold_days' => 30]);
-    stockAt($sales, $item, 5, now()->addDays(10)->toDateString(), 'SAL-1');
-    stockAt($sales, $item, 7, now()->addDays(20)->toDateString(), 'SAL-2');
-    stockAt($sales, Item::factory()->create(['expiry_alert_threshold_days' => 30]), 5, now()->addDays(200)->toDateString(), 'FAR-1');
+    stockAt($sales, $item, 5, BusinessDate::today()->addDays(10)->toDateString(), 'SAL-1');
+    stockAt($sales, $item, 7, BusinessDate::today()->addDays(20)->toDateString(), 'SAL-2');
+    stockAt($sales, Item::factory()->create(['expiry_alert_threshold_days' => 30]), 5, BusinessDate::today()->addDays(200)->toDateString(), 'FAR-1');
 
     $this->actingAs($sales, 'staff')->getJson('/api/staff/sales/expiry-alerts')
         ->assertOk()
