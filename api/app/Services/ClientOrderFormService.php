@@ -397,6 +397,24 @@ class ClientOrderFormService
         });
     }
 
+    public function markDelivered(ClientOrderForm $cof): ClientOrderForm
+    {
+        return DB::transaction(function () use ($cof) {
+            $locked = $this->lock($cof);
+            $this->assertStatus($locked, ['ready_for_delivery'], 'Only an order that is ready for delivery can be confirmed delivered.');
+
+            if ($locked->cancellation_requested) {
+                throw ValidationException::withMessages([
+                    'cancellation_requested' => 'The client asked to cancel this order. Sales or Purchasing must resolve the request before it can be delivered.',
+                ]);
+            }
+
+            $locked->update(['order_status' => 'delivered']);
+
+            return $locked;
+        });
+    }
+
     public function confirmReceipt(ClientOrderForm $cof): ClientOrderForm
     {
         return DB::transaction(function () use ($cof) {
@@ -522,6 +540,7 @@ class ClientOrderFormService
     {
         $cof->update([
             'order_status' => 'ready_for_delivery',
+            'ready_for_delivery_at' => now(),
             'dr_number' => $cof->dr_number ?? $this->numbers->next(ClientOrderForm::class, 'dr_number', 'DR'),
             'dispatch_hold_note' => null,
             'dispatch_held_by' => null,
