@@ -124,7 +124,7 @@ class ReceivingService
                 ->lockForUpdate()
                 ->get()
                 ->reject(fn (ReceivableLine $line) => $line->isSettled())
-                ->each(fn (Model $line) => $this->discrepancies->recordShortfall($document, $line));
+                ->each(fn (Model $line) => $this->discrepancies->recordShortfall($document, $line, $line->quantity_received));
 
             $document->closeIfSettled();
 

@@ -10,6 +10,7 @@ use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\Scopes\BranchScope;
 use App\Support\BusinessDate;
+use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -201,6 +202,17 @@ class PurchaseOrderService
             : max($item->reorder_point * 2 - $available, 1);
 
         return $this->addToDraft($item, $branchId, 'auto_low_stock', $quantity);
+    }
+
+    public function draftingShortages(Closure $work): mixed
+    {
+        try {
+            return DB::transaction($work);
+        } catch (InsufficientStockException $shortage) {
+            $this->draftForShortageAfterTransaction($shortage);
+
+            throw $shortage;
+        }
     }
 
     public function draftForShortageAfterTransaction(InsufficientStockException $shortage): void

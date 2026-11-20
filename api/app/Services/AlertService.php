@@ -6,6 +6,7 @@ use App\Models\Batch;
 use App\Models\Scopes\BranchScope;
 use App\Support\BusinessDate;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
@@ -24,8 +25,30 @@ class AlertService
      */
     public function expiringBatches(?int $branchId, int $perPage = 15): LengthAwarePaginator
     {
-        $defaultThreshold = config('inventory.default_expiry_alert_threshold_days');
+        return $this->expiringBatchesQuery($branchId)
+            ->orderBy('batches.expiry_date')
+            ->select('batches.*')
+            ->with(['item.category', 'item.unit', 'branch'])
+            ->paginate($perPage);
+    }
 
+    public function expiringItemsByBranch(?int $branchId, int $perPage = 15): LengthAwarePaginator
+    {
+        return $this->expiringBatchesQuery($branchId)
+            ->join('branches', 'branches.id', '=', 'batches.branch_id')
+            ->groupBy('items.id', 'items.name', 'items.sku', 'branches.id', 'branches.name')
+            ->selectRaw(
+                'items.id as item_id, items.name as item_name, items.sku, branches.id as branch_id, branches.name as branch_name, MIN('.$this->daysUntilExpirySql().') as days_remaining',
+                [BusinessDate::todayString()],
+            )
+            ->orderBy('days_remaining')
+            ->orderBy('items.name')
+            ->toBase()
+            ->paginate($perPage);
+    }
+
+    private function expiringBatchesQuery(?int $branchId): EloquentBuilder
+    {
         return Batch::query()
             ->withoutGlobalScope(BranchScope::class)
             ->join('items', 'items.id', '=', 'batches.item_id')
@@ -33,13 +56,9 @@ class AlertService
             ->whereNotNull('batches.expiry_date')
             ->whereRaw(
                 $this->daysUntilExpirySql().' <= COALESCE(items.expiry_alert_threshold_days, ?)',
-                [BusinessDate::todayString(), $defaultThreshold],
+                [BusinessDate::todayString(), config('inventory.default_expiry_alert_threshold_days')],
             )
-            ->when($branchId !== null, fn ($query) => $query->where('batches.branch_id', $branchId))
-            ->orderBy('batches.expiry_date')
-            ->select('batches.*')
-            ->with(['item.category', 'item.unit', 'branch'])
-            ->paginate($perPage);
+            ->when($branchId !== null, fn ($query) => $query->where('batches.branch_id', $branchId));
     }
 
     private function daysUntilExpirySql(): string

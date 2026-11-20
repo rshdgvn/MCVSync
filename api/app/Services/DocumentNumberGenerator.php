@@ -12,6 +12,7 @@ class DocumentNumberGenerator
     {
         $lastNumber = $modelClass::query()
             ->withoutGlobalScopes()
+            ->whereNotNull($column)
             ->lockForUpdate()
             ->orderByDesc('id')
             ->value($column);
