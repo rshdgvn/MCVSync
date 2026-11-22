@@ -19,6 +19,11 @@ class ClientOrderFormResource extends JsonResource
             'source_id' => $this->source_id,
             'order_status' => $this->order_status,
             'cancellation_requested' => $this->cancellation_requested,
+            'ready_for_delivery_at' => $this->ready_for_delivery_at?->toIso8601String(),
+            'delivery' => $this->whenLoaded('delivery', fn () => $this->delivery === null ? null : [
+                'delivery_date' => $this->delivery->delivery_date->toDateString(),
+                'received_by' => $this->delivery->received_by,
+            ]),
             'prepared_by' => $this->whenLoaded('preparedBy', fn () => $this->preparedBy?->user->name),
             'checked_by' => $this->whenLoaded('checkedBy', fn () => $this->checkedBy?->user->name),
             'terms' => $this->terms,

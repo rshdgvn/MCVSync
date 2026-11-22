@@ -30,6 +30,7 @@ class ClientOrderFormService
         'dispatchHeldBy.user',
         'items.item.unit',
         'items.item.category',
+        'delivery',
     ];
 
     private const EDITABLE_STATUSES = ['pending_approval'];
@@ -588,6 +589,7 @@ class ClientOrderFormService
                     ->orWhereHas('client.user', fn (Builder $user) => $user->whereLike('name', $pattern)));
             })
             ->when($filters['client_id'] ?? null, fn (Builder $query, int $clientId) => $query->where('client_id', $clientId))
+            ->when($filters['source_type'] ?? null, fn (Builder $query, string $source) => $query->where('source_type', $source))
             ->when(isset($filters['cancellation_requested']), fn (Builder $query) => $query->where('cancellation_requested', $filters['cancellation_requested']));
     }
 }

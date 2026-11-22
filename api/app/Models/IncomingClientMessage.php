@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'channel',
     'attachment_path',
     'attachment_name',
+    'notes',
     'received_at',
     'status',
     'converted_cof_id',

@@ -17,6 +17,7 @@ class StoreIncomingMessageRequest extends FormRequest
             'channel' => ['required', Rule::in(IncomingClientMessage::CHANNELS)],
             'attachment' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:'.self::MAX_ATTACHMENT_KILOBYTES],
             'received_at' => ['nullable', 'date', 'before_or_equal:now'],
+            'notes' => ['nullable', 'string', 'max:2000'],
         ];
     }
 

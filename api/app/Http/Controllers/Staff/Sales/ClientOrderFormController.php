@@ -10,9 +10,11 @@ use App\Http\Requests\Staff\Sales\UpdateClientOrderFormRequest;
 use App\Http\Resources\ClientOrderFormResource;
 use App\Http\Resources\ClientSubmissionResource;
 use App\Http\Resources\DiscrepancyResource;
+use App\Http\Resources\IncomingClientMessageResource;
 use App\Http\Resources\PaymentResource;
 use App\Models\ClientOrderForm;
 use App\Models\ClientSubmission;
+use App\Models\IncomingClientMessage;
 use App\Services\ClientOrderFormService;
 use App\Services\DiscrepancyService;
 use App\Services\DocumentService;
@@ -115,6 +117,11 @@ class ClientOrderFormController extends Controller
             'source' => $cof->isFromPortal()
                 ? (new ClientSubmissionResource(ClientSubmission::with('items.item')->find($cof->source_id)))->resolve(request())
                 : null,
+            'source_message' => $cof->isFromPortal()
+                ? null
+                : (new IncomingClientMessageResource(
+                    IncomingClientMessage::query()->withoutGlobalScopes()->with('loggedBy.user')->find($cof->source_id),
+                ))->resolve(request()),
             'discrepancies' => DiscrepancyResource::collection($discrepancies->forDocument($cof))->resolve(request()),
             'payment' => $payment ? (new PaymentResource($payment))->resolve(request()) : null,
         ], $status);

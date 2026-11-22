@@ -38,6 +38,7 @@ class IncomingMessageController extends Controller
             $request->validated('channel'),
             $request->file('attachment'),
             $request->validated('received_at'),
+            $request->validated('notes'),
             $request->user('staff')->employee,
         );
 
@@ -46,7 +47,7 @@ class IncomingMessageController extends Controller
 
     public function attachment(IncomingClientMessage $incomingClientMessage, IncomingMessageService $service)
     {
-        $this->authorize('create', ClientOrderForm::class);
+        $this->authorize('view', ClientOrderForm::class);
 
         return $service->download($incomingClientMessage);
     }

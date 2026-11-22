@@ -27,7 +27,7 @@ class IncomingMessageService
             ->orderByDesc('id');
     }
 
-    public function log(Client $client, string $channel, UploadedFile $attachment, ?string $receivedAt, Employee $loggedBy): IncomingClientMessage
+    public function log(Client $client, string $channel, UploadedFile $attachment, ?string $receivedAt, ?string $notes, Employee $loggedBy): IncomingClientMessage
     {
         $path = $attachment->store(self::DIRECTORY, self::DISK);
 
@@ -37,6 +37,7 @@ class IncomingMessageService
             'channel' => $channel,
             'attachment_path' => $path,
             'attachment_name' => $attachment->getClientOriginalName(),
+            'notes' => $notes,
             'received_at' => $receivedAt ?? now(),
             'logged_by' => $loggedBy->id,
         ]);

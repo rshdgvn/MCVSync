@@ -237,6 +237,7 @@ Route::prefix('staff/sales')
     ->middleware(['auth:staff', 'ensure-active-account', 'scope-to-branch'])
     ->group(function () {
         Route::get('/expiry-alerts', [SalesInsightController::class, 'expiryAlerts']);
+        Route::get('/items', [SalesInsightController::class, 'items']);
         Route::get('/analytics', [SalesInsightController::class, 'analytics']);
     });
 
