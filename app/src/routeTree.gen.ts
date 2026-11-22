@@ -40,7 +40,6 @@ import { Route as AuthenticatedLogisticsReadyToDeliverRouteImport } from './rout
 import { Route as AuthenticatedPurchasingDiscrepanciesRouteImport } from './routes/_authenticated/purchasing/discrepancies'
 import { Route as AuthenticatedSalesClientsRouteImport } from './routes/_authenticated/sales/clients'
 import { Route as AuthenticatedSalesClientsAnalyticsRouteImport } from './routes/_authenticated/sales/clients-analytics'
-import { Route as AuthenticatedSalesCofsRouteImport } from './routes/_authenticated/sales/cofs'
 import { Route as AuthenticatedSalesDiscountsRouteImport } from './routes/_authenticated/sales/discounts'
 import { Route as AuthenticatedSalesDispatchRouteImport } from './routes/_authenticated/sales/dispatch'
 import { Route as AuthenticatedSalesIntakeRouteImport } from './routes/_authenticated/sales/intake'
@@ -67,6 +66,9 @@ import { Route as AuthenticatedPurchasingSuppliersIndexRouteImport } from './rou
 import { Route as AuthenticatedPurchasingSuppliersSupplierIdRouteImport } from './routes/_authenticated/purchasing/suppliers/$supplierId'
 import { Route as AuthenticatedPurchasingTransfersIndexRouteImport } from './routes/_authenticated/purchasing/transfers/index'
 import { Route as AuthenticatedPurchasingTransfersNewRouteImport } from './routes/_authenticated/purchasing/transfers/new'
+import { Route as AuthenticatedSalesCofsIndexRouteImport } from './routes/_authenticated/sales/cofs/index'
+import { Route as AuthenticatedSalesCofsCofIdRouteImport } from './routes/_authenticated/sales/cofs/$cofId'
+import { Route as AuthenticatedSalesCofsNewRouteImport } from './routes/_authenticated/sales/cofs/new'
 import { Route as AuthenticatedPurchasingStockReceivingPurchaseOrdersPurchaseOrderIdRouteImport } from './routes/_authenticated/purchasing/stock-receiving/purchase-orders/$purchaseOrderId'
 import { Route as AuthenticatedPurchasingStockReceivingTransfersTransferIdRouteImport } from './routes/_authenticated/purchasing/stock-receiving/transfers/$transferId'
 import { Route as AuthenticatedPurchasingTransfersTransferIdIndexRouteImport } from './routes/_authenticated/purchasing/transfers/$transferId/index'
@@ -247,11 +249,6 @@ const AuthenticatedSalesClientsAnalyticsRoute =
     path: '/sales/clients-analytics',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
-const AuthenticatedSalesCofsRoute = AuthenticatedSalesCofsRouteImport.update({
-  id: '/sales/cofs',
-  path: '/sales/cofs',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
 const AuthenticatedSalesDiscountsRoute =
   AuthenticatedSalesDiscountsRouteImport.update({
     id: '/sales/discounts',
@@ -407,6 +404,24 @@ const AuthenticatedPurchasingTransfersNewRoute =
     path: '/purchasing/transfers/new',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedSalesCofsIndexRoute =
+  AuthenticatedSalesCofsIndexRouteImport.update({
+    id: '/sales/cofs/',
+    path: '/sales/cofs/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedSalesCofsCofIdRoute =
+  AuthenticatedSalesCofsCofIdRouteImport.update({
+    id: '/sales/cofs/$cofId',
+    path: '/sales/cofs/$cofId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedSalesCofsNewRoute =
+  AuthenticatedSalesCofsNewRouteImport.update({
+    id: '/sales/cofs/new',
+    path: '/sales/cofs/new',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedPurchasingStockReceivingPurchaseOrdersPurchaseOrderIdRoute =
   AuthenticatedPurchasingStockReceivingPurchaseOrdersPurchaseOrderIdRouteImport.update(
     {
@@ -464,7 +479,6 @@ export interface FileRoutesByFullPath {
   '/purchasing/discrepancies': typeof AuthenticatedPurchasingDiscrepanciesRoute
   '/sales/clients': typeof AuthenticatedSalesClientsRoute
   '/sales/clients-analytics': typeof AuthenticatedSalesClientsAnalyticsRoute
-  '/sales/cofs': typeof AuthenticatedSalesCofsRoute
   '/sales/discounts': typeof AuthenticatedSalesDiscountsRoute
   '/sales/dispatch': typeof AuthenticatedSalesDispatchRoute
   '/sales/intake': typeof AuthenticatedSalesIntakeRoute
@@ -486,12 +500,15 @@ export interface FileRoutesByFullPath {
   '/purchasing/purchase-orders/new': typeof AuthenticatedPurchasingPurchaseOrdersNewRoute
   '/purchasing/suppliers/$supplierId': typeof AuthenticatedPurchasingSuppliersSupplierIdRoute
   '/purchasing/transfers/new': typeof AuthenticatedPurchasingTransfersNewRoute
+  '/sales/cofs/$cofId': typeof AuthenticatedSalesCofsCofIdRoute
+  '/sales/cofs/new': typeof AuthenticatedSalesCofsNewRoute
   '/admin/suppliers/': typeof AuthenticatedAdminSuppliersIndexRoute
   '/items/$itemId/': typeof AuthenticatedItemsItemIdIndexRoute
   '/purchasing/purchase-orders/': typeof AuthenticatedPurchasingPurchaseOrdersIndexRoute
   '/purchasing/stock-receiving/': typeof AuthenticatedPurchasingStockReceivingIndexRoute
   '/purchasing/suppliers/': typeof AuthenticatedPurchasingSuppliersIndexRoute
   '/purchasing/transfers/': typeof AuthenticatedPurchasingTransfersIndexRoute
+  '/sales/cofs/': typeof AuthenticatedSalesCofsIndexRoute
   '/purchasing/stock-receiving/purchase-orders/$purchaseOrderId': typeof AuthenticatedPurchasingStockReceivingPurchaseOrdersPurchaseOrderIdRoute
   '/purchasing/stock-receiving/transfers/$transferId': typeof AuthenticatedPurchasingStockReceivingTransfersTransferIdRoute
   '/purchasing/transfers/$transferId/pick': typeof AuthenticatedPurchasingTransfersTransferIdPickRoute
@@ -527,7 +544,6 @@ export interface FileRoutesByTo {
   '/purchasing/discrepancies': typeof AuthenticatedPurchasingDiscrepanciesRoute
   '/sales/clients': typeof AuthenticatedSalesClientsRoute
   '/sales/clients-analytics': typeof AuthenticatedSalesClientsAnalyticsRoute
-  '/sales/cofs': typeof AuthenticatedSalesCofsRoute
   '/sales/discounts': typeof AuthenticatedSalesDiscountsRoute
   '/sales/dispatch': typeof AuthenticatedSalesDispatchRoute
   '/sales/intake': typeof AuthenticatedSalesIntakeRoute
@@ -549,12 +565,15 @@ export interface FileRoutesByTo {
   '/purchasing/purchase-orders/new': typeof AuthenticatedPurchasingPurchaseOrdersNewRoute
   '/purchasing/suppliers/$supplierId': typeof AuthenticatedPurchasingSuppliersSupplierIdRoute
   '/purchasing/transfers/new': typeof AuthenticatedPurchasingTransfersNewRoute
+  '/sales/cofs/$cofId': typeof AuthenticatedSalesCofsCofIdRoute
+  '/sales/cofs/new': typeof AuthenticatedSalesCofsNewRoute
   '/admin/suppliers': typeof AuthenticatedAdminSuppliersIndexRoute
   '/items/$itemId': typeof AuthenticatedItemsItemIdIndexRoute
   '/purchasing/purchase-orders': typeof AuthenticatedPurchasingPurchaseOrdersIndexRoute
   '/purchasing/stock-receiving': typeof AuthenticatedPurchasingStockReceivingIndexRoute
   '/purchasing/suppliers': typeof AuthenticatedPurchasingSuppliersIndexRoute
   '/purchasing/transfers': typeof AuthenticatedPurchasingTransfersIndexRoute
+  '/sales/cofs': typeof AuthenticatedSalesCofsIndexRoute
   '/purchasing/stock-receiving/purchase-orders/$purchaseOrderId': typeof AuthenticatedPurchasingStockReceivingPurchaseOrdersPurchaseOrderIdRoute
   '/purchasing/stock-receiving/transfers/$transferId': typeof AuthenticatedPurchasingStockReceivingTransfersTransferIdRoute
   '/purchasing/transfers/$transferId/pick': typeof AuthenticatedPurchasingTransfersTransferIdPickRoute
@@ -592,7 +611,6 @@ export interface FileRoutesById {
   '/_authenticated/purchasing/discrepancies': typeof AuthenticatedPurchasingDiscrepanciesRoute
   '/_authenticated/sales/clients': typeof AuthenticatedSalesClientsRoute
   '/_authenticated/sales/clients-analytics': typeof AuthenticatedSalesClientsAnalyticsRoute
-  '/_authenticated/sales/cofs': typeof AuthenticatedSalesCofsRoute
   '/_authenticated/sales/discounts': typeof AuthenticatedSalesDiscountsRoute
   '/_authenticated/sales/dispatch': typeof AuthenticatedSalesDispatchRoute
   '/_authenticated/sales/intake': typeof AuthenticatedSalesIntakeRoute
@@ -614,12 +632,15 @@ export interface FileRoutesById {
   '/_authenticated/purchasing/purchase-orders/new': typeof AuthenticatedPurchasingPurchaseOrdersNewRoute
   '/_authenticated/purchasing/suppliers/$supplierId': typeof AuthenticatedPurchasingSuppliersSupplierIdRoute
   '/_authenticated/purchasing/transfers/new': typeof AuthenticatedPurchasingTransfersNewRoute
+  '/_authenticated/sales/cofs/$cofId': typeof AuthenticatedSalesCofsCofIdRoute
+  '/_authenticated/sales/cofs/new': typeof AuthenticatedSalesCofsNewRoute
   '/_authenticated/admin/suppliers/': typeof AuthenticatedAdminSuppliersIndexRoute
   '/_authenticated/items/$itemId/': typeof AuthenticatedItemsItemIdIndexRoute
   '/_authenticated/purchasing/purchase-orders/': typeof AuthenticatedPurchasingPurchaseOrdersIndexRoute
   '/_authenticated/purchasing/stock-receiving/': typeof AuthenticatedPurchasingStockReceivingIndexRoute
   '/_authenticated/purchasing/suppliers/': typeof AuthenticatedPurchasingSuppliersIndexRoute
   '/_authenticated/purchasing/transfers/': typeof AuthenticatedPurchasingTransfersIndexRoute
+  '/_authenticated/sales/cofs/': typeof AuthenticatedSalesCofsIndexRoute
   '/_authenticated/purchasing/stock-receiving/purchase-orders/$purchaseOrderId': typeof AuthenticatedPurchasingStockReceivingPurchaseOrdersPurchaseOrderIdRoute
   '/_authenticated/purchasing/stock-receiving/transfers/$transferId': typeof AuthenticatedPurchasingStockReceivingTransfersTransferIdRoute
   '/_authenticated/purchasing/transfers/$transferId/pick': typeof AuthenticatedPurchasingTransfersTransferIdPickRoute
@@ -657,7 +678,6 @@ export interface FileRouteTypes {
     | '/purchasing/discrepancies'
     | '/sales/clients'
     | '/sales/clients-analytics'
-    | '/sales/cofs'
     | '/sales/discounts'
     | '/sales/dispatch'
     | '/sales/intake'
@@ -679,12 +699,15 @@ export interface FileRouteTypes {
     | '/purchasing/purchase-orders/new'
     | '/purchasing/suppliers/$supplierId'
     | '/purchasing/transfers/new'
+    | '/sales/cofs/$cofId'
+    | '/sales/cofs/new'
     | '/admin/suppliers/'
     | '/items/$itemId/'
     | '/purchasing/purchase-orders/'
     | '/purchasing/stock-receiving/'
     | '/purchasing/suppliers/'
     | '/purchasing/transfers/'
+    | '/sales/cofs/'
     | '/purchasing/stock-receiving/purchase-orders/$purchaseOrderId'
     | '/purchasing/stock-receiving/transfers/$transferId'
     | '/purchasing/transfers/$transferId/pick'
@@ -720,7 +743,6 @@ export interface FileRouteTypes {
     | '/purchasing/discrepancies'
     | '/sales/clients'
     | '/sales/clients-analytics'
-    | '/sales/cofs'
     | '/sales/discounts'
     | '/sales/dispatch'
     | '/sales/intake'
@@ -742,12 +764,15 @@ export interface FileRouteTypes {
     | '/purchasing/purchase-orders/new'
     | '/purchasing/suppliers/$supplierId'
     | '/purchasing/transfers/new'
+    | '/sales/cofs/$cofId'
+    | '/sales/cofs/new'
     | '/admin/suppliers'
     | '/items/$itemId'
     | '/purchasing/purchase-orders'
     | '/purchasing/stock-receiving'
     | '/purchasing/suppliers'
     | '/purchasing/transfers'
+    | '/sales/cofs'
     | '/purchasing/stock-receiving/purchase-orders/$purchaseOrderId'
     | '/purchasing/stock-receiving/transfers/$transferId'
     | '/purchasing/transfers/$transferId/pick'
@@ -784,7 +809,6 @@ export interface FileRouteTypes {
     | '/_authenticated/purchasing/discrepancies'
     | '/_authenticated/sales/clients'
     | '/_authenticated/sales/clients-analytics'
-    | '/_authenticated/sales/cofs'
     | '/_authenticated/sales/discounts'
     | '/_authenticated/sales/dispatch'
     | '/_authenticated/sales/intake'
@@ -806,12 +830,15 @@ export interface FileRouteTypes {
     | '/_authenticated/purchasing/purchase-orders/new'
     | '/_authenticated/purchasing/suppliers/$supplierId'
     | '/_authenticated/purchasing/transfers/new'
+    | '/_authenticated/sales/cofs/$cofId'
+    | '/_authenticated/sales/cofs/new'
     | '/_authenticated/admin/suppliers/'
     | '/_authenticated/items/$itemId/'
     | '/_authenticated/purchasing/purchase-orders/'
     | '/_authenticated/purchasing/stock-receiving/'
     | '/_authenticated/purchasing/suppliers/'
     | '/_authenticated/purchasing/transfers/'
+    | '/_authenticated/sales/cofs/'
     | '/_authenticated/purchasing/stock-receiving/purchase-orders/$purchaseOrderId'
     | '/_authenticated/purchasing/stock-receiving/transfers/$transferId'
     | '/_authenticated/purchasing/transfers/$transferId/pick'
@@ -1044,13 +1071,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSalesClientsAnalyticsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/sales/cofs': {
-      id: '/_authenticated/sales/cofs'
-      path: '/sales/cofs'
-      fullPath: '/sales/cofs'
-      preLoaderRoute: typeof AuthenticatedSalesCofsRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
     '/_authenticated/sales/discounts': {
       id: '/_authenticated/sales/discounts'
       path: '/sales/discounts'
@@ -1233,6 +1253,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPurchasingTransfersNewRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/sales/cofs/': {
+      id: '/_authenticated/sales/cofs/'
+      path: '/sales/cofs'
+      fullPath: '/sales/cofs/'
+      preLoaderRoute: typeof AuthenticatedSalesCofsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/sales/cofs/$cofId': {
+      id: '/_authenticated/sales/cofs/$cofId'
+      path: '/sales/cofs/$cofId'
+      fullPath: '/sales/cofs/$cofId'
+      preLoaderRoute: typeof AuthenticatedSalesCofsCofIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/sales/cofs/new': {
+      id: '/_authenticated/sales/cofs/new'
+      path: '/sales/cofs/new'
+      fullPath: '/sales/cofs/new'
+      preLoaderRoute: typeof AuthenticatedSalesCofsNewRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/purchasing/stock-receiving/purchase-orders/$purchaseOrderId': {
       id: '/_authenticated/purchasing/stock-receiving/purchase-orders/$purchaseOrderId'
       path: '/purchasing/stock-receiving/purchase-orders/$purchaseOrderId'
@@ -1291,7 +1332,6 @@ interface AuthenticatedRouteChildren {
   AuthenticatedPurchasingDiscrepanciesRoute: typeof AuthenticatedPurchasingDiscrepanciesRoute
   AuthenticatedSalesClientsRoute: typeof AuthenticatedSalesClientsRoute
   AuthenticatedSalesClientsAnalyticsRoute: typeof AuthenticatedSalesClientsAnalyticsRoute
-  AuthenticatedSalesCofsRoute: typeof AuthenticatedSalesCofsRoute
   AuthenticatedSalesDiscountsRoute: typeof AuthenticatedSalesDiscountsRoute
   AuthenticatedSalesDispatchRoute: typeof AuthenticatedSalesDispatchRoute
   AuthenticatedSalesIntakeRoute: typeof AuthenticatedSalesIntakeRoute
@@ -1313,12 +1353,15 @@ interface AuthenticatedRouteChildren {
   AuthenticatedPurchasingPurchaseOrdersNewRoute: typeof AuthenticatedPurchasingPurchaseOrdersNewRoute
   AuthenticatedPurchasingSuppliersSupplierIdRoute: typeof AuthenticatedPurchasingSuppliersSupplierIdRoute
   AuthenticatedPurchasingTransfersNewRoute: typeof AuthenticatedPurchasingTransfersNewRoute
+  AuthenticatedSalesCofsCofIdRoute: typeof AuthenticatedSalesCofsCofIdRoute
+  AuthenticatedSalesCofsNewRoute: typeof AuthenticatedSalesCofsNewRoute
   AuthenticatedAdminSuppliersIndexRoute: typeof AuthenticatedAdminSuppliersIndexRoute
   AuthenticatedItemsItemIdIndexRoute: typeof AuthenticatedItemsItemIdIndexRoute
   AuthenticatedPurchasingPurchaseOrdersIndexRoute: typeof AuthenticatedPurchasingPurchaseOrdersIndexRoute
   AuthenticatedPurchasingStockReceivingIndexRoute: typeof AuthenticatedPurchasingStockReceivingIndexRoute
   AuthenticatedPurchasingSuppliersIndexRoute: typeof AuthenticatedPurchasingSuppliersIndexRoute
   AuthenticatedPurchasingTransfersIndexRoute: typeof AuthenticatedPurchasingTransfersIndexRoute
+  AuthenticatedSalesCofsIndexRoute: typeof AuthenticatedSalesCofsIndexRoute
   AuthenticatedPurchasingStockReceivingPurchaseOrdersPurchaseOrderIdRoute: typeof AuthenticatedPurchasingStockReceivingPurchaseOrdersPurchaseOrderIdRoute
   AuthenticatedPurchasingStockReceivingTransfersTransferIdRoute: typeof AuthenticatedPurchasingStockReceivingTransfersTransferIdRoute
   AuthenticatedPurchasingTransfersTransferIdPickRoute: typeof AuthenticatedPurchasingTransfersTransferIdPickRoute
@@ -1362,7 +1405,6 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedSalesClientsRoute: AuthenticatedSalesClientsRoute,
   AuthenticatedSalesClientsAnalyticsRoute:
     AuthenticatedSalesClientsAnalyticsRoute,
-  AuthenticatedSalesCofsRoute: AuthenticatedSalesCofsRoute,
   AuthenticatedSalesDiscountsRoute: AuthenticatedSalesDiscountsRoute,
   AuthenticatedSalesDispatchRoute: AuthenticatedSalesDispatchRoute,
   AuthenticatedSalesIntakeRoute: AuthenticatedSalesIntakeRoute,
@@ -1396,6 +1438,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedPurchasingSuppliersSupplierIdRoute,
   AuthenticatedPurchasingTransfersNewRoute:
     AuthenticatedPurchasingTransfersNewRoute,
+  AuthenticatedSalesCofsCofIdRoute: AuthenticatedSalesCofsCofIdRoute,
+  AuthenticatedSalesCofsNewRoute: AuthenticatedSalesCofsNewRoute,
   AuthenticatedAdminSuppliersIndexRoute: AuthenticatedAdminSuppliersIndexRoute,
   AuthenticatedItemsItemIdIndexRoute: AuthenticatedItemsItemIdIndexRoute,
   AuthenticatedPurchasingPurchaseOrdersIndexRoute:
@@ -1406,6 +1450,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedPurchasingSuppliersIndexRoute,
   AuthenticatedPurchasingTransfersIndexRoute:
     AuthenticatedPurchasingTransfersIndexRoute,
+  AuthenticatedSalesCofsIndexRoute: AuthenticatedSalesCofsIndexRoute,
   AuthenticatedPurchasingStockReceivingPurchaseOrdersPurchaseOrderIdRoute:
     AuthenticatedPurchasingStockReceivingPurchaseOrdersPurchaseOrderIdRoute,
   AuthenticatedPurchasingStockReceivingTransfersTransferIdRoute:
