@@ -7,7 +7,8 @@
     "transfers": "node run.mjs transfers",
     "accounting": "node run.mjs accounting",
     "home": "node run.mjs home",
-    "offline": "node run.mjs offline"
+    "offline": "node run.mjs offline",
+    "sales": "node run.mjs sales"
   },
   "devDependencies": {
     "playwright-core": "1.56.1"

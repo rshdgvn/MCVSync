@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 import { API_URL, APP_URL, PASSWORD, finish, screenshotter } from "./lib/browser.mjs";
 
-const SUITES = ["receiving", "transfers", "accounting", "home", "offline"];
+const SUITES = ["receiving", "transfers", "accounting", "home", "offline", "sales"];
 const REALTIME_SUITES = new Set(["offline"]);
 const API_PORT = 8000;
 const APP_PORT = 5173;

@@ -8,6 +8,7 @@ Browser click-throughs that drive the real `app` production build against a real
 | `transfers` | Branch transfers: role tabs, new request, cancel, FEFO picking, override codes, the insufficient-stock panel and supplier PO, shipping, receiving a transfer, and the FEFO override code page |
 | `accounting` | Items reference COGS, setting and re-pricing client prices with the current, zone-average and COGS hints, price history, approving a payment (future dates blocked), payment history, the pending pricing placeholder, and Admin's read-only view |
 | `home` | Purchasing Home: every card against its server count, the oldest-first Needs Action list, card and entry links, the non-main branch's shipments card, and other roles keeping their own home |
+| `sales` | Sales intake and COFs: logging a message with its attachment, the aging chip and sidebar badge, converting a message to a manual COF, reviewing a portal COF beside the submission (match indicator, standing discount, Differs from request with a reason), forwarding, the insufficient-stock panel, Awaiting Accounting blocking forward, Send Back for Revision on mobile, confirming a cancellation after picking with Download DR, the status tabs, and Accounting and Purchasing access |
 
 ## Run
 
@@ -19,6 +20,7 @@ npm run receiving
 npm run transfers
 npm run accounting
 npm run home
+npm run sales
 ```
 
 Each run creates a fresh SQLite database in the OS temp folder, migrates and seeds it (`seeds/<suite>.php`), builds `app` with `VITE_API_URL=http://localhost:8000/api`, serves the API on port 8000 and the build on port 5173 (plus Reverb on 8080 for `offline`), runs the suite, and stops the servers. Your own database is never touched.
