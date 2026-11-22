@@ -4,9 +4,9 @@ import { FileDown, FileText, ShoppingCart } from "lucide-react";
 import { FormError } from "@/components/FormError";
 import { FormField, fieldA11yProps } from "@/components/FormField";
 import { LoadingButton } from "@/components/LoadingButton";
-import { MicroLabel } from "@/components/MicroLabel";
 import { QuantityInput } from "@/components/QuantityInput";
 import { ResponsiveDialog } from "@/components/ResponsiveDialog";
+import { ShortageSummary, shortfallOf } from "@/components/stock-flow/ShortageSummary";
 import { SubmitForm } from "@/components/SubmitForm";
 import { purchaseOrderDocument } from "@/components/purchase-orders/purchaseOrderRules";
 import { SupplierCombobox } from "@/components/suppliers/SupplierCombobox";
@@ -41,7 +41,7 @@ export function ShortageDialog({ shortage, item, transferNumber, fulfillingBranc
     per_page: 1,
   });
   const draft = draftQuery.data?.data[0];
-  const missing = Math.max(1, shortage.requested - shortage.available);
+  const missing = shortfallOf(shortage.requested, shortage.available);
   const unit = item?.unit?.code;
 
   if (creatingPo && item) {
@@ -101,20 +101,7 @@ export function ShortageDialog({ shortage, item, transferNumber, fulfillingBranc
         </>
       }
     >
-      <dl className="grid grid-cols-3 gap-2 border border-border-subtle bg-subtle px-3 py-2.5">
-        {[
-          { label: "Requested", value: shortage.requested, className: "text-foreground" },
-          { label: "Available", value: shortage.available, className: "text-success" },
-          { label: "Shortage", value: missing, className: "text-danger" },
-        ].map((stat) => (
-          <div key={stat.label} className="grid gap-0.5">
-            <dt>
-              <MicroLabel>{stat.label}</MicroLabel>
-            </dt>
-            <dd className={`font-mono text-base font-bold ${stat.className}`}>{formatQuantity(stat.value, unit)}</dd>
-          </div>
-        ))}
-      </dl>
+      <ShortageSummary requested={shortage.requested} available={shortage.available} unit={unit} />
     </ResponsiveDialog>
   );
 }

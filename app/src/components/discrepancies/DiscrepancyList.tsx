@@ -13,8 +13,9 @@ import { formatDateTime, formatNumber } from "@/lib/format";
 import type { Discrepancy, DiscrepancyListResponse } from "@/types/discrepancy";
 
 interface DiscrepancyListProps {
-  query: UseQueryResult<DiscrepancyListResponse>;
-  onPageChange: (page: number) => void;
+  query?: UseQueryResult<DiscrepancyListResponse>;
+  rows?: Discrepancy[];
+  onPageChange?: (page: number) => void;
   showDocument?: boolean;
   empty: { title: string; description?: string; action?: ReactNode };
 }
@@ -93,7 +94,7 @@ function buildColumns(showDocument: boolean): DataListColumn<Discrepancy>[] {
   return columns.filter((column): column is DataListColumn<Discrepancy> => column !== false);
 }
 
-export function DiscrepancyList({ query, onPageChange, showDocument = true, empty }: DiscrepancyListProps) {
+export function DiscrepancyList({ query, rows, onPageChange, showDocument = true, empty }: DiscrepancyListProps) {
   const [resolving, setResolving] = useState<Discrepancy | null>(null);
   const user = useMeQuery().data;
   const canResolve = user ? canResolveDiscrepancies(user) : false;
@@ -103,18 +104,18 @@ export function DiscrepancyList({ query, onPageChange, showDocument = true, empt
       <DataList
         label="Discrepancies"
         columns={buildColumns(showDocument)}
-        rows={query.data?.data}
+        rows={rows ?? query?.data?.data}
         rowKey={(row) => row.id}
-        isPending={query.isPending}
-        error={query.error}
-        onRetry={() => void query.refetch()}
-        isRefreshing={query.isFetching && query.isPlaceholderData}
+        isPending={rows ? false : (query?.isPending ?? false)}
+        error={rows ? null : query?.error}
+        onRetry={() => void query?.refetch()}
+        isRefreshing={Boolean(query?.isFetching && query.isPlaceholderData)}
         skeletonRows={5}
         empty={empty}
         rowActions={(row) =>
           row.resolved || !canResolve ? [] : [{ label: "Resolve", icon: CheckCircle2, onClick: () => setResolving(row) }]
         }
-        footer={query.data && <Pagination meta={query.data.meta} onPageChange={onPageChange} />}
+        footer={query?.data && onPageChange && <Pagination meta={query.data.meta} onPageChange={onPageChange} />}
       />
       {resolving && <ResolveDiscrepancyDialog key={resolving.id} discrepancy={resolving} onClose={() => setResolving(null)} />}
     </>

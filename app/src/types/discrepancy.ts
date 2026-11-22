@@ -2,7 +2,7 @@ import type { Item, Paginated } from "@/types/inventory";
 
 export type DiscrepancyType = "short" | "over" | "not_found";
 
-export type DiscrepancyReferenceType = "purchase_order" | "transfer_request";
+export type DiscrepancyReferenceType = "purchase_order" | "transfer_request" | "client_order_form";
 
 export type DiscrepancyResolution = "accepted" | "redelivery_requested";
 
