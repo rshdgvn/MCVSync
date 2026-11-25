@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Topbar } from "@/components/Topbar";
+import { useNavBadges } from "@/hooks/useNavBadges";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useActingAsStore } from "@/stores/actingAs.store";
 import type { Role } from "@/types/user";
@@ -13,10 +14,11 @@ interface AppShellProps {
 export function AppShell({ role, children }: AppShellProps) {
   const actingAs = useActingAsStore((state) => state.actingAs);
   const effectiveRole = actingAs ?? role;
+  const badges = useNavBadges(effectiveRole);
 
   return (
     <SidebarProvider>
-      <AppSidebar role={effectiveRole} />
+      <AppSidebar role={effectiveRole} badges={badges} />
       <SidebarInset>
         <Topbar />
         <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 has-[[data-sticky-action-bar]]:pb-[calc(6rem+env(safe-area-inset-bottom))] md:has-[[data-sticky-action-bar]]:pb-6">{children}</div>

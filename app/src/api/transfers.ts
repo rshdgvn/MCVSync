@@ -1,5 +1,8 @@
 import { isAxiosError } from "axios";
 import { api } from "@/api/client";
+import { db } from "@/db/schema";
+import { withOfflineCache } from "@/lib/offline/offlineCache";
+import { sendOrQueue, type SendOutcome } from "@/lib/offline/sendOrQueue";
 import type {
   FefoOverrideCode,
   InsufficientStock,
@@ -35,7 +38,9 @@ export interface PickPayload {
 const BASE_PATH = "/staff/transfers";
 
 const TRANSFER_STATUS_DISPLAY: Record<TransferStatus, string> = {
-  pending: "requested",
+  awaiting_approval: "awaiting_approval",
+  declined: "declined",
+  pending: "approved",
   shipped: "shipped",
   closed: "received",
   cancelled: "cancelled",
@@ -57,13 +62,33 @@ export async function listTransfers(params: ListTransfersParams = {}): Promise<T
   return response.data;
 }
 
-export async function getTransfer(id: number): Promise<TransferDetail> {
-  const response = await api.get<TransferDetail>(`${BASE_PATH}/${id}`);
-  return response.data;
+export function transferCacheKey(id: number): string {
+  return `transfer:${id}`;
+}
+
+export function pickScope(id: number): string {
+  return `pick:transfer_request:${id}`;
+}
+
+export function getTransfer(id: number): Promise<TransferDetail> {
+  return withOfflineCache(db.cached_orders, transferCacheKey(id), async () => {
+    const response = await api.get<TransferDetail>(`${BASE_PATH}/${id}`);
+    return response.data;
+  });
 }
 
 export async function createTransfer(payload: CreateTransferPayload): Promise<TransferDetail> {
   const response = await api.post<TransferDetail>(BASE_PATH, payload);
+  return response.data;
+}
+
+export async function approveTransfer(id: number): Promise<TransferDetail> {
+  const response = await api.post<TransferDetail>(`${BASE_PATH}/${id}/approve`);
+  return response.data;
+}
+
+export async function declineTransfer(id: number, declineReason: string): Promise<TransferDetail> {
+  const response = await api.post<TransferDetail>(`${BASE_PATH}/${id}/decline`, { decline_reason: declineReason });
   return response.data;
 }
 
@@ -82,9 +107,17 @@ export async function matchPick(id: number, scan: { barcode: string } | { item_i
   return response.data;
 }
 
-export async function pickStock(id: number, payload: PickPayload): Promise<TransferLine> {
-  const response = await api.post<TransferLine>(`${BASE_PATH}/${id}/fulfill/pick`, payload);
-  return response.data;
+export function pickStock(
+  userId: number,
+  id: number,
+  payload: PickPayload,
+  change: { lineId: number; label: string },
+): Promise<SendOutcome<TransferLine>> {
+  return sendOrQueue<TransferLine>(
+    userId,
+    { method: "POST", url: `${BASE_PATH}/${id}/fulfill/pick`, payload },
+    { scope: pickScope(id), line_id: change.lineId, quantity: payload.quantity, label: change.label },
+  );
 }
 
 export async function generateFefoOverrideCode(): Promise<FefoOverrideCode> {

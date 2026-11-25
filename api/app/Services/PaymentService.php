@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Employee;
 use App\Models\Payment;
+use App\Support\BusinessDate;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -57,18 +58,29 @@ class PaymentService
         });
     }
 
+    public function pendingSummary(): array
+    {
+        $totals = Payment::query()
+            ->where('status', 'payment_due')
+            ->toBase()
+            ->selectRaw(
+                'COUNT(*) as total, SUM(CASE WHEN expected_payment_date < ? THEN 1 ELSE 0 END) as overdue',
+                [BusinessDate::todayString()],
+            )
+            ->first();
+
+        $total = (int) $totals->total;
+        $overdue = (int) $totals->overdue;
+
+        return ['total' => $total, 'overdue' => $overdue, 'within_terms' => $total - $overdue];
+    }
+
     public function daysOverdue(Payment $payment): ?int
     {
         if (! $payment->expected_payment_date) {
             return null;
         }
 
-        $today = now()->startOfDay();
-
-        if ($today->lessThanOrEqualTo($payment->expected_payment_date)) {
-            return 0;
-        }
-
-        return (int) $payment->expected_payment_date->diffInDays($today);
+        return max(0, -BusinessDate::daysFromToday($payment->expected_payment_date));
     }
 }

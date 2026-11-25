@@ -35,7 +35,7 @@ class ItemController extends Controller
     {
         $this->authorize('view', $item);
 
-        $item->load(['category', 'unit']);
+        $item->load(['category', 'unit', 'preferredSupplier']);
         $item->setAttribute('cogs', $pricing->cogsFor($item->id));
 
         return new ItemWithCogsResource($item);
@@ -47,7 +47,7 @@ class ItemController extends Controller
 
         $item = $inventory->createItem($request->validated());
 
-        return (new ItemResource($item->load(['category', 'unit'])))->response()->setStatusCode(201);
+        return (new ItemResource($item->load(['category', 'unit', 'preferredSupplier'])))->response()->setStatusCode(201);
     }
 
     public function update(UpdateItemRequest $request, Item $item, InventoryService $inventory)
@@ -56,6 +56,6 @@ class ItemController extends Controller
 
         $item = $inventory->updateItem($item, $request->validated());
 
-        return new ItemResource($item->load(['category', 'unit']));
+        return new ItemResource($item->load(['category', 'unit', 'preferredSupplier']));
     }
 }

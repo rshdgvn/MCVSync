@@ -1,9 +1,9 @@
 import { queryClient } from "@/lib/queryClient";
-import { itemQueryKey, itemStockQueryKey, lowStockAlertsQueryKey } from "@/hooks/useInventory";
+import { itemQueryKey, itemStockQueryKey } from "@/hooks/useInventory";
 import { receivingKeys, sessionHasItem } from "@/hooks/useReceiving";
 import { transferHasItem, transferKeys } from "@/hooks/useTransfers";
 import { notify } from "@/lib/notifications";
-import type { Item, ItemStockBreakdown, LowStockItem, Paginated } from "@/types/inventory";
+import type { Item, ItemStockBreakdown } from "@/types/inventory";
 
 export interface StockLevelChangedPayload {
   item_id: number;
@@ -19,8 +19,6 @@ export interface LowStockThresholdCrossedPayload {
   available: number;
   reorder_point: number;
 }
-
-const badgeSetQueryKey = lowStockAlertsQueryKey({ per_page: 100 });
 
 export function handleStockLevelChanged(payload: StockLevelChangedPayload) {
   void queryClient.invalidateQueries({
@@ -46,28 +44,7 @@ export function handleStockLevelChanged(payload: StockLevelChangedPayload) {
     );
   });
 
-  /**
-   * LowStockThresholdCrossed only fires when available newly crosses AT
-   * OR BELOW reorder_point, never on recovery back above it — so the
-   * badge Set has no other signal telling it an item is no longer low.
-   * Growth into "low" is instead handled by LowStockThresholdCrossed's
-   * invalidate below, which also refreshes this same cache entry.
-   */
-  queryClient.setQueryData<Paginated<LowStockItem>>(badgeSetQueryKey, (old) => {
-    if (!old) {
-      return old;
-    }
-
-    const row = old.data.find(
-      (item) => item.item_id === payload.item_id && item.branch_id === payload.branch_id,
-    );
-
-    if (!row || payload.available <= row.reorder_point) {
-      return old;
-    }
-
-    return { ...old, data: old.data.filter((item) => item !== row) };
-  });
+  void queryClient.invalidateQueries({ queryKey: ["inventory", "alerts", "low-stock"] });
 }
 
 export function handleLowStockThresholdCrossed(payload: LowStockThresholdCrossedPayload) {

@@ -25,7 +25,7 @@ const DEFAULTS: Record<NotificationKind, { title: string; body: string }> = {
   },
   "sync-failed": {
     title: "Sync failed",
-    body: "Some changes could not be saved. Please try again.",
+    body: "Some offline changes were rejected. Review them in Sync Issues.",
   },
   system: {
     title: "MCVSync",

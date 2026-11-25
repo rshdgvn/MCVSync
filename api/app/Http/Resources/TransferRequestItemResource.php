@@ -15,6 +15,7 @@ class TransferRequestItemResource extends JsonResource
             'quantity_requested' => $this->quantity_requested,
             'quantity_picked' => $this->quantity_picked,
             'quantity_received' => $this->quantity_received,
+            'short_accepted_quantity' => $this->short_accepted_quantity,
         ];
     }
 }

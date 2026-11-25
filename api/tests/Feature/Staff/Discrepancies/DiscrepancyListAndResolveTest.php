@@ -19,6 +19,8 @@ function cebuBranch(): Branch
     return Branch::firstOrCreate(['code' => 'CEBU'], ['name' => 'Cebu', 'address' => 'Cebu', 'is_main' => false]);
 }
 
+beforeEach(fn () => grantRolePermission('discrepancy.resolve'));
+
 test('a branch scoped user lists only discrepancies on documents that involve their branch', function () {
     $user = makePurchasingUser('APALIT');
     $ownBranch = $user->employee->branch_id;
@@ -94,6 +96,7 @@ test('resolving a discrepancy records who resolved it and the optional note', fu
     $discrepancy = discrepancyFor(PurchaseOrder::factory()->create(['branch_id' => $user->employee->branch_id]));
 
     $response = $this->actingAs($user, 'staff')->postJson("/api/staff/discrepancies/{$discrepancy->id}/resolve", [
+        'resolution' => 'accepted',
         'resolution_note' => 'Supplier sent the missing box on Nov 6.',
     ]);
 
@@ -108,11 +111,11 @@ test('a discrepancy can be resolved without a note but only once', function () {
     $user = makePurchasingUser('APALIT');
     $discrepancy = discrepancyFor(PurchaseOrder::factory()->create(['branch_id' => $user->employee->branch_id]));
 
-    $this->actingAs($user, 'staff')->postJson("/api/staff/discrepancies/{$discrepancy->id}/resolve")
+    $this->actingAs($user, 'staff')->postJson("/api/staff/discrepancies/{$discrepancy->id}/resolve", ['resolution' => 'accepted', 'resolution' => 'accepted'])
         ->assertOk()
         ->assertJsonPath('resolution_note', null);
 
-    $this->actingAs($user, 'staff')->postJson("/api/staff/discrepancies/{$discrepancy->id}/resolve", ['resolution_note' => 'Again'])
+    $this->actingAs($user, 'staff')->postJson("/api/staff/discrepancies/{$discrepancy->id}/resolve", ['resolution' => 'accepted', 'resolution_note' => 'Again'])
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['resolved' => 'This discrepancy has already been resolved.']);
 
@@ -124,7 +127,7 @@ test('a resolution note longer than 1000 characters is rejected', function () {
     $discrepancy = discrepancyFor(PurchaseOrder::factory()->create(['branch_id' => $user->employee->branch_id]));
 
     $this->actingAs($user, 'staff')
-        ->postJson("/api/staff/discrepancies/{$discrepancy->id}/resolve", ['resolution_note' => str_repeat('a', 1001)])
+        ->postJson("/api/staff/discrepancies/{$discrepancy->id}/resolve", ['resolution' => 'accepted', 'resolution_note' => str_repeat('a', 1001)])
         ->assertUnprocessable()
         ->assertJsonValidationErrors('resolution_note');
 
@@ -136,7 +139,7 @@ test('a branch scoped user cannot resolve another branch discrepancy', function 
     $discrepancy = discrepancyFor(PurchaseOrder::factory()->create(['branch_id' => cebuBranch()->id]));
 
     $this->actingAs($user, 'staff')
-        ->postJson("/api/staff/discrepancies/{$discrepancy->id}/resolve")
+        ->postJson("/api/staff/discrepancies/{$discrepancy->id}/resolve", ['resolution' => 'accepted', 'resolution' => 'accepted'])
         ->assertNotFound();
 
     expect($discrepancy->fresh()->resolved)->toBeFalse();

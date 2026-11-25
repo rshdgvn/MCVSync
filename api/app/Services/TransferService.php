@@ -16,14 +16,16 @@ class TransferService
 
     public const LIST_RELATIONS = ['requestingBranch', 'fulfillingBranch', 'requestedBy.user'];
 
-    public const DETAIL_RELATIONS = ['requestingBranch', 'fulfillingBranch', 'requestedBy.user', 'items.item.category', 'items.item.unit'];
+    public const DETAIL_RELATIONS = ['requestingBranch', 'fulfillingBranch', 'requestedBy.user', 'decidedBy.user', 'items.item.category', 'items.item.unit'];
 
     public function __construct(
         private readonly DocumentNumberGenerator $numbers,
         private readonly ReservationService $reservations,
     ) {}
 
-    private const STATUSES = ['pending', 'shipped', 'closed', 'cancelled'];
+    public const STATUSES = ['awaiting_approval', 'pending', 'shipped', 'closed', 'cancelled', 'declined'];
+
+    private const CANCELLABLE_STATUSES = ['awaiting_approval', 'pending'];
 
     public function query(array $filters): Builder
     {
@@ -77,6 +79,7 @@ class TransferService
                 'transfer_number' => $this->numbers->next(TransferRequest::class, 'transfer_number', 'TR'),
                 'requesting_branch_id' => $requestingBranchId,
                 'fulfilling_branch_id' => $mainBranchId,
+                'status' => 'awaiting_approval',
                 'requested_by' => $requestedBy->id,
                 'remarks' => $data['remarks'] ?? null,
             ]);
@@ -87,6 +90,35 @@ class TransferService
             ], $items));
 
             return $transfer;
+        });
+    }
+
+    public function approve(TransferRequest $transfer, Employee $decidedBy, ?int $actingBranchId): TransferRequest
+    {
+        return $this->decide($transfer, $decidedBy, $actingBranchId, ['status' => 'pending']);
+    }
+
+    public function decline(TransferRequest $transfer, Employee $decidedBy, ?int $actingBranchId, string $reason): TransferRequest
+    {
+        return $this->decide($transfer, $decidedBy, $actingBranchId, ['status' => 'declined', 'decline_reason' => $reason]);
+    }
+
+    private function decide(TransferRequest $transfer, Employee $decidedBy, ?int $actingBranchId, array $changes): TransferRequest
+    {
+        $this->ensureActingBranch($actingBranchId, $transfer->fulfilling_branch_id, 'Only the main branch can approve or decline this request.');
+
+        return DB::transaction(function () use ($transfer, $decidedBy, $changes) {
+            $locked = $this->lock($transfer);
+
+            if ($locked->status !== 'awaiting_approval') {
+                throw ValidationException::withMessages([
+                    'status' => 'This request has already been decided.',
+                ]);
+            }
+
+            $locked->update([...$changes, 'decided_by' => $decidedBy->id, 'decided_at' => now()]);
+
+            return $locked;
         });
     }
 
@@ -114,11 +146,16 @@ class TransferService
 
     public function cancel(TransferRequest $transfer, ?int $actingBranchId): TransferRequest
     {
-        $this->assertPending($transfer, 'Only a pending transfer can be cancelled.');
         $this->ensureActingBranch($actingBranchId, $transfer->requesting_branch_id, 'Only the requesting branch can cancel this transfer.');
 
         return DB::transaction(function () use ($transfer) {
-            $this->lock($transfer);
+            $locked = $this->lock($transfer);
+
+            if (! in_array($locked->status, self::CANCELLABLE_STATUSES, true)) {
+                throw ValidationException::withMessages([
+                    'status' => 'Only a transfer that is awaiting approval or pending can be cancelled.',
+                ]);
+            }
 
             if ($transfer->items()->where('quantity_picked', '>', 0)->exists()) {
                 throw ValidationException::withMessages([
@@ -127,9 +164,9 @@ class TransferService
             }
 
             $this->reservations->releaseAllFor($transfer->getMorphClass(), $transfer->id);
-            $transfer->update(['status' => 'cancelled']);
+            $locked->update(['status' => 'cancelled']);
 
-            return $transfer;
+            return $locked;
         });
     }
 
@@ -166,8 +203,8 @@ class TransferService
         }
     }
 
-    private function lock(TransferRequest $transfer): void
+    private function lock(TransferRequest $transfer): TransferRequest
     {
-        $transfer->newQueryWithoutScopes()->whereKey($transfer->id)->lockForUpdate()->first();
+        return $transfer->newQueryWithoutScopes()->whereKey($transfer->id)->lockForUpdate()->firstOrFail();
     }
 }

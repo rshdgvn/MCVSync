@@ -7,19 +7,11 @@ use App\Http\Requests\Staff\ListDiscrepanciesRequest;
 use App\Http\Requests\Staff\ResolveDiscrepancyRequest;
 use App\Http\Resources\DiscrepancyResource;
 use App\Models\Discrepancy;
-use App\Models\PurchaseOrder;
 use App\Models\TransferRequest;
 use App\Services\DiscrepancyService;
 
 class DiscrepancyController extends Controller
 {
-    public function index(PurchaseOrder $purchaseOrder, DiscrepancyService $service)
-    {
-        $this->authorize('view', $purchaseOrder);
-
-        return DiscrepancyResource::collection($service->forDocument($purchaseOrder));
-    }
-
     public function transferIndex(TransferRequest $transferRequest, DiscrepancyService $service)
     {
         $this->authorize('view', $transferRequest);
@@ -39,13 +31,15 @@ class DiscrepancyController extends Controller
 
     public function resolve(ResolveDiscrepancyRequest $request, Discrepancy $discrepancy, DiscrepancyService $service)
     {
-        $this->authorize('update', $discrepancy);
+        $this->authorize('resolve', $discrepancy);
 
         $discrepancy = $service->resolve(
             $discrepancy,
             $request->user('staff')->employee,
             $this->currentBranchId(),
+            $request->validated('resolution'),
             $request->validated('resolution_note'),
+            $request->validated('item_id'),
         );
 
         return new DiscrepancyResource($discrepancy->load(DiscrepancyService::RELATIONS));

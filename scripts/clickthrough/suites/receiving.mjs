@@ -97,7 +97,7 @@ async function mixedReceipt(page, mode, shot) {
   check(p("complete dialog lists the short line and the over-receipt"), (await dialog.getByText("4 / 10").count()) === 1 && (await dialog.getByText(/over-received/).count()) === 1);
   await shot(page, p("05-complete-confirm"));
   await dialog.getByRole("button", { name: "Complete Receiving" }).click();
-  await visible(page.getByText("Still open: 1 shortfall logged, 1 line over-received need review")).waitFor();
+  await visible(page.getByText("Still open: 1 shortfall logged")).waitFor();
   check(p("short and over receipt leaves the PO open with reasons"), true);
   await shot(page, p("06-result-open"));
 
@@ -118,7 +118,7 @@ async function fullReceipt(page, mode, shot) {
   await receive(dialog, { batch: `NEW-${mode.toUpperCase()}`, expiry: "2027-12-31" });
   await dialog.waitFor({ state: "detached" });
   await visible(page.getByRole("button", { name: "Complete Receiving" })).click();
-  await dialog.getByText(/matches what was expected/).waitFor();
+  await dialog.getByText(/is fully received. It will close/).waitFor();
   await dialog.getByRole("button", { name: "Complete Receiving" }).click();
   await visible(page.getByText("Stock Received")).waitFor();
   const closed = await apiGet(page, `${API_URL}/staff/purchase-orders/${order.id}`);
@@ -140,12 +140,14 @@ async function desktopFollowUp(page, shot) {
   await shot(page, "desktop-08-discrepancies");
   const row = page.getByRole("row").filter({ hasText: order.number }).filter({ hasText: "Face Shield" });
   await row.getByRole("button", { name: "Resolve" }).click();
+  check("an item not on the document only records the decision", (await dialog.getByText(/Either choice only records your decision/).count()) === 1);
   await dialog.locator("#resolution-note").fill("Returned to the supplier with the driver.");
-  await dialog.getByRole("button", { name: "Mark Resolved" }).dblclick();
+  await dialog.getByRole("button", { name: "Accept Discrepancy" }).dblclick();
   await dialog.waitFor({ state: "detached" });
   await page.getByRole("tab", { name: /^Resolved/ }).click();
   await visible(page.getByText("Returned to the supplier with the driver.")).waitFor();
-  check("resolving moves the discrepancy to Resolved with its note", true);
+  const decided = page.getByRole("row").filter({ hasText: "Returned to the supplier with the driver." });
+  check("resolving moves the discrepancy to Resolved with its outcome and note", (await decided.getByText("Accepted", { exact: true }).count()) === 1);
 
   await page.goto(`${APP_URL}/purchasing/purchase-orders/${order.id}`);
   await visible(page.getByRole("link", { name: "Receive Stock" })).waitFor({ timeout: 15000 });
@@ -153,6 +155,47 @@ async function desktopFollowUp(page, shot) {
   const rows = await page.getByRole("row").filter({ hasText: /Short|Over|Not on Document/ }).count();
   check("PO detail embeds its three discrepancies", rows === 3, `${rows} rows`);
   await shot(page, "desktop-09-po-detail");
+
+  await page.goto(`${APP_URL}/purchasing/discrepancies`);
+  const shortRow = page.getByRole("row").filter({ hasText: order.number }).filter({ hasText: "Short" });
+  await shortRow.getByRole("button", { name: "Resolve" }).click();
+  check("a short line explains what accepting does", (await dialog.getByText(/closes this line at the quantity received/).count()) === 1);
+  await shot(page, "desktop-10-decide-short");
+  await dialog.getByRole("button", { name: "Accept Discrepancy" }).dblclick();
+  await dialog.waitFor({ state: "detached" });
+  const accepted = await apiGet(page, `${API_URL}/staff/purchase-orders/${order.id}`);
+  const acceptedLine = accepted.items.find((line) => line.short_accepted_quantity > 0);
+  check(
+    "accepting the last shortfall closes the PO",
+    accepted.status === "closed" && acceptedLine?.quantity_received + acceptedLine?.short_accepted_quantity === acceptedLine?.quantity_ordered,
+    `${accepted.status} ${JSON.stringify(acceptedLine)}`,
+  );
+  await page.goto(`${APP_URL}/purchasing/purchase-orders/${order.id}`);
+  await visible(page.getByText(/received · \d+ short accepted/)).waitFor({ timeout: 15000 });
+  check("PO detail shows the accepted shortfall on its line", true);
+  await noHorizontalScroll(page, "desktop-po-accepted");
+  await shot(page, "desktop-11-po-short-accepted");
+}
+
+async function mobileFollowUp(page, shot) {
+  const dialog = page.getByRole("dialog");
+  const order = ORDERS.mobile.mixed;
+
+  await page.goto(`${APP_URL}/purchasing/discrepancies`);
+  const shortCard = visible(page.locator("li").filter({ hasText: order.number }).filter({ hasText: "Short" })).first();
+  await shortCard.waitFor({ timeout: 15000 });
+  await shortCard.getByRole("button", { name: "Row actions" }).click();
+  await page.getByRole("menuitem", { name: "Resolve" }).click();
+  await dialog.locator("#resolution-note").fill("Supplier sends the rest on Friday.");
+  await noHorizontalScroll(page, "mobile-decide-sheet");
+  await shot(page, "mobile-08-decide-short");
+  await dialog.getByRole("button", { name: "Request Redelivery" }).click();
+  await dialog.waitFor({ state: "detached" });
+  const order1 = await apiGet(page, `${API_URL}/staff/purchase-orders/${order.id}`);
+  check("mobile-requesting a redelivery keeps the PO open", order1.status !== "closed" && order1.items.every((line) => line.short_accepted_quantity === 0), order1.status);
+  await page.getByRole("tab", { name: /^Resolved/ }).click();
+  await visible(page.getByText("Redelivery Requested", { exact: true })).first().waitFor();
+  check("mobile-the resolved list shows the redelivery outcome", true);
 }
 
 export async function run({ browser, shot }) {
@@ -162,6 +205,8 @@ export async function run({ browser, shot }) {
     await runFlow(`${mode} full receipt`, () => fullReceipt(page, mode, shot));
     if (mode === "desktop") {
       await runFlow("desktop follow-up", () => desktopFollowUp(page, shot));
+    } else {
+      await runFlow("mobile follow-up", () => mobileFollowUp(page, shot));
     }
     await context.close();
   }

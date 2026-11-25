@@ -33,7 +33,7 @@ async function postToServiceWorker(message: { type: "SET_USER"; userId: string }
 }
 
 async function clearCachedTables(): Promise<void> {
-  await Promise.all([db.cached_items.clear(), db.cached_orders.clear()]);
+  await Promise.all([db.cached_items.clear(), db.cached_orders.clear(), db.cached_session.clear()]);
 }
 
 export async function purgeUserData(): Promise<void> {

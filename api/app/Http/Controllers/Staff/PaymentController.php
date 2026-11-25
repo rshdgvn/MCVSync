@@ -22,7 +22,7 @@ class PaymentController extends Controller
 
         $due->getCollection()->each(fn (Payment $payment) => $payment->setAttribute('days_overdue', $payments->daysOverdue($payment)));
 
-        return PaymentResource::collection($due);
+        return PaymentResource::collection($due)->additional(['summary' => $payments->pendingSummary()]);
     }
 
     public function approve(ApprovePaymentRequest $request, Payment $payment, PaymentService $payments)

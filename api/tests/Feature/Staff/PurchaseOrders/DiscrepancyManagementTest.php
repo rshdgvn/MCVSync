@@ -5,6 +5,8 @@ use App\Models\Discrepancy;
 use App\Models\Item;
 use App\Models\PurchaseOrder;
 
+beforeEach(fn () => grantRolePermission('discrepancy.resolve'));
+
 test('logging a not_found discrepancy requires an item_id', function () {
     $user = makeStaffUser([], 'APALIT');
     assignStaffRole($user, 'purchasing');
@@ -50,25 +52,13 @@ test('logging a short or over discrepancy requires a purchase_order_item_id', fu
     $response->assertJsonValidationErrors('purchase_order_item_id');
 });
 
-test('discrepancies for a purchase order can be listed', function () {
-    $user = makeStaffUser([], 'APALIT');
-    assignStaffRole($user, 'purchasing');
-    $po = PurchaseOrder::factory()->create(['branch_id' => $user->employee->branch_id, 'status' => 'open']);
-    Discrepancy::factory()->count(2)->create(['reference_id' => $po->id]);
-
-    $response = $this->actingAs($user, 'staff')->getJson("/api/staff/purchase-orders/{$po->id}/discrepancies");
-
-    $response->assertOk();
-    expect($response->json())->toHaveCount(2);
-});
-
 test('resolving a discrepancy records who and when', function () {
     $user = makeStaffUser([], 'APALIT');
     assignStaffRole($user, 'purchasing');
     $po = PurchaseOrder::factory()->create(['branch_id' => $user->employee->branch_id, 'status' => 'open']);
     $discrepancy = Discrepancy::factory()->create(['reference_id' => $po->id]);
 
-    $response = $this->actingAs($user, 'staff')->postJson("/api/staff/discrepancies/{$discrepancy->id}/resolve");
+    $response = $this->actingAs($user, 'staff')->postJson("/api/staff/discrepancies/{$discrepancy->id}/resolve", ['resolution' => 'accepted', 'resolution' => 'accepted']);
 
     $response->assertOk();
     $response->assertJsonPath('resolved', true);
@@ -83,7 +73,7 @@ test('resolving an already resolved discrepancy is rejected', function () {
     $discrepancy = Discrepancy::factory()->create(['reference_id' => $po->id, 'resolved' => true]);
 
     $this->actingAs($user, 'staff')
-        ->postJson("/api/staff/discrepancies/{$discrepancy->id}/resolve")
+        ->postJson("/api/staff/discrepancies/{$discrepancy->id}/resolve", ['resolution' => 'accepted', 'resolution' => 'accepted'])
         ->assertUnprocessable();
 });
 
@@ -98,7 +88,7 @@ test('a branch scoped purchasing user cannot resolve a discrepancy belonging to 
     $discrepancy = Discrepancy::factory()->create(['reference_id' => $otherPo->id]);
 
     $this->actingAs($user, 'staff')
-        ->postJson("/api/staff/discrepancies/{$discrepancy->id}/resolve")
+        ->postJson("/api/staff/discrepancies/{$discrepancy->id}/resolve", ['resolution' => 'accepted', 'resolution' => 'accepted'])
         ->assertNotFound();
 });
 
@@ -112,6 +102,6 @@ test('admin can resolve a discrepancy on any branch', function () {
     $discrepancy = Discrepancy::factory()->create(['reference_id' => $po->id]);
 
     $this->actingAs($admin, 'staff')
-        ->postJson("/api/staff/discrepancies/{$discrepancy->id}/resolve")
+        ->postJson("/api/staff/discrepancies/{$discrepancy->id}/resolve", ['resolution' => 'accepted', 'resolution' => 'accepted'])
         ->assertOk();
 });

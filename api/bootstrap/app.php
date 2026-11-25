@@ -3,6 +3,7 @@
 use App\Exceptions\InsufficientStockException;
 use App\Http\Middleware\EnsureActiveAccount;
 use App\Http\Middleware\EnsureHasRole;
+use App\Http\Middleware\EnsureIdempotentRequest;
 use App\Http\Middleware\ScopeToBranch;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
@@ -28,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'ensure-active-account' => EnsureActiveAccount::class,
             'scope-to-branch' => ScopeToBranch::class,
             'has-role' => EnsureHasRole::class,
+            'idempotent' => EnsureIdempotentRequest::class,
         ]);
     })
     ->withBroadcasting(

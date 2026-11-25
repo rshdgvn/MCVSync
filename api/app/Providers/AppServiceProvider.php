@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\ClientOrderForm;
+use App\Models\ClientOrderFormItem;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\TransferRequest;
@@ -40,6 +42,8 @@ class AppServiceProvider extends ServiceProvider
             'purchase_order_item' => PurchaseOrderItem::class,
             'transfer_request' => TransferRequest::class,
             'transfer_request_item' => TransferRequestItem::class,
+            'client_order_form' => ClientOrderForm::class,
+            'client_order_form_item' => ClientOrderFormItem::class,
         ]);
 
         Auth::provider('scoped-eloquent', function ($app, array $config) {

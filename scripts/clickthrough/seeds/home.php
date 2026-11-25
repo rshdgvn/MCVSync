@@ -56,9 +56,16 @@ $cebuEmployee = app(AccountProvisioningService::class)->createStaff([
 app(EmployeeRoleAssignmentService::class)->assign($cebuEmployee, 'purchasing');
 
 $transfers = app(TransferService::class);
-$transfers->create(['remarks' => 'Click-through pending'], [['item_id' => $gloves->id, 'quantity' => 5]], $cebuEmployee, $cebu->id);
+$pending = $transfers->create(['remarks' => 'Click-through pending'], [['item_id' => $gloves->id, 'quantity' => 5]], $cebuEmployee, $cebu->id);
+$transfers->approve($pending, $purchasing, $purchasing->branch_id);
+$awaiting = $transfers->create(['remarks' => 'Click-through awaiting approval'], [['item_id' => $gloves->id, 'quantity' => 1]], $cebuEmployee, $cebu->id);
+$awaiting->forceFill(['created_at' => now()->subDays(2)])->save();
 $shipped = $transfers->create(['remarks' => 'Click-through shipped'], [['item_id' => $masks->id, 'quantity' => 2]], $cebuEmployee, $cebu->id);
 $shipped->items()->update(['quantity_picked' => 2]);
 $shipped->update(['status' => 'shipped', 'shipped_at' => now()]);
 
+$shield->update(['reorder_point' => 10]);
+$draft = $orders->draftForLowStock($shield->id, $main->id);
+echo "low stock draft: {$draft->po_number}
+";
 echo "home fixtures ready: {$older->po_number} is the oldest ready PO\n";

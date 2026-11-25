@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Contracts\DiscrepancyDocument;
 use App\Contracts\ReceivableDocument;
 use App\Models\Discrepancy;
 use App\Models\Employee;
@@ -45,14 +46,16 @@ class DiscrepancyService
     }
 
     public function record(
-        ReceivableDocument $document,
+        DiscrepancyDocument $document,
         ?Model $line,
         ?int $itemId,
         string $type,
         ?int $scannedQuantity,
         ?string $notes = null,
+        ?string $scannedBarcode = null,
     ): Discrepancy {
         return Discrepancy::create([
+            'scanned_barcode' => $scannedBarcode,
             'reference_type' => $document->getMorphClass(),
             'reference_id' => $document->getKey(),
             'reference_item_type' => $line?->getMorphClass(),
@@ -64,7 +67,7 @@ class DiscrepancyService
         ]);
     }
 
-    public function recordShortfall(ReceivableDocument $document, Model $line): Discrepancy
+    public function recordShortfall(DiscrepancyDocument $document, Model $line, int $accountedQuantity): Discrepancy
     {
         return Discrepancy::updateOrCreate(
             [
@@ -77,12 +80,12 @@ class DiscrepancyService
                 'reference_type' => $document->getMorphClass(),
                 'reference_id' => $document->getKey(),
                 'item_id' => $line->item_id,
-                'scanned_quantity' => $line->quantity_received,
+                'scanned_quantity' => $accountedQuantity,
             ],
         );
     }
 
-    public function forDocument(ReceivableDocument $document): Collection
+    public function forDocument(DiscrepancyDocument $document): Collection
     {
         return $document->discrepancies()
             ->with(self::RELATIONS)
@@ -91,11 +94,18 @@ class DiscrepancyService
             ->get();
     }
 
-    public function resolve(Discrepancy $discrepancy, Employee $resolvedBy, ?int $actingBranchId, ?string $note = null): Discrepancy
-    {
-        $this->ensureWithinActingBranch($discrepancy, $actingBranchId);
+    public function resolve(
+        Discrepancy $discrepancy,
+        Employee $resolvedBy,
+        ?int $actingBranchId,
+        string $resolution,
+        ?string $note = null,
+        ?int $linkedItemId = null,
+    ): Discrepancy {
+        $document = $this->documentWithinActingBranch($discrepancy, $actingBranchId);
 
-        return DB::transaction(function () use ($discrepancy, $resolvedBy, $note) {
+        return DB::transaction(function () use ($discrepancy, $document, $resolvedBy, $resolution, $note, $linkedItemId) {
+            $lockedDocument = $this->lockDocument($document);
             $locked = Discrepancy::query()->lockForUpdate()->findOrFail($discrepancy->id);
 
             if ($locked->resolved) {
@@ -104,15 +114,44 @@ class DiscrepancyService
                 ]);
             }
 
+            if ($linkedItemId !== null && $locked->item_id !== null) {
+                throw ValidationException::withMessages([
+                    'item_id' => 'This discrepancy is already linked to an item.',
+                ]);
+            }
+
             $locked->update([
+                'item_id' => $linkedItemId ?? $locked->item_id,
                 'resolved' => true,
                 'resolved_by' => $resolvedBy->id,
                 'resolved_at' => now(),
+                'resolution' => $resolution,
                 'resolution_note' => $note,
             ]);
 
+            if ($resolution === 'accepted' && $locked->type === 'short') {
+                $this->acceptShortfall($lockedDocument, $locked);
+            }
+
             return $locked;
         });
+    }
+
+    public function lockDocument(DiscrepancyDocument $document): DiscrepancyDocument
+    {
+        return $document->newQueryWithoutScopes()->whereKey($document->getKey())->lockForUpdate()->firstOrFail();
+    }
+
+    private function acceptShortfall(DiscrepancyDocument $document, Discrepancy $discrepancy): void
+    {
+        if (! $document instanceof ReceivableDocument || ! $document->isReceivable() || $discrepancy->reference_item_id === null) {
+            return;
+        }
+
+        $line = $document->receivingLines()->whereKey($discrepancy->reference_item_id)->lockForUpdate()->firstOrFail();
+        $line->increment('short_accepted_quantity', $line->unsettledQuantity());
+
+        $document->closeIfSettled();
     }
 
     private function visibleDiscrepancies(array $filters): Builder
@@ -124,14 +163,13 @@ class DiscrepancyService
             ->when($filters['reference_id'] ?? null, fn (Builder $query, int $referenceId) => $query->where('reference_id', $referenceId));
     }
 
-    private function ensureWithinActingBranch(Discrepancy $discrepancy, ?int $actingBranchId): void
+    private function documentWithinActingBranch(Discrepancy $discrepancy, ?int $actingBranchId): DiscrepancyDocument
     {
-        if ($actingBranchId === null) {
-            return;
-        }
-
         $document = $discrepancy->reference()->withoutGlobalScopes()->first();
 
-        abort_unless($document instanceof ReceivableDocument && $document->involvesBranch($actingBranchId), 404);
+        abort_unless($document instanceof DiscrepancyDocument, 404);
+        abort_unless($actingBranchId === null || $document->involvesBranch($actingBranchId), 404);
+
+        return $document;
     }
 }

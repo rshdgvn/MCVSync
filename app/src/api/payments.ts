@@ -1,6 +1,6 @@
 import { api } from "@/api/client";
 import type { Paginated } from "@/types/inventory";
-import type { Payment, PaymentMethod } from "@/types/accounting";
+import type { Payment, PaymentMethod, PendingPaymentListResponse } from "@/types/accounting";
 
 export interface ListPaymentsParams {
   page?: number;
@@ -28,8 +28,8 @@ export function paymentReferenceLabel(payment: Pick<Payment, "reference_type" | 
   return `${REFERENCE_LABELS[payment.reference_type] ?? payment.reference_type} #${payment.reference_id}`;
 }
 
-export async function listPendingPayments(params: ListPaymentsParams = {}): Promise<Paginated<Payment>> {
-  const response = await api.get<Paginated<Payment>>("/staff/payments/pending", { params });
+export async function listPendingPayments(params: ListPaymentsParams = {}): Promise<PendingPaymentListResponse> {
+  const response = await api.get<PendingPaymentListResponse>("/staff/payments/pending", { params });
   return response.data;
 }
 

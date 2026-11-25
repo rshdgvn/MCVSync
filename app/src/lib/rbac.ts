@@ -14,6 +14,10 @@ export function seesAllBranches(user: User): boolean {
 
 export const INVENTORY_ACCESS_ROLES: readonly Role[] = ["purchasing", "admin", "super_admin"];
 
+export function canEditPurchaseOrders(user: User): boolean {
+  return user.role !== null && INVENTORY_ACCESS_ROLES.includes(user.role);
+}
+
 export const ACCOUNTING_ROLES: readonly Role[] = ["accounting", "admin", "super_admin"];
 
 const ACCOUNTING_WRITE_ROLES: ReadonlySet<Role> = new Set(["accounting", "super_admin"]);

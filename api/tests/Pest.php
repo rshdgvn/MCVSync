@@ -10,7 +10,9 @@ use App\Models\TransferRequest;
 use App\Models\User;
 use App\Models\Zone;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 /*
@@ -56,10 +58,7 @@ expect()->extend('toBeOne', function () {
 
 function makeStaffUser(array $overrides = [], string $branchCode = 'APALIT', string $position = 'Staff'): User
 {
-    $branch = Branch::firstOrCreate(
-        ['code' => $branchCode],
-        ['name' => $branchCode, 'address' => 'Test address', 'is_main' => $branchCode === 'APALIT']
-    );
+    $branch = testBranch($branchCode);
 
     $user = User::factory()->staff()->create($overrides);
 
@@ -77,7 +76,26 @@ function assignStaffRole(User $user, string $roleName): User
     return $user->fresh();
 }
 
-function makeClientUser(array $overrides = [], string $zoneName = 'Pampanga/Bulacan'): User
+function grantRolePermission(string $permissionName, array $roleNames = ['purchasing', 'admin', 'super_admin']): void
+{
+    $permission = Permission::firstOrCreate(['name' => $permissionName, 'guard_name' => 'staff']);
+
+    foreach ($roleNames as $roleName) {
+        Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'staff'])->givePermissionTo($permission);
+    }
+
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+}
+
+function testBranch(string $branchCode): Branch
+{
+    return Branch::firstOrCreate(
+        ['code' => $branchCode],
+        ['name' => $branchCode, 'address' => 'Test address', 'is_main' => $branchCode === 'APALIT']
+    );
+}
+
+function makeClientUser(array $overrides = [], string $zoneName = 'Pampanga/Bulacan', string $branchCode = 'APALIT'): User
 {
     $zone = Zone::firstOrCreate(['name' => $zoneName]);
 
@@ -88,6 +106,7 @@ function makeClientUser(array $overrides = [], string $zoneName = 'Pampanga/Bula
         'address' => 'Test address',
         'contact' => '09171234567',
         'zone_id' => $zone->id,
+        'branch_id' => testBranch($branchCode)->id,
         'client_type' => 'direct',
     ]);
 
@@ -131,3 +150,5 @@ function transferReservations(TransferRequest $transfer)
         ->where('reference_type', 'transfer_request')
         ->where('reference_id', $transfer->id);
 }
+
+require_once __DIR__.'/Support/SalesHelpers.php';

@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'expiry_alert_threshold_days',
     'reorder_point',
     'reorder_quantity',
+    'preferred_supplier_id',
     'is_active',
 ])]
 class Item extends Model
@@ -53,6 +54,11 @@ class Item extends Model
     public function unit(): BelongsTo
     {
         return $this->belongsTo(Unit::class);
+    }
+
+    public function preferredSupplier(): BelongsTo
+    {
+        return $this->belongsTo(Supplier::class, 'preferred_supplier_id');
     }
 
     public function batches(): HasMany

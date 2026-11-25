@@ -2,16 +2,20 @@ import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { CheckCircle2 } from "lucide-react";
+import { discrepancySubject } from "@/api/discrepancies";
 import { DataList, type DataListColumn } from "@/components/DataList";
 import { ResolveDiscrepancyDialog } from "@/components/discrepancies/ResolveDiscrepancyDialog";
 import { Pagination } from "@/components/Pagination";
 import { StatusBadge } from "@/components/StatusBadge";
+import { canResolveDiscrepancies } from "@/components/discrepancies/discrepancyRules";
+import { useMeQuery } from "@/hooks/useAuth";
 import { formatDateTime, formatNumber } from "@/lib/format";
 import type { Discrepancy, DiscrepancyListResponse } from "@/types/discrepancy";
 
 interface DiscrepancyListProps {
-  query: UseQueryResult<DiscrepancyListResponse>;
-  onPageChange: (page: number) => void;
+  query?: UseQueryResult<DiscrepancyListResponse>;
+  rows?: Discrepancy[];
+  onPageChange?: (page: number) => void;
   showDocument?: boolean;
   empty: { title: string; description?: string; action?: ReactNode };
 }
@@ -51,7 +55,12 @@ function buildColumns(showDocument: boolean): DataListColumn<Discrepancy>[] {
       key: "item",
       header: "Item",
       mobile: "title",
-      cell: (row) => <span className="font-medium">{row.item?.name ?? "Unknown item"}</span>,
+      cell: (row) => (
+        <span className="flex flex-col">
+          <span className="font-medium">{discrepancySubject(row)}</span>
+          {row.item && row.scanned_barcode && <span className="font-mono text-xs text-muted-foreground">{row.scanned_barcode}</span>}
+        </span>
+      ),
     },
     {
       key: "scanned_quantity",
@@ -71,7 +80,7 @@ function buildColumns(showDocument: boolean): DataListColumn<Discrepancy>[] {
       cell: (row) =>
         row.resolved ? (
           <span className="flex flex-col gap-0.5">
-            <StatusBadge status="resolved" />
+            <StatusBadge status={row.resolution ?? "resolved"} />
             <span className="text-xs text-muted-foreground">
               {row.resolved_by ?? "—"} · {formatDateTime(row.resolved_at)}
             </span>
@@ -85,26 +94,28 @@ function buildColumns(showDocument: boolean): DataListColumn<Discrepancy>[] {
   return columns.filter((column): column is DataListColumn<Discrepancy> => column !== false);
 }
 
-export function DiscrepancyList({ query, onPageChange, showDocument = true, empty }: DiscrepancyListProps) {
+export function DiscrepancyList({ query, rows, onPageChange, showDocument = true, empty }: DiscrepancyListProps) {
   const [resolving, setResolving] = useState<Discrepancy | null>(null);
+  const user = useMeQuery().data;
+  const canResolve = user ? canResolveDiscrepancies(user) : false;
 
   return (
     <>
       <DataList
         label="Discrepancies"
         columns={buildColumns(showDocument)}
-        rows={query.data?.data}
+        rows={rows ?? query?.data?.data}
         rowKey={(row) => row.id}
-        isPending={query.isPending}
-        error={query.error}
-        onRetry={() => void query.refetch()}
-        isRefreshing={query.isFetching && query.isPlaceholderData}
+        isPending={rows ? false : (query?.isPending ?? false)}
+        error={rows ? null : query?.error}
+        onRetry={() => void query?.refetch()}
+        isRefreshing={Boolean(query?.isFetching && query.isPlaceholderData)}
         skeletonRows={5}
         empty={empty}
         rowActions={(row) =>
-          row.resolved ? [] : [{ label: "Resolve", icon: CheckCircle2, onClick: () => setResolving(row) }]
+          row.resolved || !canResolve ? [] : [{ label: "Resolve", icon: CheckCircle2, onClick: () => setResolving(row) }]
         }
-        footer={query.data && <Pagination meta={query.data.meta} onPageChange={onPageChange} />}
+        footer={query?.data && onPageChange && <Pagination meta={query.data.meta} onPageChange={onPageChange} />}
       />
       {resolving && <ResolveDiscrepancyDialog key={resolving.id} discrepancy={resolving} onClose={() => setResolving(null)} />}
     </>

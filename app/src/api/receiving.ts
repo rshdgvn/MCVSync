@@ -1,6 +1,9 @@
 import { api } from "@/api/client";
 import { getTransfer, transferStatusKey } from "@/api/transfers";
-import { canReceivePurchaseOrder } from "@/components/purchase-orders/purchaseOrderRules";
+import { canReceivePurchaseOrder, supplierNameOf } from "@/components/purchase-orders/purchaseOrderRules";
+import { db } from "@/db/schema";
+import { withOfflineCache } from "@/lib/offline/offlineCache";
+import { sendOrQueue, type SendOutcome } from "@/lib/offline/sendOrQueue";
 import type { StockFlowLine } from "@/components/stock-flow/stockFlowLines";
 import type { Discrepancy } from "@/types/discrepancy";
 import type { Item } from "@/types/inventory";
@@ -38,7 +41,8 @@ export interface ReceiveLinePayload {
 }
 
 export interface NotOnDocumentPayload {
-  itemId: number;
+  itemId: number | null;
+  scannedBarcode: string | null;
   scannedQuantity: number;
   notes: string | null;
 }
@@ -59,11 +63,11 @@ type MatchResponse =
   | { status: "not_found"; item: Item };
 
 function purchaseOrderLine(line: PurchaseOrderLine): StockFlowLine {
-  return { id: line.id, item: line.item, target: line.quantity_ordered, done: line.quantity_received };
+  return { id: line.id, item: line.item, target: line.quantity_ordered - line.short_accepted_quantity, done: line.quantity_received };
 }
 
 function transferLine(line: TransferLine): StockFlowLine {
-  return { id: line.id, item: line.item, target: line.quantity_picked, done: line.quantity_received };
+  return { id: line.id, item: line.item, target: line.quantity_picked - line.short_accepted_quantity, done: line.quantity_received };
 }
 
 function transferDocument(transfer: TransferDetail): ReceivingDocument {
@@ -100,7 +104,7 @@ async function purchaseOrderSession(id: number): Promise<ReceivingSession> {
       id: purchaseOrder.id,
       number: purchaseOrder.po_number,
       statusKey: purchaseOrder.status,
-      counterparty: purchaseOrder.supplier.name,
+      counterparty: supplierNameOf(purchaseOrder),
       branch: purchaseOrder.branch,
       isReceivable: canReceivePurchaseOrder(purchaseOrder.status),
     },
@@ -117,8 +121,18 @@ async function transferSession(id: number): Promise<ReceivingSession> {
   return { document: transferDocument(transfer), lines: transfer.items.map(transferLine), discrepancies };
 }
 
+export function receivingScope(referenceType: ReceivingReferenceType, id: number): string {
+  return `receive:${referenceType}:${id}`;
+}
+
+export function receivingCacheKey(referenceType: ReceivingReferenceType, id: number): string {
+  return `receiving:${referenceType}:${id}`;
+}
+
 export function getReceivingSession(referenceType: ReceivingReferenceType, id: number): Promise<ReceivingSession> {
-  return referenceType === "purchase_order" ? purchaseOrderSession(id) : transferSession(id);
+  return withOfflineCache(db.cached_orders, receivingCacheKey(referenceType, id), () =>
+    referenceType === "purchase_order" ? purchaseOrderSession(id) : transferSession(id),
+  );
 }
 
 export async function matchReceivingScan(
@@ -140,33 +154,53 @@ export async function matchReceivingScan(
 }
 
 export async function receiveLine(
+  userId: number,
   referenceType: ReceivingReferenceType,
   id: number,
   payload: ReceiveLinePayload,
-): Promise<StockFlowLine> {
+  label: string,
+): Promise<SendOutcome<StockFlowLine>> {
   const source = SOURCES[referenceType];
-  const response = await api.post<PurchaseOrderLine | TransferLine>(`${source.path(id)}/confirm`, {
-    [source.lineField]: payload.lineId,
-    quantity_received: payload.quantity,
-    batch_number: payload.batchNumber,
-    mfg_date: payload.mfgDate,
-    expiry_date: payload.expiryDate,
-  });
-  return source.toLine(response.data);
+  const outcome = await sendOrQueue<PurchaseOrderLine | TransferLine>(
+    userId,
+    {
+      method: "POST",
+      url: `${source.path(id)}/confirm`,
+      payload: {
+        [source.lineField]: payload.lineId,
+        quantity_received: payload.quantity,
+        batch_number: payload.batchNumber,
+        mfg_date: payload.mfgDate,
+        expiry_date: payload.expiryDate,
+      },
+    },
+    { scope: receivingScope(referenceType, id), line_id: payload.lineId, quantity: payload.quantity, label },
+  );
+  return outcome.queued ? outcome : { queued: false, data: source.toLine(outcome.data) };
 }
 
-export async function logNotOnDocument(
+export function logNotOnDocument(
+  userId: number,
   referenceType: ReceivingReferenceType,
   id: number,
   payload: NotOnDocumentPayload,
-): Promise<Discrepancy> {
-  const response = await api.post<Discrepancy>(`${SOURCES[referenceType].path(id)}/discrepancy`, {
-    type: "not_found",
-    item_id: payload.itemId,
-    scanned_quantity: payload.scannedQuantity,
-    notes: payload.notes,
-  });
-  return response.data;
+  label: string,
+): Promise<SendOutcome<Discrepancy>> {
+  return sendOrQueue<Discrepancy>(
+    userId,
+    {
+      method: "POST",
+      url: `${SOURCES[referenceType].path(id)}/discrepancy`,
+      payload: {
+        type: "not_found",
+        item_id: payload.itemId,
+        scanned_barcode: payload.scannedBarcode,
+        scanned_quantity: payload.scannedQuantity,
+        notes: payload.notes,
+      },
+    },
+    { scope: receivingScope(referenceType, id), line_id: null, quantity: payload.scannedQuantity, label },
+  );
 }
 
 export async function completeReceiving(referenceType: ReceivingReferenceType, id: number): Promise<ReceivingCompletion> {

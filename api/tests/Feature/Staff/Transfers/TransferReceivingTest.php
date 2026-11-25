@@ -26,6 +26,8 @@ function receivePayload(TransferRequestItem $line, int $quantity): array
     ];
 }
 
+beforeEach(fn () => grantRolePermission('discrepancy.resolve'));
+
 test('the requesting branch receives a shipped transfer into its own stock', function () {
     $main = makePurchasingUser('APALIT');
     $cebu = makePurchasingUser('CEBU');
@@ -140,9 +142,9 @@ test('an item not on the transfer can be logged, listed, and resolved by either 
         ->assertOk()
         ->assertJsonCount(1);
 
-    $this->actingAs($davao, 'staff')->postJson("/api/staff/discrepancies/{$discrepancyId}/resolve")->assertNotFound();
+    $this->actingAs($davao, 'staff')->postJson("/api/staff/discrepancies/{$discrepancyId}/resolve", ['resolution' => 'accepted', 'resolution' => 'accepted'])->assertNotFound();
 
-    $this->actingAs($main, 'staff')->postJson("/api/staff/discrepancies/{$discrepancyId}/resolve")
+    $this->actingAs($main, 'staff')->postJson("/api/staff/discrepancies/{$discrepancyId}/resolve", ['resolution' => 'accepted', 'resolution' => 'accepted'])
         ->assertOk()
         ->assertJsonPath('resolved', true)
         ->assertJsonPath('resolved_by', $main->name);

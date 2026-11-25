@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Contracts\FulfillableDocument;
 use App\Models\Batch;
 use App\Models\Employee;
+use App\Models\Scopes\BranchScope;
 use App\Models\StockTransaction;
 use App\Services\Concerns\EnforcesActingBranch;
 use Illuminate\Database\Eloquent\Model;
@@ -23,13 +24,14 @@ class FulfillmentService
         private readonly ScanMatchService $scanMatcher,
         private readonly FefoOverrideService $overrides,
         private readonly AuditLogger $audit,
+        private readonly PurchaseOrderService $purchaseOrders,
     ) {}
 
     public function match(FulfillableDocument $document, ?string $barcode, ?int $itemId, ?int $actingBranchId): array
     {
         $this->assertFulfillable($document, $actingBranchId);
 
-        DB::transaction(fn () => $this->lockAndReserve($document));
+        $this->purchaseOrders->draftingShortages(fn () => $this->lockAndReserve($document));
 
         $item = $this->scanMatcher->findItem($barcode, $itemId);
         $line = $this->scanMatcher->lineFor($document->fulfillmentLines(), $item);
@@ -46,11 +48,54 @@ class FulfillmentService
         ];
     }
 
+    public function returnPicks(FulfillableDocument $document, Employee $performedBy): void
+    {
+        $branchId = $document->fulfillingBranchId();
+
+        $stillIssued = StockTransaction::query()
+            ->withoutGlobalScope(BranchScope::class)
+            ->where('reference_type', $document->getMorphClass())
+            ->where('reference_id', $document->getKey())
+            ->whereIn('type', [$document->fulfillmentTransactionType(), StockTransaction::CANCEL_RETURN])
+            ->groupBy('batch_id', 'item_id')
+            ->selectRaw('batch_id, item_id, SUM(quantity) as net_quantity')
+            ->orderBy('batch_id')
+            ->toBase()
+            ->get()
+            ->filter(fn ($row) => (int) $row->net_quantity < 0);
+
+        foreach ($stillIssued as $row) {
+            $quantity = -(int) $row->net_quantity;
+
+            Batch::query()
+                ->withoutGlobalScope(BranchScope::class)
+                ->whereKey($row->batch_id)
+                ->lockForUpdate()
+                ->firstOrFail()
+                ->increment('quantity', $quantity);
+
+            StockTransaction::create([
+                'item_id' => $row->item_id,
+                'batch_id' => $row->batch_id,
+                'branch_id' => $branchId,
+                'type' => StockTransaction::CANCEL_RETURN,
+                'quantity' => $quantity,
+                'reference_type' => $document->getMorphClass(),
+                'reference_id' => $document->getKey(),
+                'performed_by' => $performedBy->id,
+            ]);
+        }
+
+        $document->fulfillmentLines()->update(['quantity_picked' => 0]);
+
+        $stillIssued->pluck('item_id')->unique()->each(fn ($itemId) => $this->notifier->changed((int) $itemId, $branchId));
+    }
+
     public function pick(FulfillableDocument $document, array $data, Employee $picker, ?int $actingBranchId): Model
     {
         $this->assertFulfillable($document, $actingBranchId);
 
-        return DB::transaction(function () use ($document, $data, $picker) {
+        return $this->purchaseOrders->draftingShortages(function () use ($document, $data, $picker) {
             $this->lockAndReserve($document);
 
             $branchId = $document->fulfillingBranchId();

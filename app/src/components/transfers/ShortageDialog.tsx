@@ -1,22 +1,25 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { ShoppingCart } from "lucide-react";
+import { FileDown, FileText, ShoppingCart } from "lucide-react";
 import { FormError } from "@/components/FormError";
 import { FormField, fieldA11yProps } from "@/components/FormField";
 import { LoadingButton } from "@/components/LoadingButton";
-import { MicroLabel } from "@/components/MicroLabel";
 import { QuantityInput } from "@/components/QuantityInput";
 import { ResponsiveDialog } from "@/components/ResponsiveDialog";
+import { ShortageSummary, shortfallOf } from "@/components/stock-flow/ShortageSummary";
 import { SubmitForm } from "@/components/SubmitForm";
+import { purchaseOrderDocument } from "@/components/purchase-orders/purchaseOrderRules";
 import { SupplierCombobox } from "@/components/suppliers/SupplierCombobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useCreatePurchaseOrderMutation } from "@/hooks/usePurchaseOrders";
+import { useDownloadDocumentMutation } from "@/hooks/useDocuments";
+import { useCreatePurchaseOrderMutation, usePurchaseOrdersQuery } from "@/hooks/usePurchaseOrders";
 import { getFieldErrors, getGeneralError } from "@/lib/errors";
 import { formatQuantity } from "@/lib/format";
 import { toast } from "@/stores/toast.store";
 import type { Item } from "@/types/inventory";
+import type { PurchaseOrderDetail } from "@/types/purchaseOrder";
 import type { Supplier } from "@/types/supplier";
 import type { InsufficientStock } from "@/types/transfer";
 
@@ -29,8 +32,16 @@ interface ShortageDialogProps {
 }
 
 export function ShortageDialog({ shortage, item, transferNumber, fulfillingBranchId, onClose }: ShortageDialogProps) {
+  const navigate = useNavigate();
   const [creatingPo, setCreatingPo] = useState(false);
-  const missing = Math.max(1, shortage.requested - shortage.available);
+  const draftQuery = usePurchaseOrdersQuery({
+    status: "draft",
+    item_id: shortage.item_id,
+    branch_id: fulfillingBranchId,
+    per_page: 1,
+  });
+  const draft = draftQuery.data?.data[0];
+  const missing = shortfallOf(shortage.requested, shortage.available);
   const unit = item?.unit?.code;
 
   if (creatingPo && item) {
@@ -54,6 +65,12 @@ export function ShortageDialog({ shortage, item, transferNumber, fulfillingBranc
         <>
           Picking for <span className="font-mono">{transferNumber}</span> can't start until every line can be reserved.{" "}
           <span className="font-semibold text-foreground">{item?.name ?? `Item #${shortage.item_id}`}</span> is short.
+          {draft && (
+            <>
+              {" "}
+              MCVSync added it to draft <span className="font-mono">{draft.po_number}</span> for review.
+            </>
+          )}
         </>
       }
       footer={
@@ -61,29 +78,30 @@ export function ShortageDialog({ shortage, item, transferNumber, fulfillingBranc
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
-          {item && (
-            <Button onClick={() => setCreatingPo(true)}>
-              <ShoppingCart />
-              Create Supplier PO
+          {draft ? (
+            <Button
+              onClick={() =>
+                void navigate({
+                  to: "/purchasing/purchase-orders/$purchaseOrderId",
+                  params: { purchaseOrderId: String(draft.id) },
+                })
+              }
+            >
+              <FileText />
+              Open Draft PO
             </Button>
+          ) : (
+            item && (
+              <Button disabled={draftQuery.isPending} onClick={() => setCreatingPo(true)}>
+                <ShoppingCart />
+                Create Supplier PO
+              </Button>
+            )
           )}
         </>
       }
     >
-      <dl className="grid grid-cols-3 gap-2 border border-border-subtle bg-subtle px-3 py-2.5">
-        {[
-          { label: "Requested", value: shortage.requested, className: "text-foreground" },
-          { label: "Available", value: shortage.available, className: "text-success" },
-          { label: "Shortage", value: missing, className: "text-danger" },
-        ].map((stat) => (
-          <div key={stat.label} className="grid gap-0.5">
-            <dt>
-              <MicroLabel>{stat.label}</MicroLabel>
-            </dt>
-            <dd className={`font-mono text-base font-bold ${stat.className}`}>{formatQuantity(stat.value, unit)}</dd>
-          </div>
-        ))}
-      </dl>
+      <ShortageSummary requested={shortage.requested} available={shortage.available} unit={unit} />
     </ResponsiveDialog>
   );
 }
@@ -101,6 +119,7 @@ const PO_FIELDS = ["supplier_id", "branch_id", "remarks", "items", "items.0.quan
 function ShortagePurchaseOrderDialog({ item, quantity: initialQuantity, transferNumber, branchId, onClose }: ShortagePurchaseOrderDialogProps) {
   const navigate = useNavigate();
   const mutation = useCreatePurchaseOrderMutation();
+  const [created, setCreated] = useState<PurchaseOrderDetail | null>(null);
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [quantity, setQuantity] = useState(initialQuantity);
   const [unitCost, setUnitCost] = useState("");
@@ -132,19 +151,26 @@ function ShortagePurchaseOrderDialog({ item, quantity: initialQuantity, transfer
       },
       {
         onSuccess: (purchaseOrder) => {
-          toast.success(`${purchaseOrder.po_number} created for ${supplier.name}.`, {
-            action: {
-              label: "View",
-              onAction: () =>
-                void navigate({
-                  to: "/purchasing/purchase-orders/$purchaseOrderId",
-                  params: { purchaseOrderId: String(purchaseOrder.id) },
-                }),
-            },
-          });
-          onClose();
+          toast.success(`${purchaseOrder.po_number} created for ${supplier.name}.`);
+          setCreated(purchaseOrder);
         },
       },
+    );
+  }
+
+  if (created) {
+    return (
+      <CreatedPurchaseOrderDialog
+        purchaseOrder={created}
+        summary={`${formatQuantity(quantity, item.unit?.code)} of ${item.name}`}
+        onView={() =>
+          void navigate({
+            to: "/purchasing/purchase-orders/$purchaseOrderId",
+            params: { purchaseOrderId: String(created.id) },
+          })
+        }
+        onClose={onClose}
+      />
     );
   }
 
@@ -202,6 +228,52 @@ function ShortagePurchaseOrderDialog({ item, quantity: initialQuantity, transfer
           {formatQuantity(quantity, item.unit?.code)} of {item.name}. Saved as an open Purchase Order for the fulfilling branch.
         </p>
       </SubmitForm>
+    </ResponsiveDialog>
+  );
+}
+
+interface CreatedPurchaseOrderDialogProps {
+  purchaseOrder: PurchaseOrderDetail;
+  summary: string;
+  onView: () => void;
+  onClose: () => void;
+}
+
+function CreatedPurchaseOrderDialog({ purchaseOrder, summary, onView, onClose }: CreatedPurchaseOrderDialogProps) {
+  const download = useDownloadDocumentMutation();
+
+  return (
+    <ResponsiveDialog
+      open
+      onOpenChange={(open) => !open && onClose()}
+      title="Supplier PO Created"
+      description={
+        <>
+          <span className="font-mono font-semibold text-foreground">{purchaseOrder.po_number}</span> saved for{" "}
+          {purchaseOrder.supplier?.name} · {summary}.
+        </>
+      }
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
+          <Button variant="outline" onClick={onView}>
+            <FileText />
+            View PO
+          </Button>
+          <LoadingButton
+            isPending={download.isPending}
+            pendingText="Preparing…"
+            onClick={() => download.mutateAsync(purchaseOrderDocument(purchaseOrder))}
+          >
+            <FileDown />
+            Download PDF
+          </LoadingButton>
+        </>
+      }
+    >
+      <p className="text-sm text-foreground-soft md:text-ui">Send the PDF to the supplier, or open the PO to review it first.</p>
     </ResponsiveDialog>
   );
 }

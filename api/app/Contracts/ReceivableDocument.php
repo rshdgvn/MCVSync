@@ -3,14 +3,9 @@
 namespace App\Contracts;
 
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\MorphMany;
 
-interface ReceivableDocument
+interface ReceivableDocument extends DiscrepancyDocument
 {
-    public function getMorphClass();
-
-    public function getKey();
-
     public function fresh($with = []);
 
     public function receivingBranchId(): int;
@@ -21,11 +16,7 @@ interface ReceivableDocument
 
     public function receivingLines(): HasMany;
 
-    public function discrepancies(): MorphMany;
-
     public function markFullyReceived(): void;
 
-    public function involvesBranch(int $branchId): bool;
-
-    public function documentNumber(): string;
+    public function closeIfSettled(): bool;
 }

@@ -3,12 +3,14 @@
 use App\Http\Controllers\Portal\AuthController as PortalAuthController;
 use App\Http\Controllers\Portal\CategoryController as PortalCategoryController;
 use App\Http\Controllers\Portal\ItemController as PortalItemController;
+use App\Http\Controllers\Portal\OrderController as PortalOrderController;
 use App\Http\Controllers\Portal\PasswordResetController as PortalPasswordResetController;
 use App\Http\Controllers\Staff\AuthController as StaffAuthController;
 use App\Http\Controllers\Staff\BranchController;
 use App\Http\Controllers\Staff\DiscrepancyController;
 use App\Http\Controllers\Staff\EmployeeController;
 use App\Http\Controllers\Staff\FefoOverrideController;
+use App\Http\Controllers\Staff\LogisticsController;
 use App\Http\Controllers\Staff\Inventory\AlertController;
 use App\Http\Controllers\Staff\Inventory\BatchController;
 use App\Http\Controllers\Staff\Inventory\CategoryController;
@@ -24,6 +26,13 @@ use App\Http\Controllers\Staff\PurchaseOrderItemController;
 use App\Http\Controllers\Staff\ReceivingController;
 use App\Http\Controllers\Staff\RoleController;
 use App\Http\Controllers\Staff\SupplierController;
+use App\Http\Controllers\Staff\Sales\ClientController;
+use App\Http\Controllers\Staff\Sales\ClientDiscountController;
+use App\Http\Controllers\Staff\Sales\ClientOrderFormController;
+use App\Http\Controllers\Staff\Sales\ClientOrderFormFulfillmentController;
+use App\Http\Controllers\Staff\Sales\DispatchController;
+use App\Http\Controllers\Staff\Sales\IncomingMessageController;
+use App\Http\Controllers\Staff\Sales\SalesInsightController;
 use App\Http\Controllers\Staff\TransferController;
 use App\Http\Controllers\Staff\TransferFulfillmentController;
 use App\Http\Controllers\Staff\TransferReceivingController;
@@ -101,20 +110,21 @@ Route::prefix('staff/purchase-orders')
         Route::get('/', [PurchaseOrderController::class, 'index']);
         Route::post('/', [PurchaseOrderController::class, 'store']);
         Route::get('/{purchaseOrder}', [PurchaseOrderController::class, 'show']);
+        Route::get('/{purchaseOrder}/document.pdf', [PurchaseOrderController::class, 'document']);
         Route::patch('/{purchaseOrder}', [PurchaseOrderController::class, 'update']);
         Route::post('/{purchaseOrder}/items', [PurchaseOrderItemController::class, 'store']);
         Route::patch('/{purchaseOrder}/items/{item}', [PurchaseOrderItemController::class, 'update']);
         Route::delete('/{purchaseOrder}/items/{item}', [PurchaseOrderItemController::class, 'destroy']);
+        Route::post('/{purchaseOrder}/finalize', [PurchaseOrderController::class, 'finalize']);
         Route::post('/{purchaseOrder}/mark-ready', [PurchaseOrderController::class, 'markReady']);
         Route::post('/{purchaseOrder}/cancel', [PurchaseOrderController::class, 'cancel']);
 
         Route::get('/{purchaseOrder}/receive', [ReceivingController::class, 'show']);
         Route::post('/{purchaseOrder}/receive/match', [ReceivingController::class, 'match']);
-        Route::post('/{purchaseOrder}/receive/confirm', [ReceivingController::class, 'confirm']);
-        Route::post('/{purchaseOrder}/receive/discrepancy', [ReceivingController::class, 'discrepancy']);
+        Route::post('/{purchaseOrder}/receive/confirm', [ReceivingController::class, 'confirm'])->middleware('idempotent');
+        Route::post('/{purchaseOrder}/receive/discrepancy', [ReceivingController::class, 'discrepancy'])->middleware('idempotent');
         Route::post('/{purchaseOrder}/receive/complete', [ReceivingController::class, 'complete']);
 
-        Route::get('/{purchaseOrder}/discrepancies', [DiscrepancyController::class, 'index']);
     });
 
 Route::prefix('staff/discrepancies')
@@ -130,15 +140,18 @@ Route::prefix('staff/transfers')
         Route::get('/', [TransferController::class, 'index']);
         Route::post('/', [TransferController::class, 'store']);
         Route::get('/{transferRequest}', [TransferController::class, 'show']);
+        Route::get('/{transferRequest}/transmittal-receipt.pdf', [TransferController::class, 'transmittalReceipt']);
+        Route::post('/{transferRequest}/approve', [TransferController::class, 'approve']);
+        Route::post('/{transferRequest}/decline', [TransferController::class, 'decline']);
         Route::post('/{transferRequest}/ship', [TransferController::class, 'ship']);
         Route::post('/{transferRequest}/cancel', [TransferController::class, 'cancel']);
 
         Route::post('/{transferRequest}/fulfill/match', [TransferFulfillmentController::class, 'match']);
-        Route::post('/{transferRequest}/fulfill/pick', [TransferFulfillmentController::class, 'pick']);
+        Route::post('/{transferRequest}/fulfill/pick', [TransferFulfillmentController::class, 'pick'])->middleware('idempotent');
 
         Route::post('/{transferRequest}/receive/match', [TransferReceivingController::class, 'match']);
-        Route::post('/{transferRequest}/receive/confirm', [TransferReceivingController::class, 'confirm']);
-        Route::post('/{transferRequest}/receive/discrepancy', [TransferReceivingController::class, 'discrepancy']);
+        Route::post('/{transferRequest}/receive/confirm', [TransferReceivingController::class, 'confirm'])->middleware('idempotent');
+        Route::post('/{transferRequest}/receive/discrepancy', [TransferReceivingController::class, 'discrepancy'])->middleware('idempotent');
         Route::post('/{transferRequest}/receive/complete', [TransferReceivingController::class, 'complete']);
 
         Route::get('/{transferRequest}/discrepancies', [DiscrepancyController::class, 'transferIndex']);
@@ -169,6 +182,75 @@ Route::prefix('staff/payments')
         Route::get('/history', [PaymentController::class, 'history']);
     });
 
+Route::prefix('staff/client-order-forms')
+    ->middleware(['auth:staff', 'ensure-active-account', 'scope-to-branch'])
+    ->name('client-order-forms.')
+    ->group(function () {
+        Route::get('/', [ClientOrderFormController::class, 'index']);
+        Route::post('/', [ClientOrderFormController::class, 'store']);
+        Route::get('/dispatch-queue', [DispatchController::class, 'queue']);
+        Route::get('/fulfillment-queue', [ClientOrderFormFulfillmentController::class, 'queue']);
+        Route::get('/{clientOrderForm}', [ClientOrderFormController::class, 'show']);
+        Route::patch('/{clientOrderForm}', [ClientOrderFormController::class, 'update']);
+        Route::post('/{clientOrderForm}/forward', [ClientOrderFormController::class, 'forward']);
+        Route::post('/{clientOrderForm}/send-for-revision', [ClientOrderFormController::class, 'sendForRevision']);
+        Route::post('/{clientOrderForm}/cancel', [ClientOrderFormController::class, 'cancel']);
+        Route::post('/{clientOrderForm}/cancellation/confirm', [ClientOrderFormController::class, 'confirmCancellation']);
+        Route::post('/{clientOrderForm}/cancellation/decline', [ClientOrderFormController::class, 'declineCancellation']);
+        Route::get('/{clientOrderForm}/delivery-receipt.pdf', [ClientOrderFormController::class, 'deliveryReceipt']);
+        Route::post('/{clientOrderForm}/dispatch/approve', [DispatchController::class, 'approve'])->name('dispatch.approve');
+        Route::post('/{clientOrderForm}/dispatch/hold', [DispatchController::class, 'hold'])->name('dispatch.hold');
+        Route::get('/{clientOrderForm}/fulfill', [ClientOrderFormFulfillmentController::class, 'show']);
+        Route::post('/{clientOrderForm}/fulfill/match', [ClientOrderFormFulfillmentController::class, 'match']);
+        Route::post('/{clientOrderForm}/fulfill/pick', [ClientOrderFormFulfillmentController::class, 'pick'])->middleware('idempotent');
+        Route::post('/{clientOrderForm}/fulfill/complete', [ClientOrderFormFulfillmentController::class, 'complete']);
+    });
+
+Route::prefix('staff/incoming-messages')
+    ->middleware(['auth:staff', 'ensure-active-account', 'scope-to-branch'])
+    ->group(function () {
+        Route::get('/', [IncomingMessageController::class, 'index']);
+        Route::post('/', [IncomingMessageController::class, 'store']);
+        Route::get('/{incomingClientMessage}/attachment', [IncomingMessageController::class, 'attachment']);
+    });
+
+Route::prefix('staff/clients')
+    ->middleware(['auth:staff', 'ensure-active-account', 'scope-to-branch'])
+    ->group(function () {
+        Route::get('/', [ClientController::class, 'index']);
+        Route::post('/', [ClientController::class, 'store']);
+        Route::get('/{client}', [ClientController::class, 'show'])->whereNumber('client');
+        Route::patch('/{client}', [ClientController::class, 'update'])->whereNumber('client');
+        Route::get('/{client}/orders', [ClientController::class, 'orders'])->whereNumber('client');
+        Route::get('/{client}/insights', [ClientController::class, 'insights'])->whereNumber('client');
+    });
+
+Route::prefix('staff/client-discounts')
+    ->middleware(['auth:staff', 'ensure-active-account', 'scope-to-branch'])
+    ->group(function () {
+        Route::get('/', [ClientDiscountController::class, 'index']);
+        Route::post('/', [ClientDiscountController::class, 'store']);
+        Route::get('/{client}/{item}/history', [ClientDiscountController::class, 'history'])->whereNumber(['client', 'item']);
+    });
+
+Route::prefix('staff/sales')
+    ->middleware(['auth:staff', 'ensure-active-account', 'scope-to-branch'])
+    ->group(function () {
+        Route::get('/expiry-alerts', [SalesInsightController::class, 'expiryAlerts']);
+        Route::get('/items', [SalesInsightController::class, 'items']);
+        Route::get('/analytics', [SalesInsightController::class, 'analytics']);
+    });
+
+Route::prefix('staff/logistics')
+    ->middleware(['auth:staff', 'ensure-active-account', 'scope-to-branch'])
+    ->group(function () {
+        Route::get('/incoming-orders', [LogisticsController::class, 'incomingOrders']);
+        Route::get('/ready-to-deliver', [LogisticsController::class, 'readyToDeliver']);
+        Route::post('/ready-to-deliver/{clientOrderForm}/confirm', [LogisticsController::class, 'confirm']);
+        Route::get('/delivery-history', [LogisticsController::class, 'deliveryHistory']);
+        Route::get('/summary', [LogisticsController::class, 'summary']);
+    });
+
 Route::prefix('portal/auth')->group(function () {
     Route::post('/login', [PortalAuthController::class, 'login'])->middleware('throttle:login-client');
     Route::post('/password/forgot', [PortalPasswordResetController::class, 'forgot']);
@@ -185,4 +267,12 @@ Route::prefix('portal')
     ->group(function () {
         Route::get('/items', [PortalItemController::class, 'index']);
         Route::get('/categories', [PortalCategoryController::class, 'index']);
+        Route::get('/orders', [PortalOrderController::class, 'index']);
+        Route::post('/orders', [PortalOrderController::class, 'store']);
+        Route::get('/orders/{order}', [PortalOrderController::class, 'show'])->whereNumber('order');
+        Route::post('/orders/{order}/confirm', [PortalOrderController::class, 'confirm'])->whereNumber('order');
+        Route::post('/orders/{order}/report-issue', [PortalOrderController::class, 'reportIssue'])->whereNumber('order');
+        Route::post('/orders/{order}/cancel', [PortalOrderController::class, 'cancel'])->whereNumber('order');
+        Route::post('/orders/{order}/request-cancellation', [PortalOrderController::class, 'requestCancellation'])->whereNumber('order');
+        Route::post('/orders/{order}/resubmit', [PortalOrderController::class, 'resubmit'])->whereNumber('order');
     });

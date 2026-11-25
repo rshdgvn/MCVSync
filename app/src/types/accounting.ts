@@ -43,6 +43,16 @@ export interface Payment {
   days_overdue?: number | null;
 }
 
+export interface PendingPaymentSummary {
+  total: number;
+  overdue: number;
+  within_terms: number;
+}
+
+export interface PendingPaymentListResponse extends Paginated<Payment> {
+  summary: PendingPaymentSummary;
+}
+
 export type ItemWithCogs = Item & { cogs: number | null };
 
 export type PricedItemList = Paginated<ItemWithCogs>;

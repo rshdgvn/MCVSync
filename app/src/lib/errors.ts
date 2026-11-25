@@ -1,5 +1,9 @@
 import { isAxiosError } from "axios";
 
+export function isNetworkError(error: unknown): boolean {
+  return isAxiosError(error) && !error.response && error.code !== "ERR_CANCELED";
+}
+
 export function getErrorMessage(error: unknown): string {
   if (isAxiosError<{ message?: string; errors?: Record<string, string[]> }>(error)) {
     const errors = error.response?.data?.errors;

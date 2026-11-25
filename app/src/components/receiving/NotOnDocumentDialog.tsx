@@ -8,14 +8,20 @@ import { ResponsiveDialog } from "@/components/ResponsiveDialog";
 import { SubmitForm } from "@/components/SubmitForm";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import type { SubmitHandler } from "@/hooks/useSubmitOnce";
 import { getFieldErrors, getGeneralError } from "@/lib/errors";
 import type { Item } from "@/types/inventory";
 
 const DISCREPANCY_FIELDS = ["scanned_quantity", "notes"] as const;
 
+export interface NotOnDocumentSubject {
+  item: Item | null;
+  barcode: string | null;
+}
+
 interface NotOnDocumentDialogProps {
-  item: Item;
+  subject: NotOnDocumentSubject;
   documentNumber: string;
   isPending: boolean;
   serverError: unknown;
@@ -23,10 +29,12 @@ interface NotOnDocumentDialogProps {
   onClose: () => void;
 }
 
-export function NotOnDocumentDialog({ item, documentNumber, isPending, serverError, onSubmit, onClose }: NotOnDocumentDialogProps) {
+export function NotOnDocumentDialog({ subject, documentNumber, isPending, serverError, onSubmit, onClose }: NotOnDocumentDialogProps) {
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState("");
   const fieldErrors = getFieldErrors(serverError);
+  const isOnline = useOnlineStatus();
+  const { item, barcode } = subject;
 
   return (
     <ResponsiveDialog
@@ -35,7 +43,14 @@ export function NotOnDocumentDialog({ item, documentNumber, isPending, serverErr
       title="Not on This Document"
       description={
         <>
-          <span className="font-semibold text-foreground">{item.name}</span> isn't on{" "}
+          {item ? (
+            <span className="font-semibold text-foreground">{item.name}</span>
+          ) : (
+            <>
+              Barcode <span className="font-mono font-semibold text-foreground">{barcode}</span>
+            </>
+          )}{" "}
+          isn't on{" "}
           <span className="font-mono">{documentNumber}</span>. It won't be added to stock. Log a discrepancy so it can be
           followed up.
         </>
@@ -46,14 +61,16 @@ export function NotOnDocumentDialog({ item, documentNumber, isPending, serverErr
             Cancel
           </Button>
           <LoadingButton type="submit" form="not-on-document-form" isPending={isPending} pendingText="Logging…">
-            Log Discrepancy
+            {isOnline ? "Log Discrepancy" : "Queue Discrepancy"}
           </LoadingButton>
         </>
       }
     >
       <SubmitForm
         id="not-on-document-form"
-        onSubmit={() => onSubmit({ itemId: item.id, scannedQuantity: quantity, notes: notes.trim() || null })}
+        onSubmit={() =>
+          onSubmit({ itemId: item?.id ?? null, scannedBarcode: barcode, scannedQuantity: quantity, notes: notes.trim() || null })
+        }
         className="flex flex-col gap-3"
       >
         <FormError message={getGeneralError(serverError, DISCREPANCY_FIELDS)} />

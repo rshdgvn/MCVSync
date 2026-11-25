@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Payment;
 use App\Services\PaymentService;
+use App\Support\BusinessDate;
 use Illuminate\Database\Seeder;
 
 class DemoPaymentSeeder extends Seeder
@@ -27,7 +28,7 @@ class DemoPaymentSeeder extends Seeder
                 $payment['reference_id'],
                 $payment['order_total'],
                 $payment['payment_terms'],
-                $payment['days_from_today'] === null ? null : now()->addDays($payment['days_from_today'])->toDateString(),
+                $payment['days_from_today'] === null ? null : BusinessDate::today()->addDays($payment['days_from_today'])->toDateString(),
             );
         }
     }

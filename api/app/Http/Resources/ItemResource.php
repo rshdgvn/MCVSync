@@ -22,6 +22,7 @@ class ItemResource extends JsonResource
             'effective_expiry_alert_threshold_days' => $this->expiry_alert_threshold_days ?? (int) config('inventory.default_expiry_alert_threshold_days'),
             'reorder_point' => $this->reorder_point,
             'reorder_quantity' => $this->reorder_quantity,
+            'preferred_supplier' => new SupplierResource($this->whenLoaded('preferredSupplier')),
             'is_active' => $this->is_active,
             'available' => $this->when(
                 array_key_exists('on_hand', $this->resource->getAttributes()),

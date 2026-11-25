@@ -154,7 +154,7 @@ function NavEntry({ item, activeKeys, badges, expanded, onToggle }: NavEntryProp
                   <SidebarMenuSubButton isActive={activeKeys.parentKey === item.key && activeKeys.childKey === child.key} render={<Link to={child.to ?? "/"} />}>
                     <span className="min-w-0 truncate">{child.label}</span>
                   </SidebarMenuSubButton>
-                  {!!childBadge && <SidebarMenuBadge>{childBadge}</SidebarMenuBadge>}
+                  {!!childBadge && <SidebarMenuBadge className="top-1/2 -translate-y-1/2">{childBadge}</SidebarMenuBadge>}
                 </SidebarMenuSubItem>
               );
             })}

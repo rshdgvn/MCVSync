@@ -19,22 +19,22 @@ import { PURCHASE_ORDER_STATUSES } from "@/components/purchase-orders/purchaseOr
 import type { PurchaseOrderStatus, PurchaseOrderStatusCounts } from "@/types/purchaseOrder";
 import type { Supplier } from "@/types/supplier";
 
+type StatusFilter = PurchaseOrderStatus | "all";
+
 export const Route = createFileRoute("/_authenticated/purchasing/purchase-orders/")({
   beforeLoad: requireRole(...INVENTORY_ACCESS_ROLES),
+  validateSearch: (search: Record<string, unknown>): { status?: PurchaseOrderStatus } => ({
+    status: PURCHASE_ORDER_STATUSES.find((status) => status === search.status),
+  }),
   component: PurchaseOrdersPage,
 });
 
-type StatusFilter = PurchaseOrderStatus | "all";
-
 const ALL_BRANCHES = "all";
 
-function statusTabs(counts: PurchaseOrderStatusCounts | undefined, selected: StatusFilter): FilterTab<StatusFilter>[] {
-  const statusTabsShown = PURCHASE_ORDER_STATUSES.filter(
-    (status) => status !== "draft" || selected === "draft" || (counts?.draft ?? 0) > 0,
-  );
+function statusTabs(counts: PurchaseOrderStatusCounts | undefined): FilterTab<StatusFilter>[] {
   return [
     { value: "all", label: "All POs", count: counts?.all },
-    ...statusTabsShown.map((status) => ({ value: status, label: statusInfo(status).label, count: counts?.[status] })),
+    ...PURCHASE_ORDER_STATUSES.map((status) => ({ value: status, label: statusInfo(status).label, count: counts?.[status] })),
   ];
 }
 
@@ -45,7 +45,7 @@ function PurchaseOrdersPage() {
   const branchesQuery = useBranchesQuery(showBranch);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<StatusFilter>("all");
+  const status: StatusFilter = Route.useSearch().status ?? "all";
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [branchId, setBranchId] = useState(ALL_BRANCHES);
 
@@ -58,6 +58,10 @@ function PurchaseOrdersPage() {
   });
   const counts = query.data?.counts;
   const filterCount = (supplier ? 1 : 0) + (branchId === ALL_BRANCHES ? 0 : 1);
+
+  function setStatus(next: StatusFilter) {
+    void navigate({ to: ".", search: next === "all" ? {} : { status: next }, replace: true });
+  }
 
   function resetPage<T>(setter: (value: T) => void) {
     return (value: T) => {
@@ -81,9 +85,10 @@ function PurchaseOrdersPage() {
         primaryAction={addButton}
       />
 
-      <StatCardGrid className="lg:grid-cols-3">
+      <StatCardGrid className="lg:grid-cols-4">
         {counts ? (
           <>
+            <StatCard label="Drafts to Review" value={formatNumber(counts.draft)} sub="waiting to be finalized" />
             <StatCard label="Awaiting Receipt" value={formatNumber(counts.open + counts.ready_for_delivery)} />
             <StatCard label="Received" value={formatNumber(counts.closed)} />
             <StatCard label="Total POs" value={formatNumber(counts.all)} />
@@ -93,11 +98,12 @@ function PurchaseOrdersPage() {
             <StatCardSkeleton />
             <StatCardSkeleton />
             <StatCardSkeleton />
+            <StatCardSkeleton />
           </>
         )}
       </StatCardGrid>
 
-      <FilterTabs ariaLabel="Filter purchase orders by status" value={status} onChange={resetPage(setStatus)} tabs={statusTabs(counts, status)} />
+      <FilterTabs ariaLabel="Filter purchase orders by status" value={status} onChange={resetPage(setStatus)} tabs={statusTabs(counts)} />
 
       <FilterBar
         search={search}

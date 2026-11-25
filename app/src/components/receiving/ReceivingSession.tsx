@@ -1,7 +1,14 @@
 import { useState } from "react";
 import { Link, type LinkProps } from "@tanstack/react-router";
 import { CheckCircle2, ClipboardCheck, TriangleAlert } from "lucide-react";
-import type { ReceivingCompletion, ReceivingReferenceType } from "@/api/receiving";
+import {
+  receivingCacheKey,
+  receivingScope,
+  type NotOnDocumentPayload,
+  type ReceiveLinePayload,
+  type ReceivingCompletion,
+  type ReceivingReferenceType,
+} from "@/api/receiving";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DetailLoadError } from "@/components/DetailLoadError";
 import { EmptyState } from "@/components/EmptyState";
@@ -10,12 +17,24 @@ import { type ScanEvent } from "@/components/ScanInput";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { NotOnDocumentDialog } from "@/components/receiving/NotOnDocumentDialog";
+import { discrepancySubject } from "@/api/discrepancies";
+import { NotOnDocumentDialog, type NotOnDocumentSubject } from "@/components/receiving/NotOnDocumentDialog";
 import { ReceiveLineDialog } from "@/components/receiving/ReceiveLineDialog";
 import { ChooseLineDialog } from "@/components/stock-flow/ChooseLineDialog";
+import { StockFlowOfflineNotice } from "@/components/stock-flow/StockFlowOfflineNotice";
 import { StockFlowShell, StockFlowSkeleton, type StockFlowHighlight } from "@/components/stock-flow/StockFlowShell";
-import { overLines, shortLines, summarizeLines, type StockFlowLine } from "@/components/stock-flow/stockFlowLines";
+import {
+  matchScanLocally,
+  overLines,
+  shortLines,
+  summarizeLines,
+  withQueuedQuantities,
+  type StockFlowLine,
+  type StockFlowScan,
+} from "@/components/stock-flow/stockFlowLines";
 import { useInventoryChannels } from "@/hooks/useInventoryChannels";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { useScopeQueue } from "@/hooks/usePendingMutations";
 import {
   useCompleteReceivingMutation,
   useLogNotOnDocumentMutation,
@@ -27,7 +46,6 @@ import { getErrorMessage } from "@/lib/errors";
 import { formatQuantity } from "@/lib/format";
 import { statusInfo } from "@/lib/status";
 import { toast } from "@/stores/toast.store";
-import type { Item } from "@/types/inventory";
 
 interface ReceivingSessionProps {
   referenceType: ReceivingReferenceType;
@@ -52,13 +70,15 @@ export function ReceivingSession({
   const notOnDocumentMutation = useLogNotOnDocumentMutation(referenceType, referenceId);
   const completeMutation = useCompleteReceivingMutation(referenceType, referenceId);
   const [receiving, setReceiving] = useState<{ line: StockFlowLine; remaining: number } | null>(null);
-  const [notOnDocument, setNotOnDocument] = useState<Item | null>(null);
+  const [notOnDocument, setNotOnDocument] = useState<NotOnDocumentSubject | null>(null);
   const [choosing, setChoosing] = useState(false);
   const [confirmingComplete, setConfirmingComplete] = useState(false);
   const [completion, setCompletion] = useState<ReceivingCompletion | null>(null);
   const [highlight, setHighlight] = useState<StockFlowHighlight | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
   const session = sessionQuery.data;
+  const isOnline = useOnlineStatus();
+  const queue = useScopeQueue(receivingScope(referenceType, referenceId));
   useInventoryChannels(session ? [session.document.branch.id] : []);
 
   if (sessionQuery.isPending) {
@@ -77,23 +97,47 @@ export function ReceivingSession({
     );
   }
 
-  const { document, lines, discrepancies } = session;
+  const { document, discrepancies } = session;
+  const lines = withQueuedQuantities(session.lines, queue.quantities);
   const summary = summarizeLines(lines);
   const sheetOpen = receiving !== null || notOnDocument !== null || choosing || confirmingComplete;
   const canReceive = document.isReceivable && completion === null;
   const unresolvedDiscrepancies = discrepancies.filter((discrepancy) => !discrepancy.resolved);
+  const completeBlockedReason = !isOnline
+    ? "Reconnect to complete receiving"
+    : queue.unsynced > 0
+      ? "Wait for queued scans to sync"
+      : undefined;
 
-  async function runMatch(scan: { barcode: string } | { item_id: number }): Promise<boolean> {
+  function openLine(line: StockFlowLine, remaining: number) {
+    receiveMutation.reset();
+    setReceiving({ line, remaining });
+  }
+
+  function openNotOnDocument(subject: NotOnDocumentSubject) {
+    notOnDocumentMutation.reset();
+    setNotOnDocument(subject);
+  }
+
+  async function runMatch(scan: StockFlowScan): Promise<boolean> {
     setScanError(null);
+    if (!isOnline) {
+      const local = matchScanLocally(lines, scan);
+      if (local.status === "found") {
+        openLine(local.line, local.remaining);
+        return true;
+      }
+      openNotOnDocument({ item: null, barcode: local.barcode });
+      return false;
+    }
     try {
       const result = await matchMutation.mutateAsync(scan);
       if (result.status === "found") {
-        receiveMutation.reset();
-        setReceiving({ line: result.line, remaining: result.remaining });
+        const line = lines.find((candidate) => candidate.id === result.line.id) ?? result.line;
+        openLine(line, Math.max(0, result.remaining - (line.queued ?? 0)));
         return true;
       }
-      notOnDocumentMutation.reset();
-      setNotOnDocument(result.item);
+      openNotOnDocument({ item: result.item, barcode: "barcode" in scan ? scan.barcode : null });
       return false;
     } catch (error) {
       setScanError(getErrorMessage(error));
@@ -113,23 +157,38 @@ export function ReceivingSession({
     void runMatch({ item_id: line.item.id });
   }
 
-  function confirmReceipt(payload: Parameters<typeof receiveMutation.mutateAsync>[0]) {
-    return receiveMutation.mutateAsync(payload, {
-      onSuccess: (line) => {
-        toast.success(`Received ${formatQuantity(payload.quantity, line.item.unit?.code)} of ${line.item.name}.`);
-        setHighlight({ lineId: line.id, key: Date.now() });
-        setReceiving(null);
+  function confirmReceipt(payload: ReceiveLinePayload) {
+    if (!receiving) {
+      return;
+    }
+    const { item } = receiving.line;
+    const amount = formatQuantity(payload.quantity, item.unit?.code);
+    return receiveMutation.mutateAsync(
+      { payload, label: `Receive ${amount} of ${item.name} on ${document.number}` },
+      {
+        onSuccess: (outcome) => {
+          if (outcome.queued) {
+            toast.info(`Queued ${amount} of ${item.name}. It syncs when you're back online.`);
+          } else {
+            toast.success(`Received ${amount} of ${item.name}.`);
+          }
+          setHighlight({ lineId: payload.lineId, key: Date.now() });
+          setReceiving(null);
+        },
       },
-    });
+    );
   }
 
-  function logNotOnDocument(payload: Parameters<typeof notOnDocumentMutation.mutateAsync>[0]) {
-    return notOnDocumentMutation.mutateAsync(payload, {
-      onSuccess: () => {
-        toast.info("Discrepancy logged.");
-        setNotOnDocument(null);
+  function logNotOnDocument(payload: NotOnDocumentPayload) {
+    return notOnDocumentMutation.mutateAsync(
+      { payload, label: `Log an item not on ${document.number}` },
+      {
+        onSuccess: (outcome) => {
+          toast.info(outcome.queued ? "Discrepancy queued. It syncs when you're back online." : "Discrepancy logged.");
+          setNotOnDocument(null);
+        },
       },
-    });
+    );
   }
 
   function confirmComplete() {
@@ -157,7 +216,8 @@ export function ReceivingSession({
       primaryAction={
         completion === null && (
           <Button
-            disabled={!canReceive}
+            disabled={!canReceive || completeBlockedReason !== undefined}
+            title={completeBlockedReason}
             onClick={() => {
               completeMutation.reset();
               setConfirmingComplete(true);
@@ -177,16 +237,18 @@ export function ReceivingSession({
         </>
       }
       notice={
-        !document.isReceivable &&
-        completion === null && (
-          <Alert variant="warning">
-            <TriangleAlert />
-            <AlertDescription>
-              This {documentLabel.toLowerCase()} is {statusInfo(document.statusKey).label.toLowerCase()} and isn't open for
-              receiving.
-            </AlertDescription>
-          </Alert>
-        )
+        <>
+          <StockFlowOfflineNotice cacheKey={receivingCacheKey(referenceType, referenceId)} unsynced={queue.unsynced} />
+          {!document.isReceivable && completion === null && (
+            <Alert variant="warning">
+              <TriangleAlert />
+              <AlertDescription>
+                This {documentLabel.toLowerCase()} is {statusInfo(document.statusKey).label.toLowerCase()} and isn't open for
+                receiving.
+              </AlertDescription>
+            </Alert>
+          )}
+        </>
       }
       result={
         completion && (
@@ -220,7 +282,7 @@ export function ReceivingSession({
               {unresolvedDiscrepancies.map((discrepancy) => (
                 <li key={discrepancy.id} className="flex items-center gap-2 text-xs">
                   <StatusBadge status={discrepancy.type} />
-                  <span className="min-w-0 flex-1 truncate">{discrepancy.item?.name ?? "Unknown item"}</span>
+                  <span className="min-w-0 flex-1 truncate">{discrepancySubject(discrepancy)}</span>
                   {discrepancy.scanned_quantity !== null && (
                     <span className="font-mono text-muted-foreground">{discrepancy.scanned_quantity}</span>
                   )}
@@ -246,7 +308,7 @@ export function ReceivingSession({
 
       {notOnDocument && (
         <NotOnDocumentDialog
-          item={notOnDocument}
+          subject={notOnDocument}
           documentNumber={document.number}
           isPending={notOnDocumentMutation.isPending}
           serverError={notOnDocumentMutation.error}
@@ -282,11 +344,21 @@ function CompleteSummary({ lines, documentNumber }: { lines: StockFlowLine[]; do
   const short = shortLines(lines);
   const over = overLines(lines);
 
-  if (short.length === 0 && over.length === 0) {
+  const overNote = over.length > 0 && (
+    <p>
+      {over.length} {over.length === 1 ? "line was" : "lines were"} over-received and already logged as{" "}
+      {over.length === 1 ? "a discrepancy" : "discrepancies"}.
+    </p>
+  );
+
+  if (short.length === 0) {
     return (
-      <>
-        Every line on <span className="font-mono">{documentNumber}</span> matches what was expected. It will close.
-      </>
+      <div className="flex flex-col gap-2">
+        <p>
+          Every line on <span className="font-mono">{documentNumber}</span> is fully received. It will close.
+        </p>
+        {overNote}
+      </div>
     );
   }
 
@@ -307,12 +379,7 @@ function CompleteSummary({ lines, documentNumber }: { lines: StockFlowLine[]; do
           </ul>
         </div>
       )}
-      {over.length > 0 && (
-        <p>
-          {over.length} {over.length === 1 ? "line was" : "lines were"} over-received and already logged. The document stays
-          open until they're reviewed.
-        </p>
-      )}
+      {overNote}
     </div>
   );
 }
@@ -327,17 +394,12 @@ interface ReceivingResultProps {
 
 function ReceivingResult({ completion, documentNumber, documentLink, backTo, backLabel }: ReceivingResultProps) {
   const short = shortLines(completion.lines).length;
-  const over = overLines(completion.lines).length;
-  const openReasons = [
-    short > 0 && `${short} ${short === 1 ? "shortfall" : "shortfalls"} logged`,
-    over > 0 && `${over} ${over === 1 ? "line" : "lines"} over-received need review`,
-  ].filter(Boolean);
 
   return (
     <div className="border border-border bg-card">
       <EmptyState
         icon={completion.isClosed ? CheckCircle2 : TriangleAlert}
-        title={completion.isClosed ? "Stock Received" : `Still open: ${openReasons.join(", ")}`}
+        title={completion.isClosed ? "Stock Received" : `Still open: ${short} ${short === 1 ? "shortfall" : "shortfalls"} logged`}
         description={
           completion.isClosed
             ? `${documentNumber} is fully received and closed.`

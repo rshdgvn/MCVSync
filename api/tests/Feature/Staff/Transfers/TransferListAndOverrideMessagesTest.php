@@ -15,7 +15,7 @@ test('the transfer list returns line counts and status counts that ignore the st
     $response->assertOk();
     expect(collect($response->json('data'))->pluck('id')->all())->toBe([$pending->id]);
     $response->assertJsonPath('data.0.items_count', 2);
-    $response->assertJsonPath('counts', ['all' => 3, 'pending' => 1, 'shipped' => 1, 'closed' => 1, 'cancelled' => 0]);
+    $response->assertJsonPath('counts', ['all' => 3, 'awaiting_approval' => 0, 'pending' => 1, 'shipped' => 1, 'closed' => 1, 'cancelled' => 0, 'declined' => 0]);
 });
 
 test('the transfer list is searchable by transfer number and branch name', function () {

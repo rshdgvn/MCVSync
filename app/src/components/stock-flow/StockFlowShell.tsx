@@ -11,7 +11,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { TabBar } from "@/components/TabBar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { lineState, remainingQuantity, type StockFlowLine } from "@/components/stock-flow/stockFlowLines";
+import { hasProgress, lineState, remainingQuantity, type StockFlowLine } from "@/components/stock-flow/stockFlowLines";
 import { DURATION, EASE_STANDARD } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
@@ -82,7 +82,7 @@ export function StockFlowShell({
   children,
 }: StockFlowShellProps) {
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>("expected");
-  const doneLines = lines.filter((line) => line.done > 0);
+  const doneLines = lines.filter(hasProgress);
 
   return (
     <div className="flex flex-col gap-4">
@@ -204,7 +204,10 @@ function LinePanel({ title, lines, highlight, emptyText, className, onSelect }: 
               <div className="relative flex min-w-0 flex-1 flex-col gap-1">
                 <div className="flex items-start justify-between gap-2">
                   <span className="min-w-0 text-sm leading-tight font-medium md:text-ui">{line.item.name}</span>
-                  <StatusBadge status={lineState(line)} />
+                  <span className="flex shrink-0 flex-wrap justify-end gap-1">
+                    {line.queued ? <StatusBadge status="queued" label={`Queued +${line.queued}`} /> : null}
+                    <StatusBadge status={lineState(line)} />
+                  </span>
                 </div>
                 <span className="font-mono text-xs text-muted-foreground">{line.item.sku}</span>
                 <QuantityProgress value={line.done} total={line.target} />

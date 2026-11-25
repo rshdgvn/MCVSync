@@ -21,6 +21,8 @@ class StockTransaction extends Model
 {
     use HasFactory;
 
+    public const CANCEL_RETURN = 'cancel_return';
+
     const UPDATED_AT = null;
 
     public function item(): BelongsTo
