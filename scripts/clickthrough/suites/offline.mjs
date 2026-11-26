@@ -1,49 +1,28 @@
 import { randomUUID } from "node:crypto";
-import { API_URL, APP_URL, apiGet, apiPost, check, noHorizontalScroll, openAs, pickFromCombobox, runFlow, scan, visible } from "../lib/browser.mjs";
+import {
+  API_URL,
+  APP_URL,
+  apiGet,
+  apiPost,
+  check,
+  goOffline,
+  noHorizontalScroll,
+  openAs,
+  pendingCount,
+  pickFromCombobox,
+  recordQueueWrites,
+  runFlow,
+  scan,
+  visible,
+  waitForPendingCount,
+} from "../lib/browser.mjs";
 
 const BARCODE = { gloves: "4800001000011", syringe: "4800001000028", unknown: "4899999999999" };
-const PENDING_LINK = 'a[aria-label$="offline changes waiting to sync"]';
-const QUEUE_WRITE = /\/(receive\/confirm|receive\/discrepancy|fulfill\/pick)$/;
-
-async function pendingCount(page) {
-  const link = page.locator(PENDING_LINK).first();
-  if ((await link.count()) === 0) {
-    return 0;
-  }
-  const label = (await link.getAttribute("aria-label")) ?? "";
-  return Number.parseInt(label, 10);
-}
-
-async function waitForPendingCount(page, expected, timeout = 30000) {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    if ((await pendingCount(page)) === expected) {
-      return true;
-    }
-    await page.waitForTimeout(250);
-  }
-  return false;
-}
 
 async function controlledByServiceWorker(page) {
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.reload();
   return page.evaluate(() => Boolean(navigator.serviceWorker.controller));
-}
-
-async function goOffline(context, page) {
-  await context.setOffline(true);
-  await page.waitForFunction(() => !navigator.onLine);
-}
-
-function recordQueueWrites(page) {
-  const writes = [];
-  page.on("request", (request) => {
-    if (request.method() === "POST" && QUEUE_WRITE.test(request.url())) {
-      writes.push({ url: request.url(), body: JSON.parse(request.postData() ?? "{}"), key: request.headers()["idempotency-key"] });
-    }
-  });
-  return writes;
 }
 
 async function queueReceipt(page, { batch, expiry, quantity }) {

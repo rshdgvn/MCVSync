@@ -26,12 +26,12 @@ import type { InsufficientStock } from "@/types/transfer";
 interface ShortageDialogProps {
   shortage: InsufficientStock;
   item: Item | null;
-  transferNumber: string;
+  documentNumber: string;
   fulfillingBranchId: number;
   onClose: () => void;
 }
 
-export function ShortageDialog({ shortage, item, transferNumber, fulfillingBranchId, onClose }: ShortageDialogProps) {
+export function ShortageDialog({ shortage, item, documentNumber, fulfillingBranchId, onClose }: ShortageDialogProps) {
   const navigate = useNavigate();
   const [creatingPo, setCreatingPo] = useState(false);
   const draftQuery = usePurchaseOrdersQuery({
@@ -49,7 +49,7 @@ export function ShortageDialog({ shortage, item, transferNumber, fulfillingBranc
       <ShortagePurchaseOrderDialog
         item={item}
         quantity={missing}
-        transferNumber={transferNumber}
+        documentNumber={documentNumber}
         branchId={fulfillingBranchId}
         onClose={onClose}
       />
@@ -63,7 +63,7 @@ export function ShortageDialog({ shortage, item, transferNumber, fulfillingBranc
       title="Insufficient Stock"
       description={
         <>
-          Picking for <span className="font-mono">{transferNumber}</span> can't start until every line can be reserved.{" "}
+          Picking for <span className="font-mono">{documentNumber}</span> can't start until every line can be reserved.{" "}
           <span className="font-semibold text-foreground">{item?.name ?? `Item #${shortage.item_id}`}</span> is short.
           {draft && (
             <>
@@ -109,21 +109,21 @@ export function ShortageDialog({ shortage, item, transferNumber, fulfillingBranc
 interface ShortagePurchaseOrderDialogProps {
   item: Item;
   quantity: number;
-  transferNumber: string;
+  documentNumber: string;
   branchId: number;
   onClose: () => void;
 }
 
 const PO_FIELDS = ["supplier_id", "branch_id", "remarks", "items", "items.0.quantity_ordered", "items.0.unit_cost", "items.0.item_id"];
 
-function ShortagePurchaseOrderDialog({ item, quantity: initialQuantity, transferNumber, branchId, onClose }: ShortagePurchaseOrderDialogProps) {
+function ShortagePurchaseOrderDialog({ item, quantity: initialQuantity, documentNumber, branchId, onClose }: ShortagePurchaseOrderDialogProps) {
   const navigate = useNavigate();
   const mutation = useCreatePurchaseOrderMutation();
   const [created, setCreated] = useState<PurchaseOrderDetail | null>(null);
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [quantity, setQuantity] = useState(initialQuantity);
   const [unitCost, setUnitCost] = useState("");
-  const [notes, setNotes] = useState(`Restock for ${transferNumber}.`);
+  const [notes, setNotes] = useState(`Restock for ${documentNumber}.`);
   const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
   const fieldErrors: Record<string, string> = { ...getFieldErrors(mutation.error), ...clientErrors };
 

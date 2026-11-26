@@ -11,13 +11,15 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { supplierNameOf } from "@/components/purchase-orders/purchaseOrderRules";
 import { canApproveTransfers } from "@/components/transfers/transferRules";
 import { Skeleton } from "@/components/ui/skeleton";
+import { waitingSince } from "@/components/issuing-stock/cofPickRules";
+import { useFulfillmentQueueQuery } from "@/hooks/useCofFulfillment";
 import { useDiscrepanciesQuery } from "@/hooks/useDiscrepancies";
 import { discrepancySubject } from "@/api/discrepancies";
 import { useExpiringAlertsQuery, useLowStockAlertsQuery } from "@/hooks/useInventory";
 import { useInventoryChannels, usePurchasingOwnBranchIds } from "@/hooks/useInventoryChannels";
 import { usePurchaseOrdersQuery } from "@/hooks/usePurchaseOrders";
 import { useTransfersQuery } from "@/hooks/useTransfers";
-import { daysUntil, formatDate, formatNumber } from "@/lib/format";
+import { daysSince, formatDate, formatNumber } from "@/lib/format";
 import { getErrorMessage } from "@/lib/errors";
 import { canEditPurchaseOrders } from "@/lib/rbac";
 import { statusInfo } from "@/lib/status";
@@ -36,10 +38,6 @@ interface ActionEntry {
   detail: string;
   since: string;
   link: Pick<LinkProps, "to" | "params">;
-}
-
-function daysWaiting(since: string): number {
-  return Math.max(0, -daysUntil(since));
 }
 
 function oldestFirst<T>(rows: T[] | undefined): T[] {
@@ -81,6 +79,7 @@ export function PurchasingHome({ user }: { user: User }) {
     { status: "awaiting_approval", per_page: QUEUE_PAGE_SIZE, page: lastPage(approvals.data?.meta) },
     canApprove,
   );
+  const clientOrders = useFulfillmentQueueQuery({ per_page: QUEUE_PAGE_SIZE });
   const discrepancies = useDiscrepanciesQuery({ resolved: false, per_page: QUEUE_PAGE_SIZE });
   const oldestDiscrepancies = useDiscrepanciesQuery({
     resolved: false,
@@ -123,6 +122,14 @@ export function PurchasingHome({ user }: { user: User }) {
         ? { to: "/purchasing/transfers/$transferId/pick", params: { transferId: String(transfer.id) } }
         : { to: "/purchasing/stock-receiving/transfers/$transferId", params: { transferId: String(transfer.id) } },
     })),
+    ...(clientOrders.data?.data ?? []).map((cof): ActionEntry => ({
+      key: `cof-${cof.id}`,
+      kind: "Client Order to Pick",
+      title: <span className="font-mono">{cof.cof_number}</span>,
+      detail: cof.client_name ?? "",
+      since: waitingSince(cof) ?? new Date().toISOString(),
+      link: { to: "/purchasing/issuing-stock/client-orders/$cofId", params: { cofId: String(cof.id) } },
+    })),
     ...oldestFirst(oldestDiscrepancies.data?.data).map((discrepancy): ActionEntry => ({
       key: `dis-${discrepancy.id}`,
       kind: `${statusInfo(discrepancy.type).label} Discrepancy`,
@@ -138,17 +145,23 @@ export function PurchasingHome({ user }: { user: User }) {
   const queuesPending =
     oldestOrders.isPending ||
     oldestTransfers.isPending ||
+    clientOrders.isPending ||
     oldestDiscrepancies.isPending ||
     (canApprove && oldestApprovals.isPending) ||
     (canReviewDrafts && oldestDrafts.isPending);
   const queueError =
-    oldestOrders.error ?? oldestTransfers.error ?? oldestDiscrepancies.error ?? oldestApprovals.error ?? oldestDrafts.error;
+    oldestOrders.error ??
+    oldestTransfers.error ??
+    clientOrders.error ??
+    oldestDiscrepancies.error ??
+    oldestApprovals.error ??
+    oldestDrafts.error;
 
   return (
     <div className="flex flex-col gap-4">
       <PageHeader title="Purchasing Home" description={`${user.branch?.name ?? "All branches"} · what needs attention today.`} />
 
-      <StatCardGrid className={canApprove ? "lg:grid-cols-4" : "lg:grid-cols-4 xl:grid-cols-7"}>
+      <StatCardGrid className="lg:grid-cols-4">
         {expiring.data ? (
           <StatCard label="Near Expiry" value={formatNumber(expiring.data.meta.total)} sub="batches" link={{ to: "/inventory/expiring" }} />
         ) : (
@@ -212,6 +225,16 @@ export function PurchasingHome({ user }: { user: User }) {
         ) : (
           <StatCardSkeleton />
         )}
+        {clientOrders.data ? (
+          <StatCard
+            label="Client Orders to Pick"
+            value={formatNumber(clientOrders.data.meta.total)}
+            sub="forwarded by Sales"
+            link={{ to: "/purchasing/issuing-stock" }}
+          />
+        ) : (
+          <StatCardSkeleton />
+        )}
         {discrepancies.data ? (
           <StatCard
             label="Unresolved Discrepancies"
@@ -238,13 +261,17 @@ export function PurchasingHome({ user }: { user: User }) {
               onRetry={() => {
                 void oldestOrders.refetch();
                 void oldestTransfers.refetch();
+                void clientOrders.refetch();
                 if (canApprove) void oldestApprovals.refetch();
                 if (canReviewDrafts) void oldestDrafts.refetch();
                 void oldestDiscrepancies.refetch();
               }}
             />
           ) : entries.length === 0 ? (
-            <EmptyState title="Nothing waiting" description="Deliveries, draft POs, transfers and discrepancies that need you appear here, oldest first." />
+            <EmptyState
+              title="Nothing waiting"
+              description="Deliveries, draft POs, client orders, transfers and discrepancies that need you appear here, oldest first."
+            />
           ) : (
             <ul className="divide-y divide-border-subtle">
               {entries.map((entry) => (
@@ -259,7 +286,7 @@ export function PurchasingHome({ user }: { user: User }) {
                         {entry.detail} · since {formatDate(entry.since)}
                       </span>
                     </span>
-                    <AgingChip days={daysWaiting(entry.since)} warnAt={WAIT_WARN_DAYS} dangerAt={WAIT_DANGER_DAYS} />
+                    <AgingChip days={daysSince(entry.since)} warnAt={WAIT_WARN_DAYS} dangerAt={WAIT_DANGER_DAYS} />
                     <ChevronRight className="size-4 shrink-0 text-faint" />
                   </Link>
                 </li>
