@@ -19,6 +19,8 @@ function stageDate(cof: CofDetail, status: CofStatus): string | null {
   switch (status) {
     case "pending_approval":
       return cof.created_at ? formatDateTime(cof.created_at) : null;
+    case "processing":
+      return cof.forwarded_at ? formatDateTime(cof.forwarded_at) : null;
     case "ready_for_delivery":
       return cof.ready_for_delivery_at ? formatDateTime(cof.ready_for_delivery_at) : null;
     case "delivered":
