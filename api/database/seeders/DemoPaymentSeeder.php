@@ -18,7 +18,7 @@ class DemoPaymentSeeder extends Seeder
 
     public function run(PaymentService $payments): void
     {
-        if (! app()->environment('local') || Payment::query()->exists()) {
+        if (! app()->environment('local') || config('services.demo_data') || Payment::query()->exists()) {
             return;
         }
 

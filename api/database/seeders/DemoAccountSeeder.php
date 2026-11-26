@@ -82,6 +82,6 @@ class DemoAccountSeeder extends Seeder
 
     private function isEnabled(): bool
     {
-        return app()->environment('local', 'testing') || config('services.seed_demo_accounts');
+        return app()->environment('local', 'testing') || config('services.seed_demo_accounts') || config('services.demo_data');
     }
 }

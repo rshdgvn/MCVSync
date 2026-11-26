@@ -45,4 +45,6 @@ return [
 
     'seed_demo_accounts' => (bool) env('SEED_DEMO_ACCOUNTS', false),
 
+    'demo_data' => (bool) env('DEMO_DATA', false),
+
 ];
