@@ -27,3 +27,6 @@ CLAUDE.md
 *.njsproj
 *.sln
 *.sw?
+
+# Demo logins for SQA
+docs/DEMO_ACCOUNTS.md

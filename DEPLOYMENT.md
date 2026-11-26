@@ -12,8 +12,8 @@
 
 - Each Vercel site rewrites `/api/*` and `/sanctum/*` to the Render API (`vercel.json`). The browser only ever talks to its own Vercel domain, so the Sanctum session cookie is first-party. This works in every browser, including Safari, which blocks the cross-site cookies a direct `vercel.app -> onrender.com` setup would need.
 - Websockets cannot go through Vercel, so the staff app connects straight to `wss://mcvsync.onrender.com/app/...`. Nginx in the container forwards `/app/` to Reverb. Private channel auth still goes through `/api/broadcasting/auth` on the Vercel domain, with the session cookie.
-- The container (`api/Dockerfile`) runs nginx, PHP-FPM, Reverb and `queue:work` under supervisord. Broadcast events are queued, so the queue worker is required for realtime.
-- On every boot the container runs `migrate --force` and `db:seed --force`. The seeders are idempotent. Demo staff are never created in production.
+- The container (`api/Dockerfile`) runs nginx, PHP-FPM, Reverb, `queue:work` and `schedule:work` under supervisord. Broadcast events are queued, so the queue worker is required for realtime. Keep all of them in this one service: with SQLite they must share the same database file.
+- On every boot the container runs `migrate --force`, then `app:reset-demo` when `DEMO_DATA=true`, otherwise `db:seed --force`. The regular seeders are idempotent.
 
 ## Env files
 
@@ -70,16 +70,29 @@ If Vercel assigns a different domain, update `FRONTEND_URL` / `PORTAL_URL`, `SAN
 4. Open the portal and confirm it loads the catalog.
 5. If anything fails, check the Render **Logs** tab. All PHP, nginx, Reverb and queue output goes there.
 
-## Demo accounts
+## SQA demo mode (SQLite)
 
-Off in production by default. To show the system to others, set these in Render and redeploy:
+For testing, the API can run on SQLite with realistic demo data that is rebuilt on every boot.
+
+Set these in Render > mcvsync-api > Environment, and remove every other `DB_*` variable:
 
 ```
-SEED_DEMO_ACCOUNTS=true
-SEED_USER_PASSWORD=<a strong password you share with testers>
+DB_CONNECTION=sqlite
+DEMO_DATA=true
+SEED_USER_PASSWORD=<the password testers use>
 ```
 
-This creates one account per staff role (`sales`, `purchasing`, `accounting`, `logistics`, `admin`, `superadmin` @mcvsync.test) and one portal client (`client@mcvsync.test`), all with that password. The emails are public, so use a strong password. Before real use, set `SEED_DEMO_ACCOUNTS=false` and deactivate those accounts from Employees.
+On boot the container creates `database/database.sqlite`, runs the migrations, then runs `php artisan app:reset-demo`. That command wipes the database (`migrate:fresh`), runs the regular seeders, the demo accounts, and `DemoDataSeeder`, which builds every module and status through the real services. It refuses to run unless `DEMO_DATA=true`.
+
+Render's disk is temporary, so the SQLite file is lost on every deploy and restart. With `DEMO_DATA=true` that is the intent: each deploy starts from the same clean demo data. Logins for testers are in `docs/DEMO_ACCOUNTS.md` (gitignored, share it privately).
+
+To run it locally against a throwaway SQLite file:
+
+```
+DB_CONNECTION=sqlite DB_DATABASE=/tmp/demo.sqlite DEMO_DATA=true php artisan app:reset-demo
+```
+
+Never set `DEMO_DATA=true` on a database with real data.
 
 ## Costs and limits
 
