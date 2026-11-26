@@ -5,7 +5,9 @@ cd /var/www/html
 
 envsubst '${PORT}' < /etc/nginx/templates/app.conf.template > /etc/nginx/conf.d/app.conf
 
-if [ "$DB_CONNECTION" = "sqlite" ]; then
+db_connection="${DB_CONNECTION:-sqlite}"
+
+if [ "$db_connection" = "sqlite" ]; then
     sqlite_file="${DB_DATABASE:-database/database.sqlite}"
     mkdir -p "$(dirname "$sqlite_file")"
     touch "$sqlite_file"
@@ -24,7 +26,7 @@ fi
 
 chown -R www-data:www-data storage bootstrap/cache
 
-if [ "$DB_CONNECTION" = "sqlite" ]; then
+if [ "$db_connection" = "sqlite" ]; then
     chown -R www-data:www-data "$(dirname "$sqlite_file")"
 fi
 
