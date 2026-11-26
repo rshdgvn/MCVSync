@@ -107,3 +107,41 @@ export async function pickFromCombobox(page, triggerId, searchLabel, search, opt
   await page.getByLabel(searchLabel).fill(search);
   await visible(page.getByRole("option", { name: optionName })).locator("button").click();
 }
+
+const PENDING_LINK = 'a[aria-label$="offline changes waiting to sync"]';
+const QUEUE_WRITE = /\/(receive\/confirm|receive\/discrepancy|fulfill\/pick)$/;
+
+export async function pendingCount(page) {
+  const link = page.locator(PENDING_LINK).first();
+  if ((await link.count()) === 0) {
+    return 0;
+  }
+  const label = (await link.getAttribute("aria-label")) ?? "";
+  return Number.parseInt(label, 10);
+}
+
+export async function waitForPendingCount(page, expected, timeout = 30000) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if ((await pendingCount(page)) === expected) {
+      return true;
+    }
+    await page.waitForTimeout(250);
+  }
+  return false;
+}
+
+export async function goOffline(context, page) {
+  await context.setOffline(true);
+  await page.waitForFunction(() => !navigator.onLine);
+}
+
+export function recordQueueWrites(page) {
+  const writes = [];
+  page.on("request", (request) => {
+    if (request.method() === "POST" && QUEUE_WRITE.test(request.url())) {
+      writes.push({ url: request.url(), body: JSON.parse(request.postData() ?? "{}"), key: request.headers()["idempotency-key"] });
+    }
+  });
+  return writes;
+}
