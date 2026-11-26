@@ -1,6 +1,6 @@
 import type { Payment } from "@/types/accounting";
 import type { Discrepancy } from "@/types/discrepancy";
-import type { Item, Paginated } from "@/types/inventory";
+import type { Batch, Item, Paginated } from "@/types/inventory";
 import type { Branch } from "@/types/user";
 
 export type CofStatus =
@@ -82,6 +82,8 @@ export interface CofSummary {
   source_id: number;
   order_status: CofStatus;
   cancellation_requested: boolean;
+  forwarded_at: string | null;
+  picking_completed_at: string | null;
   ready_for_delivery_at: string | null;
   prepared_by?: string | null;
   checked_by?: string | null;
@@ -131,4 +133,41 @@ export interface IncomingMessage {
   converted_cof_id: number | null;
   converted_cof_number?: string | null;
   logged_by?: string | null;
+}
+
+export interface CofFulfillmentLine {
+  id: number;
+  item: Item;
+  quantity: number;
+  quantity_picked: number;
+}
+
+export interface CofFulfillment {
+  id: number;
+  cof_number: string;
+  client_name?: string;
+  branch?: Branch;
+  order_status: CofStatus;
+  cancellation_requested: boolean;
+  request_delivery_date: string | null;
+  forwarded_at: string | null;
+  picking_completed_at: string | null;
+  items?: CofFulfillmentLine[];
+  items_count?: number;
+  created_at: string | null;
+}
+
+export interface CofFulfillmentDetail extends CofFulfillment {
+  client_name: string;
+  branch: Branch;
+  items: CofFulfillmentLine[];
+}
+
+export type CofPickMatch =
+  | { status: "found"; client_order_form_item: CofFulfillmentLine; remaining_quantity: number; suggested_batch: Batch | null }
+  | { status: "not_found"; item: Item };
+
+export interface CofPickResult {
+  client_order_form_item: CofFulfillmentLine;
+  order_status: CofStatus;
 }

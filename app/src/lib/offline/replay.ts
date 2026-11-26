@@ -8,6 +8,7 @@ import {
   releaseMutation,
   removeMutation,
 } from "@/db/pendingMutations";
+import { cofKeys } from "@/hooks/useClientOrderForms";
 import { discrepancyKeys } from "@/hooks/useDiscrepancies";
 import { receivingKeys } from "@/hooks/useReceiving";
 import { transferKeys } from "@/hooks/useTransfers";
@@ -88,7 +89,7 @@ function withReplayLock(task: () => Promise<ReplayResult>): Promise<ReplayResult
 
 async function refreshStockFlows(): Promise<void> {
   await Promise.all(
-    [receivingKeys.all, transferKeys.all, discrepancyKeys.all].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+    [receivingKeys.all, transferKeys.all, cofKeys.all, discrepancyKeys.all].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
   );
 }
 
