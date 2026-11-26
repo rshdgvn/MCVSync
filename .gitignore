@@ -28,5 +28,5 @@ CLAUDE.md
 *.sln
 *.sw?
 
-# Demo logins for SQA
-docs/DEMO_ACCOUNTS.md
+# Local docs, kept off GitHub
+docs/
