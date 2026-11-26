@@ -17,6 +17,8 @@ class ClientOrderFormFulfillmentResource extends JsonResource
             'order_status' => $this->order_status,
             'cancellation_requested' => $this->cancellation_requested,
             'request_delivery_date' => $this->request_delivery_date?->toDateString(),
+            'forwarded_at' => $this->forwarded_at?->toIso8601String(),
+            'picking_completed_at' => $this->picking_completed_at?->toIso8601String(),
             'items' => $this->whenLoaded('items', fn () => $this->items->map(fn ($line) => [
                 'id' => $line->id,
                 'item' => new ItemResource($line->item),

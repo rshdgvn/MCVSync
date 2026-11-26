@@ -84,6 +84,19 @@ class ClientOrderFormService
         return $counts;
     }
 
+    public function fulfillmentQueue(): Builder
+    {
+        return ClientOrderForm::query()
+            ->where('order_status', 'processing')
+            ->whereNull('picking_completed_at')
+            ->with(['client.user', 'branch'])
+            ->withCount('items')
+            ->orderByRaw('request_delivery_date is null')
+            ->orderBy('request_delivery_date')
+            ->orderBy('forwarded_at')
+            ->orderBy('id');
+    }
+
     public function dispatchQueue(): Builder
     {
         return ClientOrderForm::query()
@@ -243,6 +256,7 @@ class ClientOrderFormService
             $locked->update([
                 'order_status' => 'processing',
                 'prepared_by' => $locked->prepared_by ?? $forwardedBy->id,
+                'forwarded_at' => now(),
             ]);
 
             return $locked;
@@ -252,6 +266,7 @@ class ClientOrderFormService
     public function pick(ClientOrderForm $cof, array $data, Employee $picker, ?int $actingBranchId): ClientOrderFormItem
     {
         return DB::transaction(function () use ($cof, $data, $picker, $actingBranchId) {
+            $this->assertOpenForPicking($this->lock($cof));
             $line = $this->fulfillment->pick($cof, $data, $picker, $actingBranchId);
 
             $this->markReadyIfFullyPicked($this->lock($cof));
@@ -267,6 +282,7 @@ class ClientOrderFormService
         return DB::transaction(function () use ($cof) {
             $locked = $this->lock($cof);
             $this->assertStatus($locked, ['processing'], 'Only an order being processed can complete picking.');
+            $this->assertOpenForPicking($locked);
 
             $shortLines = $locked->items()->whereColumn('quantity_picked', '<', 'quantity')->lockForUpdate()->get();
 
@@ -277,9 +293,25 @@ class ClientOrderFormService
             }
 
             $shortLines->each(fn (ClientOrderFormItem $line) => $this->discrepancies->recordShortfall($locked, $line, $line->quantity_picked));
+            $locked->update(['picking_completed_at' => now()]);
 
             return $locked;
         });
+    }
+
+    public function assertOpenForPicking(ClientOrderForm $cof): void
+    {
+        if ($cof->cancellation_requested) {
+            throw ValidationException::withMessages([
+                'cancellation_requested' => 'The client asked to cancel this order. Picking is paused until Sales or Purchasing confirms or declines the request.',
+            ]);
+        }
+
+        if ($cof->picking_completed_at !== null) {
+            throw ValidationException::withMessages([
+                'status' => 'Picking is already complete for this order. Sales decides whether to dispatch what was picked.',
+            ]);
+        }
     }
 
     public function approveDispatch(ClientOrderForm $cof, Employee $checkedBy, ?string $note): ClientOrderForm
@@ -542,6 +574,7 @@ class ClientOrderFormService
         $cof->update([
             'order_status' => 'ready_for_delivery',
             'ready_for_delivery_at' => now(),
+            'picking_completed_at' => $cof->picking_completed_at ?? now(),
             'dr_number' => $cof->dr_number ?? $this->numbers->next(ClientOrderForm::class, 'dr_number', 'DR'),
             'dispatch_hold_note' => null,
             'dispatch_held_by' => null,

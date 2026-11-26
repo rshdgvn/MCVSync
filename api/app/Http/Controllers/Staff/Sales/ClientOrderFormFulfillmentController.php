@@ -16,19 +16,11 @@ use Illuminate\Http\Request;
 
 class ClientOrderFormFulfillmentController extends Controller
 {
-    public function queue(Request $request)
+    public function queue(Request $request, ClientOrderFormService $service)
     {
         $this->authorize('fulfill', ClientOrderForm::class);
 
-        $orders = ClientOrderForm::query()
-            ->where('order_status', 'processing')
-            ->with(['client.user', 'branch'])
-            ->withCount('items')
-            ->orderBy('request_delivery_date')
-            ->orderBy('id')
-            ->paginate($this->perPage($request));
-
-        return ClientOrderFormFulfillmentResource::collection($orders);
+        return ClientOrderFormFulfillmentResource::collection($service->fulfillmentQueue()->paginate($this->perPage($request)));
     }
 
     public function show(ClientOrderForm $clientOrderForm)
@@ -38,9 +30,10 @@ class ClientOrderFormFulfillmentController extends Controller
         return new ClientOrderFormFulfillmentResource($clientOrderForm->load(['client.user', 'branch', 'items.item.unit', 'items.item.category']));
     }
 
-    public function match(MatchScanRequest $request, ClientOrderForm $clientOrderForm, FulfillmentService $service)
+    public function match(MatchScanRequest $request, ClientOrderForm $clientOrderForm, FulfillmentService $service, ClientOrderFormService $orders)
     {
         $this->authorize('fulfill', $clientOrderForm);
+        $orders->assertOpenForPicking($clientOrderForm);
 
         $result = $service->match($clientOrderForm, $request->validated('barcode'), $request->validated('item_id'), $this->currentBranchId());
 

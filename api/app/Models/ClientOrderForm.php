@@ -23,6 +23,8 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
     'source_id',
     'order_status',
     'cancellation_requested',
+    'forwarded_at',
+    'picking_completed_at',
     'ready_for_delivery_at',
     'prepared_by',
     'checked_by',
@@ -50,6 +52,8 @@ class ClientOrderForm extends Model implements DiscrepancyDocument, FulfillableD
     {
         return [
             'cancellation_requested' => 'boolean',
+            'forwarded_at' => 'datetime',
+            'picking_completed_at' => 'datetime',
             'ready_for_delivery_at' => 'datetime',
             'request_delivery_date' => 'date',
             'dispatch_held_at' => 'datetime',
