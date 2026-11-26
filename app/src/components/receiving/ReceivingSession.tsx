@@ -21,6 +21,7 @@ import { discrepancySubject } from "@/api/discrepancies";
 import { NotOnDocumentDialog, type NotOnDocumentSubject } from "@/components/receiving/NotOnDocumentDialog";
 import { ReceiveLineDialog } from "@/components/receiving/ReceiveLineDialog";
 import { ChooseLineDialog } from "@/components/stock-flow/ChooseLineDialog";
+import { ShortLineList } from "@/components/stock-flow/ShortLineList";
 import { StockFlowOfflineNotice } from "@/components/stock-flow/StockFlowOfflineNotice";
 import { StockFlowShell, StockFlowSkeleton, type StockFlowHighlight } from "@/components/stock-flow/StockFlowShell";
 import {
@@ -367,16 +368,7 @@ function CompleteSummary({ lines, documentNumber }: { lines: StockFlowLine[]; do
       {short.length > 0 && (
         <div>
           <p className="mb-1">These lines are short. Each shortfall is logged and the document stays open for the next delivery:</p>
-          <ul className="flex flex-col gap-0.5">
-            {short.map((line) => (
-              <li key={line.id} className="flex justify-between gap-3">
-                <span className="truncate">{line.item.name}</span>
-                <span className="shrink-0 font-mono">
-                  {line.done} / {line.target}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <ShortLineList lines={short} />
         </div>
       )}
       {overNote}

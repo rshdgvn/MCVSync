@@ -1,25 +1,16 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Truck, TriangleAlert } from "lucide-react";
-import { insufficientStockOf, pickScope, transferCacheKey, transferStatusKey, type PickPayload } from "@/api/transfers";
+import { pickScope, transferCacheKey, transferStatusKey } from "@/api/transfers";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DetailLoadError } from "@/components/DetailLoadError";
-import type { ScanEvent } from "@/components/ScanInput";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { ChooseLineDialog } from "@/components/stock-flow/ChooseLineDialog";
 import { StockFlowOfflineNotice } from "@/components/stock-flow/StockFlowOfflineNotice";
-import { StockFlowShell, StockFlowSkeleton, type StockFlowHighlight } from "@/components/stock-flow/StockFlowShell";
-import {
-  matchScanLocally,
-  summarizeLines,
-  withQueuedQuantities,
-  type StockFlowLine,
-  type StockFlowScan,
-} from "@/components/stock-flow/stockFlowLines";
-import { PickLineDialog } from "@/components/transfers/PickLineDialog";
-import { ShortageDialog } from "@/components/transfers/ShortageDialog";
+import { StockFlowShell, StockFlowSkeleton } from "@/components/stock-flow/StockFlowShell";
+import { summarizeLines, withQueuedQuantities, type StockFlowScan } from "@/components/stock-flow/stockFlowLines";
+import { usePickFlow, type PickMatch } from "@/components/stock-flow/usePickFlow";
 import { canFulfillTransfer, isFullyPicked } from "@/components/transfers/transferRules";
 import { useMeQuery } from "@/hooks/useAuth";
 import { useInventoryChannels } from "@/hooks/useInventoryChannels";
@@ -27,34 +18,15 @@ import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { useScopeQueue } from "@/hooks/usePendingMutations";
 import { useMatchPickMutation, usePickStockMutation, useShipTransferMutation, useTransferQuery } from "@/hooks/useTransfers";
 import { getErrorMessage } from "@/lib/errors";
-import { formatQuantity } from "@/lib/format";
 import { statusInfo } from "@/lib/status";
 import { toast } from "@/stores/toast.store";
-import type { Batch } from "@/types/inventory";
-import type { InsufficientStock } from "@/types/transfer";
-
-interface PickingState {
-  line: StockFlowLine;
-  remaining: number;
-  suggestedBatch: Batch | null;
-}
+import type { TransferDetail } from "@/types/transfer";
+import type { User } from "@/types/user";
 
 export function TransferPickSession({ transferId }: { transferId: number }) {
-  const navigate = useNavigate();
   const user = useMeQuery().data;
   const transferQuery = useTransferQuery(transferId);
-  const matchMutation = useMatchPickMutation(transferId);
-  const pickMutation = usePickStockMutation(transferId);
-  const shipMutation = useShipTransferMutation(transferId);
-  const [picking, setPicking] = useState<PickingState | null>(null);
-  const [shortage, setShortage] = useState<InsufficientStock | null>(null);
-  const [choosing, setChoosing] = useState(false);
-  const [confirmingShip, setConfirmingShip] = useState(false);
-  const [highlight, setHighlight] = useState<StockFlowHighlight | null>(null);
-  const [scanError, setScanError] = useState<string | null>(null);
   const transfer = transferQuery.data;
-  const isOnline = useOnlineStatus();
-  const queue = useScopeQueue(pickScope(transferId));
   useInventoryChannels(transfer ? [transfer.fulfilling_branch.id] : []);
 
   if (transferQuery.isPending) {
@@ -72,6 +44,19 @@ export function TransferPickSession({ transferId }: { transferId: number }) {
       />
     );
   }
+
+  return <TransferPickContent transfer={transfer} user={user} />;
+}
+
+function TransferPickContent({ transfer, user }: { transfer: TransferDetail; user: User }) {
+  const navigate = useNavigate();
+  const transferId = transfer.id;
+  const matchMutation = useMatchPickMutation(transferId);
+  const pickMutation = usePickStockMutation(transferId);
+  const shipMutation = useShipTransferMutation(transferId);
+  const [confirmingShip, setConfirmingShip] = useState(false);
+  const isOnline = useOnlineStatus();
+  const queue = useScopeQueue(pickScope(transferId));
 
   const lines = withQueuedQuantities(
     transfer.items.map((line) => ({
@@ -92,88 +77,30 @@ export function TransferPickSession({ transferId }: { transferId: number }) {
       : queue.unsynced > 0
         ? "Wait for queued picks to sync"
         : undefined;
-  const sheetOpen = picking !== null || shortage !== null || choosing || confirmingShip;
-  const shortageItem = shortage ? (lines.find((line) => line.item.id === shortage.item_id)?.item ?? null) : null;
 
-  function openPick(line: StockFlowLine, remaining: number, suggestedBatch: PickingState["suggestedBatch"]) {
-    pickMutation.reset();
-    setPicking({ line, remaining, suggestedBatch });
+  async function match(scan: StockFlowScan): Promise<PickMatch> {
+    const result = await matchMutation.mutateAsync(scan);
+    return result.status === "not_found"
+      ? { status: "not_found", itemName: result.item.name }
+      : {
+          status: "found",
+          lineId: result.transfer_request_item.id,
+          remaining: result.remaining_quantity,
+          suggestedBatch: result.suggested_batch,
+        };
   }
 
-  async function runMatch(scan: StockFlowScan): Promise<boolean> {
-    setScanError(null);
-    if (!isOnline) {
-      const local = matchScanLocally(lines, scan);
-      if (local.status === "found") {
-        openPick(local.line, local.remaining, null);
-        return true;
-      }
-      setScanError(`Barcode ${local.barcode ?? ""} isn't on this transfer's saved copy.`);
-      return false;
-    }
-    try {
-      const result = await matchMutation.mutateAsync(scan);
-      if (result.status === "not_found") {
-        setScanError(`${result.item.name} isn't on this transfer.`);
-        return false;
-      }
-      const line = lines.find((candidate) => candidate.id === result.transfer_request_item.id);
-      if (!line) {
-        return false;
-      }
-      openPick(line, Math.max(0, result.remaining_quantity - (line.queued ?? 0)), result.suggested_batch);
-      return true;
-    } catch (error) {
-      const insufficient = insufficientStockOf(error);
-      if (insufficient) {
-        setShortage(insufficient);
-      } else {
-        setScanError(getErrorMessage(error));
-      }
-      return false;
-    }
-  }
-
-  function handleScan(scan: ScanEvent) {
-    if (!canPick || sheetOpen || matchMutation.isPending) {
-      return false;
-    }
-    return runMatch({ barcode: scan.value });
-  }
-
-  function chooseLine(line: StockFlowLine) {
-    setChoosing(false);
-    void runMatch({ item_id: line.item.id });
-  }
-
-  function submitPick(payload: PickPayload) {
-    if (!picking || !transfer) {
-      return;
-    }
-    const { line } = picking;
-    const amount = formatQuantity(payload.quantity, line.item.unit?.code);
-    return pickMutation.mutateAsync(
-      { payload, lineId: line.id, label: `Pick ${amount} of ${line.item.name} for ${transfer.transfer_number}` },
-      {
-        onSuccess: (outcome) => {
-          if (outcome.queued) {
-            toast.info(`Queued a pick of ${amount} of ${line.item.name}. It syncs when you're back online.`);
-          } else {
-            toast.success(`Picked ${amount} of ${line.item.name}.`);
-          }
-          setHighlight({ lineId: line.id, key: Date.now() });
-          setPicking(null);
-        },
-        onError: (error) => {
-          const insufficient = insufficientStockOf(error);
-          if (insufficient) {
-            setPicking(null);
-            setShortage(insufficient);
-          }
-        },
-      },
-    );
-  }
+  const flow = usePickFlow({
+    lines,
+    documentNumber: transfer.transfer_number,
+    documentKind: "transfer",
+    fulfillingBranchId: transfer.fulfilling_branch.id,
+    canPick,
+    isBlocked: confirmingShip,
+    match,
+    isMatching: matchMutation.isPending,
+    pickMutation,
+  });
 
   function confirmShip() {
     return shipMutation.mutateAsync(undefined, {
@@ -245,44 +172,13 @@ export function TransferPickSession({ transferId }: { transferId: number }) {
       doneEmptyText="Nothing picked yet. Scan an item to start."
       scanTitle="Scan Items to Pick"
       canScan={canPick}
-      onScan={handleScan}
-      onChooseItem={() => setChoosing(true)}
-      onSelectLine={chooseLine}
-      scanError={scanError}
-      highlight={highlight}
+      onScan={flow.handleScan}
+      onChooseItem={flow.openChooser}
+      onSelectLine={flow.chooseLine}
+      scanError={flow.scanError}
+      highlight={flow.highlight}
     >
-      {picking && (
-        <PickLineDialog
-          key={picking.line.id}
-          line={picking.line}
-          remaining={picking.remaining}
-          suggestedBatch={picking.suggestedBatch}
-          fulfillingBranchId={transfer.fulfilling_branch.id}
-          isPending={pickMutation.isPending}
-          serverError={pickMutation.error}
-          onSubmit={submitPick}
-          onClose={() => setPicking(null)}
-        />
-      )}
-
-      {shortage && (
-        <ShortageDialog
-          shortage={shortage}
-          item={shortageItem}
-          transferNumber={transfer.transfer_number}
-          fulfillingBranchId={transfer.fulfilling_branch.id}
-          onClose={() => setShortage(null)}
-        />
-      )}
-
-      {choosing && (
-        <ChooseLineDialog
-          lines={lines}
-          description="Items still to pick on this transfer."
-          onSelect={chooseLine}
-          onClose={() => setChoosing(false)}
-        />
-      )}
+      {flow.dialogs}
 
       <ConfirmDialog
         open={confirmingShip}

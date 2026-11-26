@@ -73,6 +73,10 @@ export function daysUntil(value: string | number | Date, from: Date = new Date()
   return Math.round((startOfTarget - startOfFrom) / MS_PER_DAY);
 }
 
+export function daysSince(value: string | number | Date, from: Date = new Date()): number {
+  return Math.max(0, -daysUntil(value, from));
+}
+
 export function percentOf(part: number, whole: number): number {
   if (whole <= 0) {
     return part > 0 ? 100 : 0;
